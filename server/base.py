@@ -20,8 +20,6 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/1.9/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = '6-og!lz7^&+f$cj#-0!68^rxm!#8$t=o&ypw)6d6a2t5_ntc1@'
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -76,27 +74,6 @@ TEMPLATES = [
 WSGI_APPLICATION = 'server.wsgi.application'
 
 
-# Database
-# https://docs.djangoproject.com/en/1.9/ref/settings/#databases
-
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'smartshark',
-        'USER': 'root',
-        'PASSWORD': 'root',
-        'HOST': 'localhost'
-    },
-    'mongodb' : {
-        'ENGINE': '',
-        'NAME': 'smartshark',
-        'USER': 'root',
-        'PASSWORD': 'balla1234$',
-        'HOST': 'localhost',
-        'PORT': 27017,
-        'AUTHENTICATION_DB': 'admin'
-    }
-}
 
 # Password validation
 # https://docs.djangoproject.com/en/1.9/ref/settings/#auth-password-validators
