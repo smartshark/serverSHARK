@@ -1,0 +1,38 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+    <h1>Choose Plugins for Data Collection</h1>
+    <form action="" method="post">
+        {% csrf_token %}
+        {% if form.non_field_errors %}
+            <ul>
+              {% for error in form.non_field_errors %}
+                <li>{{ error }}</li>
+              {% endfor %}
+            </ul>
+        {% endif %}
+        {% for field in form %}
+            <div id="{{ field.auto_id }}_container">
+                {{ field.help_text }}
+                <div>
+                    {{ field.label_tag }} {{ field }}
+                </div>
+                <div id="{{ field.auto_id }}_errors">
+                    {{ field.errors }}
+                </div>
+            </div>
+        {% endfor %}
+
+        <div>
+            <p><input type="submit" value="cancel" name="cancel" /></p>
+            <p><input type="submit" value="start" name="start" /></p>
+        </div>
+    </form>
+
+    <h2>This will affect the following projects:</h2>
+    <ul>
+        {% for project in projects %}
+            <li>{{ project.name }}</li>
+        {% endfor %}
+    </ul>
+{% endblock %}

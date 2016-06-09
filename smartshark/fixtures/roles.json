@@ -1,0 +1,39 @@
+[
+  {
+    "model": "smartshark.mongorole",
+    "pk": 1,
+    "fields": {
+      "name": "dbOwner"
+    }
+  },
+  {
+    "model": "smartshark.mongorole",
+    "pk": 2,
+    "fields": {
+      "name": "dbAdmin"
+    }
+  },
+  {
+    "model": "smartshark.mongorole",
+    "pk": 3,
+    "fields": {
+      "name": "userAdmin"
+    }
+  },
+  {
+    "model": "smartshark.mongorole",
+    "pk": 4,
+    "fields":
+    {
+      "name": "readWrite"
+    }
+  },
+  {
+    "model": "smartshark.mongorole",
+    "pk": 5,
+    "fields":
+    {
+      "name": "read"
+    }
+  }
+]
