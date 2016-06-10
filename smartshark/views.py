@@ -22,9 +22,15 @@ def collection(request, ids):
         # check whether it's valid:
         if form.is_valid():
             print(form.cleaned_data)
-            # process the data in form.cleaned_data as required
-            # ...
-            # redirect to a new URL:
+            # check requirements
+            # 1. check for each plugin if required plugin is set and installed
+            # 2. if plugin with this name + project is in queue -> error
+            # 3. order: first plugins without requirements (can directly be sent)
+            # 4. rest is put into a queue (signal: projectname/plugin/?status=success
+
+
+            # add plugin exec
+
             messages.success(request, 'Started the data collection for %d project(s) with %d plugin(s)'
                              % (len(projects), len(form.cleaned_data['plugins'])))
             return HttpResponseRedirect('/admin/smartshark/project')

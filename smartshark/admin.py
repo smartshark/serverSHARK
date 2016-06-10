@@ -5,13 +5,14 @@ import tarfile
 import json
 
 from django.contrib.contenttypes.models import ContentType
-from django.core.checks import messages
+from django.contrib.messages import get_messages
 from django.core.exceptions import ValidationError
 from django.http import HttpResponseRedirect
-from django.shortcuts import render, render_to_response
-from django.template import RequestContext
+from django.contrib import messages
+from django.shortcuts import get_object_or_404, redirect
 
-from smartshark.forms import ProjectForm
+from smartshark.hpchandler import HPCHandler
+from smartshark.pluginhandler import PluginInformationHandler
 from .models import MongoRole, SmartsharkUser, Plugin, Argument, Project
 # Register your models here.
 
@@ -45,6 +46,39 @@ class ArgumentAdmin(admin.ModelAdmin):
 
 class PluginAdmin(admin.ModelAdmin):
     list_display = ('name', 'version', 'abstraction_level', 'active', 'installed')
+    actions = ('delete_model', )
+
+    # A little hack to remove the plugin deleted successfully message
+    def changelist_view(self, request, extra_context=None):
+
+        storage = get_messages(request)
+        all_messages = list(get_messages(request))
+
+        for i in range(0, len(all_messages)):
+            if storage._loaded_messages[i].message.startswith('The plugin "'):
+                del storage._loaded_messages[i]
+
+        return super(PluginAdmin, self).changelist_view(request, extra_context)
+
+    def change_view(self, request, object_id, form_url='', extra_context=None):
+        if request.method == 'POST':
+            changed_plugin = get_object_or_404(Plugin, pk=object_id)
+            required_plugins = request.POST.getlist('requires')
+
+            if len(required_plugins) != len(changed_plugin.get_required_plugins()):
+                messages.error(request, 'Number of required plugins are not matching!')
+                return redirect(request.get_full_path())
+
+            for req_plugin_id in required_plugins:
+                req_plugin = get_object_or_404(Plugin, pk=req_plugin_id)
+
+                try:
+                    changed_plugin.validate_required_plugins(req_plugin)
+                except ValidationError as e:
+                    messages.error(request, str(e))
+                    return redirect(request.get_full_path())
+
+        return super(PluginAdmin, self).change_view(request, object_id, form_url, extra_context)
 
     def get_fields(self, request, obj=None):
         if not obj:
@@ -54,17 +88,59 @@ class PluginAdmin(admin.ModelAdmin):
 
     def get_readonly_fields(self, request, obj=None):
         if not obj:
-            return 'name', 'author', 'version', 'abstraction_level', 'requires', 'active', 'installed'
+            return 'name', 'author', 'version', 'abstraction_level', 'installed'
         else:
-            return 'name', 'author', 'version', 'abstraction_level', 'archive', 'requires', 'active', 'installed'
+            return 'name', 'author', 'version', 'abstraction_level', 'archive', 'installed'
+
+    def get_actions(self, request):
+        actions = super(PluginAdmin, self).get_actions(request)
+        del actions['delete_selected']
+        return actions
 
     def save_model(self, request, obj, form, change):
-        file = tarfile.open(fileobj=request.FILES['archive'])
-        plugin_description = json.loads(file.extractfile('info.json').read().decode('utf-8'))
-        plugin_schema = json.loads(file.extractfile('schema.json').read().decode('utf-8'))
+        #file = tarfile.open(fileobj=request.FILES['archive'])
+        #plugin_description = json.loads(file.extractfile('info.json').read().decode('utf-8'))
+        #plugin_schema = json.loads(file.extractfile('schema.json').read().decode('utf-8'))
 
-        plugin = Plugin()
-        plugin.load_from_json(plugin_description, request.FILES['archive'])
+        if change:
+            obj.save()
+        else:
+            plugin = Plugin()
+            plugin.load_from_json(request.FILES['archive'])
+
+            # Install plugin!
+            hpc_handler = HPCHandler()
+            hpc_handler.install_plugin(plugin)
+
+    def delete_model(self, request, obj):
+
+        if isinstance(obj, Plugin):
+            obj = [obj]
+
+        # For all plugins that are marked to delete
+        for plugin in obj:
+            plugins = Plugin.objects.all().filter(requires=plugin)
+            successful = True
+
+            # Go through all plugins that require the plugin that is marked for deletion
+            for requires_this_plugin in plugins:
+                # If there are no problems with substitutions, go on, otherwise set successful to False
+                if requires_this_plugin.get_substitution_plugin_for(plugin) is None:
+                    successful = False
+
+            # If we are not successful, we can not delete this plugin, because the requirements can not be met
+            if not successful:
+                messages.error(request, 'Could not delete plugin, because it is required by other plugins '
+                                        'and requirements can not be matched otherwise!')
+
+            # Otherwise, we need to go through all plugins that require this plugin again to substitue the requires
+            else:
+                plugin.delete()
+                for requires_this_plugin in plugins:
+                    fitting_plugin = requires_this_plugin.get_substitution_plugin_for(plugin)
+                    requires_this_plugin.requires.add(fitting_plugin)
+
+    delete_model.short_description = 'Delete Plugin(s)'
 
 
 class ProjectAdmin(admin.ModelAdmin):

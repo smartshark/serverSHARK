@@ -53,6 +53,7 @@ coverage.xml
 *.log
 examples
 media
+server/settings.py
 
 # Sphinx documentation
 docs/_build/

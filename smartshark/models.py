@@ -6,6 +6,7 @@ from django.db.models.signals import post_save, pre_save
 from django import forms
 from django.utils.deconstruct import deconstructible
 
+from server import settings
 from smartshark.mongohandler import handler
 import inspect, os
 from django.template.defaultfilters import filesizeformat
@@ -13,6 +14,8 @@ import magic
 import tarfile
 import json
 from collections import Counter
+
+from smartshark.pluginhandler import PluginInformationHandler
 
 
 @deconstructible
@@ -23,11 +26,6 @@ class FileValidator(object):
         'min_size': ("Ensure this file size is not less than %(min_size)s. "
                      "Your file size is %(size)s."),
         'content_type': "Files of type %(content_type)s are not supported.",
-        'tar_file': "Invalid tar file.",
-        'info_file': "info.json not found in tar archive.",
-        'schema_file': "schema.json not found in tar archive.",
-        'schema_file_json': "schema.json is not parsable. Please put valid json in there.",
-        'info_file_json': "info.json is not parsable. Please put valid json in there."
     }
 
     def __init__(self, max_size=None, min_size=None, content_types=()):
@@ -58,65 +56,12 @@ class FileValidator(object):
                 raise ValidationError(self.error_messages['content_type'], 'content_type', params)
 
             if content_type.decode("utf-8") == 'application/x-tar':
-                try:
-                    file = tarfile.open(fileobj=data)
-                except tarfile.TarError as e:
-                    raise ValidationError(self.error_messages['tar_file'], 'tar_file')
-
-                if 'info.json' not in file.getnames():
-                    raise ValidationError(self.error_messages['info_file'], 'info_file')
-                else:
-                    try:
-                        info_json = json.loads(file.extractfile('info.json').read().decode('utf-8'))
-                    except json.decoder.JSONDecodeError:
-                        raise ValidationError(self.error_messages['info_file_json'], 'info_file_json')
-                    self.check_info_json_structure(info_json)
-                    self.check_info_json_requires_plugins_available(info_json)
-
-                if 'schema.json' not in file.getnames():
-                    raise ValidationError(self.error_messages['schema_file'], 'schema_file')
-                else:
-                    try:
-                        json.loads(file.extractfile('schema.json').read().decode('utf-8'))
-                    except json.decoder.JSONDecodeError:
-                        raise ValidationError(self.error_messages['schema_file_json'], 'schema_file_json')
-
+                plugin_handler = PluginInformationHandler(data)
+                plugin_handler.validate_tar()
                 data.seek(0)
-
-    def check_info_json_structure(self, info_json):
-        required_fields = ['name', 'author', 'version', 'abstraction_level', 'requires', 'arguments']
-        for field in required_fields:
-            if field not in info_json:
-                raise ValidationError("%s not in info_json" % field, 'info_file_%s' % field)
-
-        required_requires_fields = ['name', 'operator', 'version']
-        for requires_fields in info_json['requires']:
-            for field in required_requires_fields:
-                if field not in requires_fields:
-                    raise ValidationError("%s not in info_json requires attribute." % field, 'info_file_requires_%s'
-                                          % field)
-
-        required_requires_fields = ['name', 'required', 'position', 'type', 'description']
-        for argument_fields in info_json['arguments']:
-            for field in required_requires_fields:
-                if field not in argument_fields:
-                    raise ValidationError("%s not in info_json arguments attribute." % field, 'info_file_arugment_%s'
-                                          % field)
-
-    def check_info_json_requires_plugins_available(self, info_json):
-        from smartshark.common import find_required_plugins
-        for req_plugin in info_json['requires']:
-            plugin = find_required_plugins(req_plugin)
-            if plugin is None:
-                raise ValidationError("Plugin requirements for this plugin can not be matched. Plugin %s "
-                                      "with version %s %s is not in this database." % (req_plugin['name'],
-                                                                                       req_plugin['operator'],
-                                                                                       req_plugin['version']),
-                                      'info_file_requirements')
 
     def __eq__(self, other):
         return isinstance(other, FileValidator)
-
 
 class Project(models.Model):
     name = models.CharField(max_length=100, unique=True)
@@ -136,7 +81,7 @@ class Plugin(models.Model):
     abstraction_level = models.CharField(max_length=5, choices=ABSTRACTIONLEVEL_CHOICES)
     validate_file = FileValidator(max_size=1024*1024*50, content_types=('application/x-tar', 'application/octet-stream'))
     archive = models.FileField(upload_to="uploads/plugins/", validators=[validate_file])
-    requires = models.ManyToManyField("self", blank=True)
+    requires = models.ManyToManyField("self", blank=True, symmetrical=False)
 
     active = models.BooleanField(default=True)
     installed = models.BooleanField(default=False)
@@ -147,20 +92,52 @@ class Plugin(models.Model):
     def __str__(self):
         return self.name+"_"+str(self.version)
 
-    @staticmethod
-    def get_required_plugins_from_json(plugin_description):
-        requires = []
-        from smartshark.common import find_required_plugins
-        for req_plugin in plugin_description['requires']:
-            requires.append(find_required_plugins(req_plugin))
+    def __eq__(self, other):
+        if self.name == other.name and self.version == other.version:
+            return True
 
-        return requires
+        return False
 
-    def load_from_json(self, plugin_description, archive):
-        self.name = plugin_description['name']
-        self.author = plugin_description['author']
-        self.version = plugin_description['version']
-        self.abstraction_level = plugin_description['abstraction_level']
+    def get_substitution_plugin_for(self, plugin):
+        # Read the information in again from the tar archive
+        plugin_handler = PluginInformationHandler(self.get_full_path_to_archive())
+        info_file = plugin_handler.get_info()
+        fitting_plugin = None
+
+        # Go through all plugins that are required, to find the one that must be substituted
+        for info_req_plugins in info_file['requires']:
+            if info_req_plugins['name'] == plugin.name:
+                # Get all plugins that match the statement in the json file
+                substitution_plugins = plugin_handler.find_required_plugins(info_req_plugins)
+                # Delete the plugin that is possibly already there as match
+                available_plugins = [avail_plugin for avail_plugin in substitution_plugins if avail_plugin != plugin]
+                if available_plugins:
+                    # Find the best plugin
+                    fitting_plugin = max(available_plugins, key=lambda x:x.version)
+
+        return fitting_plugin
+
+    def get_full_path_to_archive(self):
+        return os.path.join(settings.MEDIA_ROOT, self.archive.name)
+
+    def get_install_arguments(self):
+        return self.argument_set.filter(type='install').order_by('position')
+
+    def get_name_of_archive(self):
+        return os.path.basename(os.path.normpath(self.archive.name))
+
+    def get_required_plugins(self):
+        plugin_handler = PluginInformationHandler(self.get_full_path_to_archive())
+        info_file = plugin_handler.get_info()
+        return [in_info_file_specified for in_info_file_specified in info_file['requires']]
+
+    def load_from_json(self, archive):
+        plugin_handler = PluginInformationHandler(archive)
+        info_json = plugin_handler.get_info()
+        self.name = info_json['name']
+        self.author = info_json['author']
+        self.version = info_json['version']
+        self.abstraction_level = info_json['abstraction_level']
         self.archive = archive
 
         try:
@@ -170,31 +147,30 @@ class Plugin(models.Model):
         else:
             self.save()
 
-            for db_plugin in self.get_required_plugins_from_json(plugin_description):
-                self.requires.add(db_plugin)
+        for db_plugin in plugin_handler.find_fitting_plugins():
+            self.requires.add(db_plugin)
 
-            for argument in self.load_arguments_from_json(plugin_description):
+        for argument in plugin_handler.get_arguments():
+            argument.plugin = self
+            try:
+                argument.full_clean()
+            except ValidationError as e:
+                raise e
+            else:
                 argument.save()
 
-    def load_arguments_from_json(self, plugin_description):
-        arguments = []
-        for argument_desc in plugin_description['arguments']:
-                argument = Argument()
-                argument.name = argument_desc['name']
-                argument.required = argument_desc['required']
-                argument.position = argument_desc['position']
-                argument.type = argument_desc['type']
-                argument.description = argument_desc['description']
-                argument.plugin = self
+    def validate_required_plugins(self, plugin):
+        plugin_handler = PluginInformationHandler(self.get_full_path_to_archive())
+        info_file = plugin_handler.get_info()
+        available_plugins = []
 
-                try:
-                    argument.full_clean()
-                except ValidationError as e:
-                    raise e
-                else:
-                    arguments.append(argument)
+        for in_info_file_specified in info_file['requires']:
+            if in_info_file_specified['name'] == plugin.name:
+                available_plugins = plugin_handler.find_required_plugins(in_info_file_specified)
 
-        return arguments
+        if plugin not in available_plugins:
+            raise ValidationError('Plugin %s can not be used as substitution!' % str(plugin))
+
 
 class Argument(models.Model):
     TYPE_CHOICES = (
@@ -211,6 +187,7 @@ class Argument(models.Model):
 
 class PluginExecution(models.Model):
     STATUS_CHOICES = (
+        ('waiting', 'Waiting for Requirements'),
         ('queue', 'In Queue'),
         ('running', 'Running'),
         ('finished', 'Finished'),
@@ -221,6 +198,7 @@ class PluginExecution(models.Model):
     added_at = models.DateTimeField(auto_now_add=True)
     submission_value = models.CharField(max_length=300, blank=True)
     status = models.CharField(max_length=8, choices=STATUS_CHOICES)
+    job_id = models.CharField(max_length=50, blank=True)
 
 
 class MongoRole(models.Model):

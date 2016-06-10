@@ -1,5 +1,8 @@
+import os
+
+from smartshark.hpchandler import HPCHandler
 from smartshark.models import SmartsharkUser, Plugin
-from django.db.models.signals import post_save, pre_save, m2m_changed
+from django.db.models.signals import post_save, pre_save, m2m_changed, post_delete, pre_delete
 from django.dispatch import receiver
 import tarfile
 
@@ -14,8 +17,11 @@ def add_roles(sender, **kwargs):
         handler.update_roles(user.user.username, roles)
 
 
-@receiver(pre_save, sender=Plugin)
-def read_data(sender, **kwargs):
+@receiver(post_delete, sender=Plugin)
+def delete_archive(sender, **kwargs):
     plugin = kwargs["instance"]
+    os.remove(plugin.get_full_path_to_archive())
 
-    #print(kwargs)
+    # delete plugin on hpc
+    hpc_handler = HPCHandler()
+    hpc_handler.delete_plugin(plugin)
