@@ -61,6 +61,7 @@ class PluginInformationHandler(object):
     def validate_info_file(self):
         self.validate_info_structure()
         self.validate_plugin_requirements()
+        self.validate_plugin_arguments()
 
     def validate_schema_file(self):
         self.validate_schema_structure()
@@ -98,6 +99,52 @@ class PluginInformationHandler(object):
                                                                                 req_plugin['operator'],
                                                                                 req_plugin['version']),
                                       'info_file_requirements_installed')
+
+    def validate_plugin_arguments(self):
+        install_arguments = []
+        execution_arguments = []
+        # get all arguments
+        for argument_fields in self.info_json['arguments']:
+            if argument_fields['type'] == 'install':
+                install_arguments.append({'position': argument_fields['position'],
+                                          'required': argument_fields['required']})
+            elif argument_fields['type'] == 'execute':
+                execution_arguments.append({'position': argument_fields['position'],
+                                          'required': argument_fields['required']})
+            else:
+                raise ValidationError("Argument %s does not have a valid type (install or execute)" %
+                                      argument_fields['name'])
+
+        # sort them according to position
+        install_arguments_sorted = sorted(install_arguments, key=lambda k: k['position'])
+        execution_arguments_sorted = sorted(execution_arguments, key=lambda k: k['position'])
+
+        # validate them:
+        # 1) position must not be missing (e.g. position 1, position 3)
+        # 2) a required argument must not follow an optional argument
+        pos = 1
+        old_required = None
+        for install_argument in install_arguments_sorted:
+            if install_argument['position'] != pos:
+                raise ValidationError("Positions are not consistent (e.g., position 3 follows position 1).")
+
+            if old_required is not None and install_argument['required'] is True and old_required is False:
+                raise ValidationError("Required arguments can not follow optional ones!")
+
+            old_required = install_argument['required']
+            pos += 1
+
+        pos = 1
+        old_required = None
+        for execute_argument in execution_arguments_sorted:
+            if execute_argument['position'] != pos:
+                raise ValidationError("Positions are not consistent (e.g., position 3 follows position 1).")
+
+            if old_required is not None and execute_argument['required'] is True and old_required is False:
+                raise ValidationError("Required arguments can not follow optional ones!")
+
+            old_required = execute_argument['required']
+            pos += 1
 
     def validate_schema_structure(self):
         pass

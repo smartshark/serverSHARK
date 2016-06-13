@@ -7,9 +7,11 @@ import json
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.messages import get_messages
 from django.core.exceptions import ValidationError
+from django import forms
 from django.http import HttpResponseRedirect
 from django.contrib import messages
-from django.shortcuts import get_object_or_404, redirect
+from django.shortcuts import get_object_or_404, redirect, render
+from form_utils.forms import BetterForm
 
 from smartshark.hpchandler import HPCHandler
 from smartshark.pluginhandler import PluginInformationHandler
@@ -46,7 +48,7 @@ class ArgumentAdmin(admin.ModelAdmin):
 
 class PluginAdmin(admin.ModelAdmin):
     list_display = ('name', 'version', 'abstraction_level', 'active', 'installed')
-    actions = ('delete_model', )
+    actions = ('delete_model', 'install_plugin' )
 
     # A little hack to remove the plugin deleted successfully message
     def changelist_view(self, request, extra_context=None):
@@ -108,9 +110,9 @@ class PluginAdmin(admin.ModelAdmin):
             plugin = Plugin()
             plugin.load_from_json(request.FILES['archive'])
 
-            # Install plugin!
-            hpc_handler = HPCHandler()
-            hpc_handler.install_plugin(plugin)
+    def install_plugin(self, request, queryset):
+        selected = request.POST.getlist(admin.ACTION_CHECKBOX_NAME)
+        return HttpResponseRedirect("/smartshark/install/?ids=%s" % (",".join(selected)))
 
     def delete_model(self, request, obj):
 
@@ -141,7 +143,7 @@ class PluginAdmin(admin.ModelAdmin):
                     requires_this_plugin.requires.add(fitting_plugin)
 
     delete_model.short_description = 'Delete Plugin(s)'
-
+    install_plugin.short_description = 'Install Plugin(s)'
 
 class ProjectAdmin(admin.ModelAdmin):
     list_display = ('name', 'url')
@@ -150,7 +152,7 @@ class ProjectAdmin(admin.ModelAdmin):
     def start_collection(self, request, queryset):
         selected = request.POST.getlist(admin.ACTION_CHECKBOX_NAME)
         ct = ContentType.objects.get_for_model(queryset.model)
-        return HttpResponseRedirect("/smartshark/collection/%s" % (",".join(selected)))
+        return HttpResponseRedirect("/smartshark/collection/start/?ids=%s" % (",".join(selected)))
 
     start_collection.short_description = 'Start Collection for selected Projects'
 

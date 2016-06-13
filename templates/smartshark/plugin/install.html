@@ -1,0 +1,45 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+    <h1>Choose Plugins for Installation</h1>
+    <h2>You have chosen the following plugins for installation:</h2>
+    <ul>
+        {% for plugin in plugins %}
+            <li>{{ plugin }}</li>
+        {% endfor %}
+    </ul>
+    <form action="" method="post">
+        {% csrf_token %}
+        {% if form.non_field_errors %}{{ form.non_field_errors }}{% endif %}
+        {% for fieldset in form.fieldsets %}
+          <fieldset class="fieldset_{{ fieldset.name }}">
+          {% if fieldset.legend %}
+            <legend>{{ fieldset.legend }}</legend>
+          {% endif %}
+          {% if fieldset.description %}
+            <p class="description">{{ fieldset.description }}</p>
+          {% endif %}
+          <ul>
+          {% for field in fieldset %}
+            {% if field.is_hidden %}
+              {{ field }}
+            {% else %}
+              <li{{ field.row_attrs }} style="list-style-type: none; padding: 5px 0px;">
+                {{ field.label_tag }}
+                {{ field }}
+                {{ field.errors }}
+              </li>
+            {% endif %}
+          {% endfor %}
+          </ul>
+          </fieldset>
+        {% endfor %}
+
+        <div>
+            <p>
+            <input type="submit" value="cancel" name="cancel" />
+            <input type="submit" value="install" name="install" />
+            </p>
+        </div>
+    </form>
+{% endblock %}

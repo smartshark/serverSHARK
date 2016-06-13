@@ -68,6 +68,9 @@ class Project(models.Model):
     url = models.URLField(unique=True)
     clone_username = models.CharField(max_length=200, blank=True)
 
+    def __str__(self):
+        return self.name
+
 
 class Plugin(models.Model):
     ABSTRACTIONLEVEL_CHOICES = (
@@ -83,7 +86,7 @@ class Plugin(models.Model):
     archive = models.FileField(upload_to="uploads/plugins/", validators=[validate_file])
     requires = models.ManyToManyField("self", blank=True, symmetrical=False)
 
-    active = models.BooleanField(default=True)
+    active = models.BooleanField(default=False)
     installed = models.BooleanField(default=False)
 
     class Meta:
