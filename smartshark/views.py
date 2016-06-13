@@ -1,3 +1,5 @@
+import copy
+
 from django.contrib import messages
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import render, get_object_or_404
@@ -7,7 +9,7 @@ from form_utils.forms import BetterForm
 
 from smartshark.forms import ProjectForm
 from smartshark.hpchandler import HPCHandler
-from smartshark.models import Project, Plugin, Argument
+from smartshark.models import Project, Plugin, Argument, PluginExecution
 from django import forms
 
 def parse_argument_values(form_data, parameters):
@@ -119,18 +121,31 @@ def collection_start(request):
             plugin_ids = []
             # check requirements
             for plugin in form.cleaned_data['plugins']:
-                plugin_ids.append(plugin.id)
+                plugin_ids.append(str(plugin.id))
 
                 # check for each plugin if it is active and installed
                 if not plugin.active or not plugin.installed:
                     messages.error(request, 'Plugin %s is not active or installed.' % str(plugin))
+                    return HttpResponseRedirect(request.get_full_path())
 
+                # check for each plugin if required plugin is set
+                for req_plugin in plugin.requires.all():
+                    if req_plugin not in form.cleaned_data['plugins']:
+                        messages.error(request, 'Not all requirements for plugin %s are met.' % str(plugin))
+                        return HttpResponseRedirect(request.get_full_path())
 
-            # 1. check for each plugin if required plugin is set
-            # 2. if plugin with this name and project is in pluginexec and hast status != finished | error -> problem
+                # check if schema problems exist between plugins
+                # TODO
 
+                #if plugin with this project is in pluginexec and has status != finished | error -> problem
+                for project in projects:
+                    plugin_exec = PluginExecution.objects.all().filter(plugin=plugin, project=project,
+                                                                       status__in=['finished', 'error'])
+                    if plugin_exec:
+                        messages.error(request, 'Plugin %s is already scheduled for project %s.' % (str(plugin),
+                                                                                                    project))
+                        return HttpResponseRedirect(request.get_full_path())
 
-            # add plugin execreturn HttpResponseRedirect("/smartshark/install/?ids=%s" % (",".join(selected)))
             return HttpResponseRedirect('/smartshark/collection/arguments?plugins=%s&projects=%s' %
                                         (','.join(plugin_ids), request.GET.get('ids')))
 
@@ -144,6 +159,27 @@ def collection_start(request):
 
     })
 
+
+def order_plugins(plugins):
+    new_list = []
+    while len(new_list) != len(plugins):
+        for plugin in plugins:
+            if plugin in new_list:
+                continue
+
+            # If a plugin do not have any required plugins: add it
+            if not plugin.requires.all():
+                new_list.append(plugin)
+            else:
+                # Check if all requirements are met for the plugin. If yes: add it
+                all_requirements_met = True
+                for req_plugin in plugin.requires.all():
+                    if req_plugin not in new_list:
+                        all_requirements_met = False
+
+                if all_requirements_met:
+                    new_list.append(plugin)
+    return new_list
 
 def collection_arguments(request):
     projects = []
@@ -177,9 +213,9 @@ def collection_arguments(request):
             parse_argument_values(form.cleaned_data, parameters)
             hpc_handler = HPCHandler()
             try:
-                # 3. order: first plugins without requirements (can directly be sent)
-                # TODO
-
+                # 3. order: first plugins without requirements (can directly be sent) and then
+                ordered_plugins = order_plugins(plugins)
+                print(ordered_plugins)
                 # 4. rest is put into a queue (signal: projectname/plugin/?status=success
 
                 for project in projects:
@@ -192,9 +228,9 @@ def collection_arguments(request):
                                 (plugins, projects))
             except Exception as e:
                 messages.error(request, str(e))
-                return HttpResponseRedirect('/admin/smartshark/plugin')
+                return HttpResponseRedirect('/admin/smartshark/project')
 
-            return HttpResponseRedirect('/admin/smartshark/plugin')
+            return HttpResponseRedirect('/admin/smartshark/project')
 
 
     # if a GET (or any other method) we'll create a blank form
