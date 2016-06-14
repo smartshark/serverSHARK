@@ -11,6 +11,8 @@ from smartshark.forms import ProjectForm
 from smartshark.hpchandler import HPCHandler
 from smartshark.models import Project, Plugin, Argument, PluginExecution
 from django import forms
+from server.settings import SUBSTITUTIONS
+
 
 def parse_argument_values(form_data, parameters):
     for id_string, value in form_data.items():
@@ -20,9 +22,11 @@ def parse_argument_values(form_data, parameters):
         parameter = {'argument': get_object_or_404(Argument, pk=argument_id), 'value': value}
         parameters[plugin_id]['parameters'].append(parameter)
 
+
 def get_form(plugins, post, type):
         created_fieldsets = []
         plugin_fields = {}
+
 
         # Create lists for the fieldsets and a list for the fields of the form
         for plugin in plugins:
@@ -30,7 +34,14 @@ def get_form(plugins, post, type):
             for argument in plugin.argument_set.all().filter(type=type):
                 identifier = '%s_argument_%s' % (plugin.id, argument.id)
                 arguments.append(identifier)
-                plugin_fields[identifier] = forms.CharField(label=argument.name, required=argument.required)
+
+                if argument.name in SUBSTITUTIONS:
+                    plugin_fields[identifier] = forms.CharField(label=argument.name,
+                                                                required=argument.required,
+                                                                initial=SUBSTITUTIONS[argument.name]['name'])
+                else:
+                    plugin_fields[identifier] = forms.CharField(label=argument.name, required=argument.required)
+
             created_fieldsets.append([str(plugin), {'fields': arguments}])
 
 
@@ -45,6 +56,14 @@ def get_form(plugins, post, type):
                 self.fields = plugin_fields
 
         return PluginForm(post)
+
+
+def create_substitutions_for_display():
+    display_dict = {}
+    for substitution, value in SUBSTITUTIONS.items():
+        display_dict[value['name']] = value['description']
+
+    return display_dict
 
 
 def install(request):
@@ -92,10 +111,11 @@ def install(request):
     else:
         form = get_form(plugins, request.POST or None, 'install')
 
+    print(create_substitutions_for_display())
     return render(request, 'smartshark/plugin/install.html', {
         'form': form,
         'plugins': plugins,
-
+        'substitutions': create_substitutions_for_display()
     })
 
 
@@ -181,9 +201,11 @@ def order_plugins(plugins):
                     new_list.append(plugin)
     return new_list
 
+
 def collection_arguments(request):
     projects = []
     plugins = []
+    plugin_types = set()
     parameters = {}
 
     if request.GET.get('projects'):
@@ -198,6 +220,7 @@ def collection_arguments(request):
             plugin = get_object_or_404(Plugin, pk=plugin_id)
             parameters[plugin_id] = {'plugin': plugin, 'parameters': []}
             plugins.append(plugin)
+            plugin_types.add(plugin.abstraction_level)
     else:
         messages.error(request, 'No plugin ids were given.')
         return HttpResponseRedirect('/admin/smartshark/project')
@@ -219,7 +242,9 @@ def collection_arguments(request):
                 # 4. rest is put into a queue (signal: projectname/plugin/?status=success
 
                 for project in projects:
-                    # Sorting arguments according to position attribute and execute for each choosen project
+                    # Sorting arguments according to position attribute and execute for each chosen project
+                    #hpc_handler.prepare_project(project, plugin_types)
+
                     for plugin_id, value in parameters.items():
                         sorted_parameter = sorted(value['parameters'], key=lambda k: k['argument'].position)
                         hpc_handler.execute_plugin(value['plugin'], project, sorted_parameter)
@@ -241,7 +266,7 @@ def collection_arguments(request):
         'form': form,
         'plugins': plugins,
         'projects': projects,
-
+        'substitutions': create_substitutions_for_display()
     })
 
 

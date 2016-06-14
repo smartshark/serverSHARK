@@ -8,6 +8,12 @@
             <li>{{ plugin }}</li>
         {% endfor %}
     </ul>
+    <h2>You can use the following variables in the fields:</h2>
+    <ul>
+        {% for name, description in substitutions.items %}
+            <li>{{ name }} - {{ description }}</li>
+        {% endfor %}
+    </ul>
     <form action="" method="post">
         {% csrf_token %}
         {% if form.non_field_errors %}{{ form.non_field_errors }}{% endif %}

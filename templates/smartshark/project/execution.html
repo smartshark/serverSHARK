@@ -14,6 +14,12 @@
             <li>{{ project }}</li>
         {% endfor %}
     </ul>
+    <h2>You can use the following variables in the fields:</h2>
+    <ul>
+        {% for name, description in substitutions.items %}
+            <li>{{ name }} - {{ description }}</li>
+        {% endfor %}
+    </ul>
     <h2>Set the parameter for execution:</h2>
     <form action="" method="post">
         {% csrf_token %}

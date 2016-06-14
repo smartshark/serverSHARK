@@ -151,7 +151,6 @@ class ProjectAdmin(admin.ModelAdmin):
 
     def start_collection(self, request, queryset):
         selected = request.POST.getlist(admin.ACTION_CHECKBOX_NAME)
-        ct = ContentType.objects.get_for_model(queryset.model)
         return HttpResponseRedirect("/smartshark/collection/start/?ids=%s" % (",".join(selected)))
 
     start_collection.short_description = 'Start Collection for selected Projects'

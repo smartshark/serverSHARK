@@ -112,3 +112,14 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/1.9/howto/static-files/
 
 STATIC_URL = '/static/'
+
+SUBSTITUTIONS = {
+    'db_user': {'name': '$db_user', 'description': 'database username'},
+    'db_password': {'name': '$db_password', 'description': 'database password'},
+    'db_database': {'name': '$db_database', 'description': 'database name'},
+    'db_hostname': {'name': '$db_hostname', 'description': 'hostname on which the database runs on'},
+    'db_port': {'name': '$db_port', 'description': 'port on which the database listens'},
+    'db_authentication': {'name': '$db_authentication', 'description': 'database used for authentication'},
+    'path': {'name': '$path', 'description': 'path to the repository / the revision'},
+    'plugin_path': {'name': '$plugin_path', 'description': 'path to the plugins root folder'}
+}
