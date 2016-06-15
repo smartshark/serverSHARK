@@ -4,6 +4,14 @@ from .base import *
 #  SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = '6-og!lz7^&+f$cj#-0!68^rxm!#8$t=o&ypw)6d6a2t5_ntc1@'
 
+HPC = {
+    'username': 'jgrabow1',
+    'password': 'aLD96neWVT',
+    'host': 'gwdu102.gwdg.de',
+    'port': 22,
+    'queue': 'mpi',
+    'node_properties': ['scratch']
+}
 
 # Database
 # https://docs.djangoproject.com/en/1.9/ref/settings/#databases

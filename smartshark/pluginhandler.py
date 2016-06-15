@@ -18,6 +18,7 @@ class PluginInformationHandler(object):
         'info_file_key': "info.json not found in tar archive.",
         'schema_file_key': "schema.json not found in tar archive.",
         'install_sh': "install.sh not found in tar archive.",
+        'execute_sh': "execute.sh not found in tar archive."
     }
 
     def __init__(self, file):
@@ -50,6 +51,11 @@ class PluginInformationHandler(object):
             self.tar.extractfile('install.sh').read()
         except KeyError:
             raise ValidationError(self.error_messages['install_sh'], 'install_sh')
+
+        try:
+            self.tar.extractfile('execute.sh').read()
+        except KeyError:
+            raise ValidationError(self.error_messages['execute_sh'], 'execute_sh')
 
     def get_info(self):
         return self.info_json

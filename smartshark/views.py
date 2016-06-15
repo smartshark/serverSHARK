@@ -11,6 +11,7 @@ from smartshark.forms import ProjectForm
 from smartshark.hpchandler import HPCHandler
 from smartshark.models import Project, Plugin, Argument, PluginExecution
 from django import forms
+from difflib import SequenceMatcher
 from server.settings import SUBSTITUTIONS
 
 
@@ -34,13 +35,13 @@ def get_form(plugins, post, type):
             for argument in plugin.argument_set.all().filter(type=type):
                 identifier = '%s_argument_%s' % (plugin.id, argument.id)
                 arguments.append(identifier)
-
-                if argument.name in SUBSTITUTIONS:
-                    plugin_fields[identifier] = forms.CharField(label=argument.name,
-                                                                required=argument.required,
-                                                                initial=SUBSTITUTIONS[argument.name]['name'])
-                else:
-                    plugin_fields[identifier] = forms.CharField(label=argument.name, required=argument.required)
+                initial = None
+                for name, value in SUBSTITUTIONS.items():
+                    if SequenceMatcher(None, argument.name, name).ratio() > 0.8:
+                        initial = value['name']
+                plugin_fields[identifier] = forms.CharField(label=argument.name,
+                                                            required=argument.required,
+                                                            initial=initial)
 
             created_fieldsets.append([str(plugin), {'fields': arguments}])
 
@@ -143,21 +144,21 @@ def collection_start(request):
             for plugin in form.cleaned_data['plugins']:
                 plugin_ids.append(str(plugin.id))
 
-                # check for each plugin if it is active and installed
-                if not plugin.active or not plugin.installed:
-                    messages.error(request, 'Plugin %s is not active or installed.' % str(plugin))
-                    return HttpResponseRedirect(request.get_full_path())
-
                 # check for each plugin if required plugin is set
+                missing_plugins = []
                 for req_plugin in plugin.requires.all():
                     if req_plugin not in form.cleaned_data['plugins']:
-                        messages.error(request, 'Not all requirements for plugin %s are met.' % str(plugin))
-                        return HttpResponseRedirect(request.get_full_path())
+                        missing_plugins.append(str(req_plugin))
+
+                if missing_plugins:
+                    messages.error(request, 'Not all requirements for plugin %s are met. Plugin(s) %s is/are required!'
+                                   % (str(plugin), ', '.join(missing_plugins)))
+                    return HttpResponseRedirect(request.get_full_path())
 
                 # check if schema problems exist between plugins
                 # TODO
 
-                #if plugin with this project is in pluginexec and has status != finished | error -> problem
+                # if plugin with this project is in plugin execution and has status != finished | error -> problem
                 for project in projects:
                     plugin_exec = PluginExecution.objects.all().filter(plugin=plugin, project=project,
                                                                        status__in=['finished', 'error'])
@@ -237,9 +238,8 @@ def collection_arguments(request):
             hpc_handler = HPCHandler()
             try:
                 # 3. order: first plugins without requirements (can directly be sent) and then
-                ordered_plugins = order_plugins(plugins)
-                print(ordered_plugins)
-                # 4. rest is put into a queue (signal: projectname/plugin/?status=success
+                #ordered_plugins = order_plugins(plugins)
+                #print(ordered_plugins)
 
                 for project in projects:
                     # Sorting arguments according to position attribute and execute for each chosen project
