@@ -1,0 +1,51 @@
+{% extends "admin/base_site.html" %}
+{% load plugin_exec_extras %}
+
+
+{% block content %}
+    <h1>Plugin Status for Project {{ plugin_execution.project.name }} and Plugin {{ plugin_execution.plugin.name }}</h1>
+    <div id="{{ project.name }}_container">
+        <table id="execution_list" class="table table-striped table-bordered table-hover table-condensed">
+            <thead>
+                <th scope="col">
+                    <div class="text">
+                        JobID
+                    </div>
+                </th>
+                <th scope="col">
+                    <div class="text">
+                        Status
+                    </div>
+                </th>
+                <th scope="col">
+                    <div class="text">
+                        Submission String
+                    </div>
+                </th>
+                <th scope="col">
+                    <div class="text">
+                        Revision Path
+                    </div>
+                </th>
+                <th scope="col">
+                    <div class="text">
+                        Actions
+                    </div>
+                </th>
+            </thead>
+            {% for job in jobs %}
+                <tr>
+                    <td>{{ job.job_id }}</td>
+                    <td>{{ job.status }}</td>
+                    <td>{{ job.submission_string }}</td>
+                    <td>{{ job.revision_path }}</td>
+                    <td>
+                        <a class="btn btn-info" href="{% url 'job_output' id=job.id type='output'%}">Show Output</a>
+                        <a class="btn btn-info" href="{% url 'job_output' id=job.id type='error'%}">Show Errors</a>
+                        <a class="btn btn-info" href="{% url 'job_output' id=job.id type='history'%}">Show History</a>
+                    </td>
+                </tr>
+            {% endfor %}
+        </table>
+    </div>
+{% endblock %}

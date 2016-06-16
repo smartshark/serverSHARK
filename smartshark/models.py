@@ -68,6 +68,11 @@ class Project(models.Model):
     url = models.URLField(unique=True)
     clone_username = models.CharField(max_length=200, blank=True)
 
+    class Meta:
+        permissions = (
+            ("start_collection", "Starts the collection process for projects"),
+        )
+
     def __str__(self):
         return self.name
 
@@ -91,6 +96,9 @@ class Plugin(models.Model):
 
     class Meta:
         unique_together = ('name', 'version',)
+        permissions = (
+            ("install_plugin", "Permission to install plugins."),
+        )
 
     def __str__(self):
         return self.name+"_"+str(self.version)
@@ -189,19 +197,43 @@ class Argument(models.Model):
 
 
 class PluginExecution(models.Model):
-    STATUS_CHOICES = (
-        ('waiting', 'Waiting for Requirements'),
-        ('queue', 'In Queue'),
-        ('running', 'Running'),
-        ('finished', 'Finished'),
-        ('error', 'Error'),
-    )
+
     plugin = models.ForeignKey(Plugin)
     project = models.ForeignKey(Project)
-    added_at = models.DateTimeField(auto_now_add=True)
-    submission_value = models.CharField(max_length=300, blank=True)
+    submitted_at = models.DateTimeField(auto_now_add=True)
+
+    def get_unfinished_jobs(self):
+        unfinished_jobs = []
+        for job in self.job_set.all():
+            if job.status not in ['DONE', 'EXIT']:
+                unfinished_jobs.append(job)
+
+        return unfinished_jobs
+
+
+class Job(models.Model):
+    STATUS_CHOICES = (
+        ('PEND', 'Pending'),
+        ('PROV', 'Dispatched to power-save host'),
+        ('PSUSP', 'Suspended (pending)'),
+        ('RUN', 'Running'),
+        ('USUSP', 'Suspended (running)'),
+        ('SSUSP', 'Suspended (other)'),
+        ('DONE', 'Done'),
+        ('EXIT', 'Exit'),
+        ('UNKWN', 'Unknown'),
+        ('WAIT', 'Waiting'),
+        ('ZOMBI', 'Zombie!!'),
+    )
+    job_id = models.IntegerField()
+    plugin_execution = models.ForeignKey(PluginExecution)
     status = models.CharField(max_length=8, choices=STATUS_CHOICES)
-    job_id = models.CharField(max_length=50, blank=True)
+    output_log = models.CharField(max_length=200)
+    error_log = models.CharField(max_length=200)
+    revision_path = models.CharField(max_length=100, blank=True)
+    submission_string = models.CharField(max_length=300)
+
+
 
 
 class MongoRole(models.Model):
@@ -231,7 +263,6 @@ class SmartsharkUser(models.Model):
         user = kwargs["instance"]
         for entry in reversed(inspect.stack()):
             if entry[1].endswith('/django/contrib/admin/sites.py'):
-                print("in")
                 try:
                     password = entry[0].f_locals['request'].POST.get('password1')
                 except:

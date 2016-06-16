@@ -1,5 +1,6 @@
 import copy
 
+import itertools
 from django.contrib import messages
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import render, get_object_or_404
@@ -9,7 +10,7 @@ from form_utils.forms import BetterForm
 
 from smartshark.forms import ProjectForm
 from smartshark.hpchandler import HPCHandler
-from smartshark.models import Project, Plugin, Argument, PluginExecution
+from smartshark.models import Project, Plugin, Argument, PluginExecution, Job
 from django import forms
 from difflib import SequenceMatcher
 from server.settings import SUBSTITUTIONS
@@ -17,17 +18,23 @@ from server.settings import SUBSTITUTIONS
 
 def parse_argument_values(form_data, parameters):
     for id_string, value in form_data.items():
-        parts = id_string.split("_")
-        plugin_id = parts[0]
-        argument_id = parts[2]
-        parameter = {'argument': get_object_or_404(Argument, pk=argument_id), 'value': value}
-        parameters[plugin_id]['parameters'].append(parameter)
+        if "argument" in id_string:
+            parts = id_string.split("_")
+            plugin_id = parts[0]
+            argument_id = parts[2]
+            parameter = {'argument': get_object_or_404(Argument, pk=argument_id), 'value': value}
+            parameters[plugin_id]['parameters'].append(parameter)
 
 
 def get_form(plugins, post, type):
         created_fieldsets = []
         plugin_fields = {}
 
+        if type == 'execute':
+            plugin_fields['force_renew'] = forms.BooleanField(label="Force renew of all revisions?", required=False)
+            created_fieldsets.append(['Basis Configuration', {'fields': ['force_renew']}])
+
+        print(plugin_fields)
 
         # Create lists for the fieldsets and a list for the fields of the form
         for plugin in plugins:
@@ -70,6 +77,10 @@ def create_substitutions_for_display():
 def install(request):
     plugins = []
     parameters = {}
+
+    if not request.user.is_authenticated() or not request.user.has_perm('smartshark.install_plugin'):
+        messages.error(request, 'You are not authorized to perform this action.')
+        return HttpResponseRedirect('/admin/smartshark/plugin')
 
     if not request.GET.get('ids'):
         messages.error(request, 'No plugin ids were given to install.')
@@ -120,8 +131,72 @@ def install(request):
     })
 
 
+def plugin_execution_status(request, id):
+    if not request.user.is_authenticated() or not request.user.has_perm('smartshark.plugin_execution_status'):
+        messages.error(request, 'You are not authorized to perform this action.')
+        return HttpResponseRedirect('/admin/smartshark/project')
+
+    plugin_execution = get_object_or_404(PluginExecution, pk=id)
+
+    jobs = Job.objects.all().filter(plugin_execution=plugin_execution).order_by('job_id')
+    hpc_handler = HPCHandler()
+    hpc_handler.update_job_information(jobs)
+
+    return render(request, 'smartshark/project/plugin_execution_status.html', {
+        'plugin_execution': plugin_execution,
+        'jobs': jobs,
+    })
+
+def plugin_status(request):
+    projects = []
+    if not request.user.is_authenticated() or not request.user.has_perm('smartshark.plugin_status'):
+        messages.error(request, 'You are not authorized to perform this action.')
+        return HttpResponseRedirect('/admin/smartshark/project')
+
+    if request.GET.get('ids'):
+        for project_id in request.GET.get('ids', '').split(','):
+            projects.append(get_object_or_404(Project, pk=project_id))
+    else:
+        messages.error(request, 'No project ids were given.')
+        return HttpResponseRedirect('/admin/smartshark/project')
+
+    executions = {}
+    for project in projects:
+        executions[project.name] = PluginExecution.objects.all().filter(project=project).order_by('submitted_at')
+
+    return render(request, 'smartshark/project/plugin_status.html', {
+        'projects': projects,
+        'executions': executions,
+
+    })
+
+def job_output(request, id, type):
+    if not request.user.is_authenticated() or not request.user.has_perm('smartshark.job_output'):
+        messages.error(request, 'You are not authorized to perform this action.')
+        return HttpResponseRedirect('/admin/smartshark/project')
+
+    job = get_object_or_404(Job, pk=id)
+
+    hpc_handler = HPCHandler()
+    if type == 'output':
+        output = hpc_handler.get_output_log(job)
+    elif type == 'error':
+        output = hpc_handler.get_error_log(job)
+    elif type == 'history':
+        output = hpc_handler.get_history(job)
+
+    return render(request, 'smartshark/job/output.html', {
+        'output': '\n'.join(output),
+        'job': job,
+    })
+
+
 def collection_start(request):
     projects = []
+
+    if not request.user.is_authenticated() or not request.user.has_perm('smartshark.start_collection'):
+        messages.error(request, 'You are not authorized to perform this action.')
+        return HttpResponseRedirect('/admin/smartshark/project')
 
     if request.GET.get('ids'):
         for project_id in request.GET.get('ids', '').split(','):
@@ -160,14 +235,15 @@ def collection_start(request):
 
                 # if plugin with this project is in plugin execution and has status != finished | error -> problem
                 for project in projects:
-                    plugin_exec = PluginExecution.objects.all().filter(plugin=plugin, project=project,
-                                                                       status__in=['finished', 'error'])
-                    if plugin_exec:
+                    plugin_executions = PluginExecution.objects.all().filter(plugin=plugin, project=project)
+                    unfinished_jobs = [plugin_execution.get_unfinished_jobs() for plugin_execution in plugin_executions]
+                    unfinished_jobs = list(itertools.chain.from_iterable(unfinished_jobs))
+                    if unfinished_jobs:
                         messages.error(request, 'Plugin %s is already scheduled for project %s.' % (str(plugin),
                                                                                                     project))
                         return HttpResponseRedirect(request.get_full_path())
 
-            return HttpResponseRedirect('/smartshark/collection/arguments?plugins=%s&projects=%s' %
+            return HttpResponseRedirect('/smartshark/project/collection/arguments?plugins=%s&projects=%s' %
                                         (','.join(plugin_ids), request.GET.get('ids')))
 
     # if a GET (or any other method) we'll create a blank form
@@ -209,6 +285,10 @@ def collection_arguments(request):
     plugin_types = set()
     parameters = {}
 
+    if not request.user.is_authenticated() or not request.user.has_perm('smartshark.start_collection'):
+        messages.error(request, 'You are not authorized to perform this action.')
+        return HttpResponseRedirect('/admin/smartshark/project')
+
     if request.GET.get('projects'):
         for project_id in request.GET.get('projects', '').split(','):
             projects.append(get_object_or_404(Project, pk=project_id))
@@ -236,6 +316,7 @@ def collection_arguments(request):
         if form.is_valid():
             parse_argument_values(form.cleaned_data, parameters)
             hpc_handler = HPCHandler()
+
             try:
                 # 3. order: first plugins without requirements (can directly be sent) and then
                 #ordered_plugins = order_plugins(plugins)
@@ -243,7 +324,7 @@ def collection_arguments(request):
 
                 for project in projects:
                     # Sorting arguments according to position attribute and execute for each chosen project
-                    #hpc_handler.prepare_project(project, plugin_types)
+                    #hpc_handler.prepare_project(project, plugin_types, form.cleaned_data['force_renew'])
 
                     for plugin_id, value in parameters.items():
                         sorted_parameter = sorted(value['parameters'], key=lambda k: k['argument'].position)
@@ -256,6 +337,7 @@ def collection_arguments(request):
                 return HttpResponseRedirect('/admin/smartshark/project')
 
             return HttpResponseRedirect('/admin/smartshark/project')
+
 
 
     # if a GET (or any other method) we'll create a blank form

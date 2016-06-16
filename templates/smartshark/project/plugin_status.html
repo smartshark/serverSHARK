@@ -1,0 +1,44 @@
+{% extends "admin/base_site.html" %}
+{% load plugin_exec_extras %}
+
+
+{% block content %}
+    <h1>Plugin Status for chosen Projects</h1>
+    {% for project in projects %}
+        <h3>{{ project.name }}</h3>
+        <div id="{{ project.name }}_container">
+            <table id="execution_list" class="table table-striped table-bordered table-hover table-condensed">
+            <thead>
+                <th scope="col">
+                    <div class="text">
+                        Plugin
+                    </div>
+                </th>
+                <th scope="col">
+                    <div class="text">
+                        Submitted At
+                    </div>
+                </th>
+                <th scope="col">
+                    <div class="text">
+                        #Jobs
+                    </div>
+                </th>
+                <th scope="col">
+                    <div class="text">
+                        Actions
+                    </div>
+                </th>
+            </thead>
+        {% for execution in executions|get_item:project.name %}
+            <tr>
+                <td>{{ execution.plugin }}</td>
+                <td>{{ execution.submitted_at }}</td>
+                <td>{{ execution.job_set.count }}</td>
+                <td><a class="btn btn-info" href="{% url 'plugin_execution_status' id=execution.id %}">Show Jobs</a></td>
+            </tr>
+        {% endfor %}
+            </table>
+        </div>
+    {% endfor %}
+{% endblock %}

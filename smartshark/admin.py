@@ -112,7 +112,7 @@ class PluginAdmin(admin.ModelAdmin):
 
     def install_plugin(self, request, queryset):
         selected = request.POST.getlist(admin.ACTION_CHECKBOX_NAME)
-        return HttpResponseRedirect("/smartshark/install/?ids=%s" % (",".join(selected)))
+        return HttpResponseRedirect("/smartshark/plugin/install/?ids=%s" % (",".join(selected)))
 
     def delete_model(self, request, obj):
 
@@ -146,14 +146,22 @@ class PluginAdmin(admin.ModelAdmin):
     install_plugin.short_description = 'Install Plugin(s)'
 
 class ProjectAdmin(admin.ModelAdmin):
+    fields = ('name', 'url', 'clone_username')
+    readonly_fields = ('name', 'url')
     list_display = ('name', 'url')
-    actions = ['start_collection']
+
+    actions = ['start_collection', 'show_executions']
 
     def start_collection(self, request, queryset):
         selected = request.POST.getlist(admin.ACTION_CHECKBOX_NAME)
-        return HttpResponseRedirect("/smartshark/collection/start/?ids=%s" % (",".join(selected)))
+        return HttpResponseRedirect("/smartshark/project/collection/start/?ids=%s" % (",".join(selected)))
+
+    def show_executions(self, request, queryset):
+        selected = request.POST.getlist(admin.ACTION_CHECKBOX_NAME)
+        return HttpResponseRedirect("/smartshark/project/plugin_status/?ids=%s" % (",".join(selected)))
 
     start_collection.short_description = 'Start Collection for selected Projects'
+    show_executions.short_description = 'Show Plugin status for selected Projects'
 
 
 admin.site.register(User, MyUserAdmin)
