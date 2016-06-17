@@ -146,11 +146,18 @@ class PluginAdmin(admin.ModelAdmin):
     install_plugin.short_description = 'Install Plugin(s)'
 
 class ProjectAdmin(admin.ModelAdmin):
-    fields = ('name', 'url', 'clone_username')
-    readonly_fields = ('name', 'url')
-    list_display = ('name', 'url')
-
+    fields = ('name', 'url', 'mongo_id', 'clone_username' )
+    list_display = ('name', 'url', 'mongo_id')
+    readonly_fields = ('mongo_id', )
     actions = ['start_collection', 'show_executions']
+
+    def get_readonly_fields(self, request, obj=None):
+        """
+        Do not allow changing of account once created
+        """
+        if obj:
+            return self.readonly_fields + ('name', 'url')
+        return self.readonly_fields
 
     def start_collection(self, request, queryset):
         selected = request.POST.getlist(admin.ACTION_CHECKBOX_NAME)

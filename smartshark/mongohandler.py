@@ -34,4 +34,11 @@ class MongoHandler(object):
     def update_roles(self, username, roles):
         self.client[self.database]._create_or_update_user(False, username, None, False, roles=roles)
 
+    def add_project(self, project):
+        return self.client.get_database(self.database).get_collection('project')\
+            .insert_one({'url': project.url}).inserted_id
+
+    def delete_project(self, project):
+        self.client.get_database(self.database).get_collection('project').delete_one({'url': project.url})
+
 handler = MongoHandler()

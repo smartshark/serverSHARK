@@ -67,6 +67,7 @@ class Project(models.Model):
     name = models.CharField(max_length=100, unique=True)
     url = models.URLField(unique=True)
     clone_username = models.CharField(max_length=200, blank=True)
+    mongo_id = models.CharField(max_length=50, blank=True)
 
     class Meta:
         permissions = (

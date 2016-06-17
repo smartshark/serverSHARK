@@ -47,6 +47,7 @@ class HPCHandler(object):
                 'db_hostname': DATABASES['mongodb']['HOST'],
                 'db_port': DATABASES['mongodb']['PORT'],
                 'db_authentication': DATABASES['mongodb']['AUTHENTICATION_DB'],
+                'url': project.url,
         })
 
         # Create plugin execution
@@ -65,7 +66,8 @@ class HPCHandler(object):
         elif plugin.abstraction_level == 'rev':
             for revision_path in self.get_all_revision_paths(project):
                 command = string.Template(org_command).safe_substitute({
-                    'path': revision_path
+                    'path': revision_path,
+                    'revision': os.path.basename(os.path.normpath(revision_path))
                 })
 
                 # create command execution

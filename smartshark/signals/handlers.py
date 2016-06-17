@@ -1,7 +1,7 @@
 import os
 
 from smartshark.hpchandler import HPCHandler
-from smartshark.models import SmartsharkUser, Plugin
+from smartshark.models import SmartsharkUser, Plugin, Project
 from django.db.models.signals import post_save, pre_save, m2m_changed, post_delete, pre_delete
 from django.dispatch import receiver
 import tarfile
@@ -25,3 +25,16 @@ def delete_archive(sender, **kwargs):
     # delete plugin on hpc
     hpc_handler = HPCHandler()
     hpc_handler.delete_plugin(plugin)
+
+
+@receiver(pre_save, sender=Project)
+def add_project_to_mongodb(sender, **kwargs):
+    project = kwargs["instance"]
+    mongo_id = handler.add_project(project)
+    project.mongo_id = str(mongo_id)
+
+
+@receiver(post_delete, sender=Project)
+def delete_project_from_mongodb(sender, **kwargs):
+    project = kwargs["instance"]
+    handler.delete_project(project)
