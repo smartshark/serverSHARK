@@ -5,7 +5,8 @@ from django.core.exceptions import ValidationError
 
 
 class PluginInformationHandler(object):
-    info_file_required_fields = ['name', 'author', 'version', 'abstraction_level', 'requires', 'arguments']
+    info_file_required_fields = ['name', 'author', 'version', 'abstraction_level', 'requires', 'arguments',
+                                 'description']
     info_file_requires_required_fields = ['name', 'operator', 'version']
     info_file_argument_required_fields = ['name', 'required', 'position', 'type', 'description']
 

@@ -82,6 +82,10 @@ class HPCHandler(object):
         job_id_match = re.match(r"(\w*) <([0-9]*)>", output[-1])
         job_id = job_id_match.group(2)
 
+        # Make db_user and db_password in bsub_command (if they are in the command) anonymous.
+        bsub_command.replace(DATABASES['mongodb']['USER'], 'mongodbUser')
+        bsub_command.replace(DATABASES['mongodb']['PASSWORD'], 'mongoPassword')
+
         job = Job(job_id=job_id, plugin_execution=plugin_execution, status='WAIT', output_log=output_path,
                   error_log=error_path, revision_path=revision, submission_string=bsub_command)
         job.save()

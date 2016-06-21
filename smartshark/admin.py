@@ -86,13 +86,14 @@ class PluginAdmin(admin.ModelAdmin):
         if not obj:
             return 'archive',
         else:
-            return 'name', 'author', 'version', 'abstraction_level', 'archive', 'requires', 'active', 'installed'
+            return 'name', 'author', 'version', 'abstraction_level', 'archive', 'requires', 'active', 'installed', \
+                   'description'
 
     def get_readonly_fields(self, request, obj=None):
         if not obj:
-            return 'name', 'author', 'version', 'abstraction_level', 'installed'
+            return 'name', 'author', 'version', 'abstraction_level', 'installed', 'description'
         else:
-            return 'name', 'author', 'version', 'abstraction_level', 'archive', 'installed'
+            return 'name', 'author', 'version', 'abstraction_level', 'archive', 'installed', 'description'
 
     def get_actions(self, request):
         actions = super(PluginAdmin, self).get_actions(request)
@@ -100,10 +101,6 @@ class PluginAdmin(admin.ModelAdmin):
         return actions
 
     def save_model(self, request, obj, form, change):
-        #file = tarfile.open(fileobj=request.FILES['archive'])
-        #plugin_description = json.loads(file.extractfile('info.json').read().decode('utf-8'))
-        #plugin_schema = json.loads(file.extractfile('schema.json').read().decode('utf-8'))
-
         if change:
             obj.save()
         else:

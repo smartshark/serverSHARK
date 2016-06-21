@@ -87,6 +87,7 @@ class Plugin(models.Model):
     name = models.CharField(max_length=100)
     author = models.CharField(max_length=200)
     version = models.DecimalField(max_digits=5, decimal_places=2)
+    description = models.CharField(max_length=400)
     abstraction_level = models.CharField(max_length=5, choices=ABSTRACTIONLEVEL_CHOICES)
     validate_file = FileValidator(max_size=1024*1024*50, content_types=('application/x-tar', 'application/octet-stream'))
     archive = models.FileField(upload_to="uploads/plugins/", validators=[validate_file])
@@ -150,6 +151,7 @@ class Plugin(models.Model):
         self.author = info_json['author']
         self.version = info_json['version']
         self.abstraction_level = info_json['abstraction_level']
+        self.description = info_json['description']
         self.archive = archive
 
         try:
