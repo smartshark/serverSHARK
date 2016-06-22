@@ -29,12 +29,18 @@ def parse_argument_values(form_data, parameters):
 def get_form(plugins, post, type):
         created_fieldsets = []
         plugin_fields = {}
+        EXEC_OPTIONS = (('all', 'Execute on all revisions'), ('errors', 'Execute on all revisions with errors'),
+                        ('new', 'Execute on new revisions'), ('rev', 'Execute on following revisions:'))
 
         if type == 'execute':
-            plugin_fields['force_renew'] = forms.BooleanField(label="Force renew of all revisions?", required=False)
-            created_fieldsets.append(['Basis Configuration', {'fields': ['force_renew']}])
+            rev_plugins = [plugin for plugin in plugins if plugin.abstraction_level == 'rev']
+            if len(rev_plugins) > 0:
+                plugin_fields['execution'] = forms.ChoiceField(widget=forms.RadioSelect, choices=EXEC_OPTIONS)
+                plugin_fields['revisions'] = forms.CharField(label='Revisions (comma-separated)', required=False)
+                created_fieldsets.append(['Basis Configuration', {'fields': ['execution', 'revisions']}])
 
-        print(plugin_fields)
+
+
 
         # Create lists for the fieldsets and a list for the fields of the form
         for plugin in plugins:
@@ -147,6 +153,7 @@ def plugin_execution_status(request, id):
         'jobs': jobs,
     })
 
+
 def plugin_status(request):
     projects = []
     if not request.user.is_authenticated() or not request.user.has_perm('smartshark.plugin_status'):
@@ -169,6 +176,7 @@ def plugin_status(request):
         'executions': executions,
 
     })
+
 
 def job_output(request, id, type):
     if not request.user.is_authenticated() or not request.user.has_perm('smartshark.job_output'):
@@ -257,32 +265,9 @@ def collection_start(request):
     })
 
 
-def order_plugins(plugins):
-    new_list = []
-    while len(new_list) != len(plugins):
-        for plugin in plugins:
-            if plugin in new_list:
-                continue
-
-            # If a plugin do not have any required plugins: add it
-            if not plugin.requires.all():
-                new_list.append(plugin)
-            else:
-                # Check if all requirements are met for the plugin. If yes: add it
-                all_requirements_met = True
-                for req_plugin in plugin.requires.all():
-                    if req_plugin not in new_list:
-                        all_requirements_met = False
-
-                if all_requirements_met:
-                    new_list.append(plugin)
-    return new_list
-
-
 def collection_arguments(request):
     projects = []
     plugins = []
-    plugin_types = set()
     parameters = {}
 
     if not request.user.is_authenticated() or not request.user.has_perm('smartshark.start_collection'):
@@ -301,7 +286,6 @@ def collection_arguments(request):
             plugin = get_object_or_404(Plugin, pk=plugin_id)
             parameters[plugin_id] = {'plugin': plugin, 'parameters': []}
             plugins.append(plugin)
-            plugin_types.add(plugin.abstraction_level)
     else:
         messages.error(request, 'No plugin ids were given.')
         return HttpResponseRedirect('/admin/smartshark/project')
@@ -312,19 +296,17 @@ def collection_arguments(request):
 
         # create a form instance and populate it with data from the request:
         form = get_form(plugins, request.POST, 'execute')
+
         # check whether it's valid:
         if form.is_valid():
             parse_argument_values(form.cleaned_data, parameters)
             hpc_handler = HPCHandler()
 
             try:
-                # 3. order: first plugins without requirements (can directly be sent) and then
-                #ordered_plugins = order_plugins(plugins)
-                #print(ordered_plugins)
-
                 for project in projects:
                     # Sorting arguments according to position attribute and execute for each chosen project
-                    #hpc_handler.prepare_project(project, plugin_types, form.cleaned_data['force_renew'])
+                    hpc_handler.prepare_project(project, plugins, form.cleaned_data['execution'],
+                                                form.cleaned_data['revisions'])
 
                     for plugin_id, value in parameters.items():
                         sorted_parameter = sorted(value['parameters'], key=lambda k: k['argument'].position)

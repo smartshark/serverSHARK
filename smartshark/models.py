@@ -235,6 +235,7 @@ class Job(models.Model):
     error_log = models.CharField(max_length=200)
     revision_path = models.CharField(max_length=100, blank=True)
     submission_string = models.CharField(max_length=300)
+    revision_hash = models.CharField(max_length=100, blank=True)
 
 
 

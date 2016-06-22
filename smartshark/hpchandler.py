@@ -86,8 +86,13 @@ class HPCHandler(object):
         bsub_command.replace(DATABASES['mongodb']['USER'], 'mongodbUser')
         bsub_command.replace(DATABASES['mongodb']['PASSWORD'], 'mongoPassword')
 
+        revision_hash = None
+        if plugin.abstraction_level == 'rev':
+            revision_hash = os.path.basename(os.path.normpath(revision))
+
         job = Job(job_id=job_id, plugin_execution=plugin_execution, status='WAIT', output_log=output_path,
-                  error_log=error_path, revision_path=revision, submission_string=bsub_command)
+                  error_log=error_path, revision_path=revision, submission_string=bsub_command,
+                  revision_hash=revision_hash)
         job.save()
 
     def update_job_information(self, jobs):
@@ -95,15 +100,21 @@ class HPCHandler(object):
         # if there are errors in it: there must be an error => state is exit
 
         for job in jobs:
-            found_job = self.check_bjobs_output(job)
-            if not found_job:
-                error_log = self.get_error_log(job)
+            self.update_single_job_information(job)
 
-                if not error_log:
-                    job.status = 'DONE'
-                else:
-                    job.status = 'EXIT'
-                job.save()
+    def update_single_job_information(self, job):
+        if job.status in ['DONE', 'EXIT']:
+            return
+
+        found_job = self.check_bjobs_output(job)
+        if not found_job:
+            error_log = self.get_error_log(job)
+
+            if not error_log:
+                job.status = 'DONE'
+            else:
+                job.status = 'EXIT'
+            job.save()
 
     def get_history(self, job):
         out = self.execute_command('bhist -l %s' % job.job_id)
@@ -188,16 +199,44 @@ class HPCHandler(object):
 
         return revision_paths
 
-    def prepare_project(self, project, plugin_types, force_renew):
-        plugin_types_str = ','.join(plugin_types)
+    def get_revisions_for_failed_plugins(self, plugins, project):
+        revisions = []
+        for plugin in plugins:
+            if plugin.abstraction_level == 'rev':
+                plugin_executions = plugin.pluginexecution_set.all().filter(project_id=project.id)
+                for plugin_execution in plugin_executions:
+                    for job in plugin_execution.job_set.all():
+                        self.update_single_job_information(job)
+                        job.refresh_from_db()
+                        if job.status == 'EXIT':
+                            revisions.append(job.revision_hash)
+
+        return revisions
+
+
+
+    def prepare_project(self, project, plugins, execution, revisions):
+        if execution is None:
+            execution = 'False'
+
+        if revisions is None:
+            revisions = 'False'
+
+        if execution == 'error':
+            revisions = self.get_revisions_for_failed_plugins(plugins, project)
+            revisions = ','.join(revisions)
+
+        plugin_types_str = ','.join([plugin.abstraction_level for plugin in plugins])
         self.execute_command('mkdir %s/%s' % (self.project_path, project.name), ignore_errors=True)
 
-        command = 'python3.5 %s/preparer/main.py -u %s -out %s/%s -t %s' % (self.tools_path, project.url,
-                                                                            self.project_path, project.name,
-                                                                            plugin_types_str,
-                                                                            )
-        if force_renew:
-            command += ' -f'
+        command = 'python3.5 %s/preparer/main.py -u %s -out %s/%s -t %s -e %s -r %s' % (
+            self.tools_path, project.url,
+            self.project_path,
+            project.name,
+            plugin_types_str,
+            execution,
+            revisions
+        )
 
         self.execute_command(command)
 

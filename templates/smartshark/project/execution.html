@@ -1,4 +1,9 @@
-{% extends "admin/base_site.html" %}
+{% extends "admin/base.html" %}
+{% load admin_static %}
+
+{% block extrajs %}
+ <script type="text/javascript" src="{% static 'js/argument_selection.js' %}"></script>
+{% endblock %}
 
 {% block content %}
     <h1>Choose Plugins for Installation</h1>
@@ -21,7 +26,7 @@
         {% endfor %}
     </ul>
     <h2>Set the parameter for execution:</h2>
-    <form action="" method="post">
+    <form action="" method="post" id="arguments_form">
         {% csrf_token %}
         {% if form.non_field_errors %}{{ form.non_field_errors }}{% endif %}
         {% for fieldset in form.fieldsets %}
