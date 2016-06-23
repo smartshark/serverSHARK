@@ -111,6 +111,55 @@ class Plugin(models.Model):
 
         return False
 
+    def get_revision_hashes_of_failed_jobs_for_project(self, project):
+        """
+        We want to get all revision hashes of jobs that failed for this plugin and the given project. Thats why
+        we go thorugh all plugin executions of this plugin and collect all done jobs (=NOT FAILED) and exit jobs (=FAILED).
+
+        We only put the revision_hash of the job into the list if a job for this plugin and project always failed.
+
+        E.g.,
+                1 2 3 4 5 6 7 8 9
+        1. run: x x x f f x f x f
+        2. run: f f x x f x f x f
+
+        => would get revision hashes of 5,7, and 9
+
+        3. run: f f f f x f x f f
+
+        => would return revision hash of 9
+
+
+        :param project: project on which plugin is executed
+        :return:
+        """
+        revisions = set()
+
+        # Get all plugin executions for this plugin and project
+        plugin_executions = self.pluginexecution_set.all().filter(project=project, plugin=self)
+        for plugin_execution in plugin_executions:
+            # For each plugin_execution get all done_jobs and their revisions
+            done_jobs_revisions = plugin_execution.job_set.all().filter(status='DONE').order_by('revision_hash')\
+                .values_list('revision_hash', flat=True).distinct()
+
+            # Get all revisions of exit jobs
+            exit_jobs_revisions = plugin_execution.job_set.all().filter(status='EXIT').order_by('revision_hash')\
+                .values_list('revision_hash', flat=True).distinct()
+
+            # For each plugin execution get all error jobs. If this job is also in done_jobs then ignore it
+            difference_set = set(exit_jobs_revisions) - set(done_jobs_revisions)
+            revisions = revisions.union(difference_set)
+
+        return revisions
+
+    def get_all_jobs_for_project(self, project):
+        jobs = []
+        plugin_executions = PluginExecution.objects.all().filter(project=project, plugin=self)
+        for plugin_execution in plugin_executions:
+            jobs.extend(Job.objects.all().filter(plugin_execution=plugin_execution))
+
+        return jobs
+
     def get_substitution_plugin_for(self, plugin):
         # Read the information in again from the tar archive
         plugin_handler = PluginInformationHandler(self.get_full_path_to_archive())
@@ -205,13 +254,12 @@ class PluginExecution(models.Model):
     project = models.ForeignKey(Project)
     submitted_at = models.DateTimeField(auto_now_add=True)
 
-    def get_unfinished_jobs(self):
-        unfinished_jobs = []
+    def has_unfinished_jobs(self):
         for job in self.job_set.all():
             if job.status not in ['DONE', 'EXIT']:
-                unfinished_jobs.append(job)
+                return True
 
-        return unfinished_jobs
+        return False
 
 
 class Job(models.Model):

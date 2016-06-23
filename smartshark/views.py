@@ -6,78 +6,10 @@ from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import render, get_object_or_404
 
 # Create your views here.
-from form_utils.forms import BetterForm
-
-from smartshark.forms import ProjectForm
+from smartshark.common import create_substitutions_for_display, order_plugins
+from smartshark.forms import ProjectForm, get_form, parse_argument_values
 from smartshark.hpchandler import HPCHandler
 from smartshark.models import Project, Plugin, Argument, PluginExecution, Job
-from django import forms
-from difflib import SequenceMatcher
-from server.settings import SUBSTITUTIONS
-
-
-def parse_argument_values(form_data, parameters):
-    for id_string, value in form_data.items():
-        if "argument" in id_string:
-            parts = id_string.split("_")
-            plugin_id = parts[0]
-            argument_id = parts[2]
-            parameter = {'argument': get_object_or_404(Argument, pk=argument_id), 'value': value}
-            parameters[plugin_id]['parameters'].append(parameter)
-
-
-def get_form(plugins, post, type):
-        created_fieldsets = []
-        plugin_fields = {}
-        EXEC_OPTIONS = (('all', 'Execute on all revisions'), ('errors', 'Execute on all revisions with errors'),
-                        ('new', 'Execute on new revisions'), ('rev', 'Execute on following revisions:'))
-
-        if type == 'execute':
-            rev_plugins = [plugin for plugin in plugins if plugin.abstraction_level == 'rev']
-            if len(rev_plugins) > 0:
-                plugin_fields['execution'] = forms.ChoiceField(widget=forms.RadioSelect, choices=EXEC_OPTIONS)
-                plugin_fields['revisions'] = forms.CharField(label='Revisions (comma-separated)', required=False)
-                created_fieldsets.append(['Basis Configuration', {'fields': ['execution', 'revisions']}])
-
-
-
-
-        # Create lists for the fieldsets and a list for the fields of the form
-        for plugin in plugins:
-            arguments=[]
-            for argument in plugin.argument_set.all().filter(type=type):
-                identifier = '%s_argument_%s' % (plugin.id, argument.id)
-                arguments.append(identifier)
-                initial = None
-                for name, value in SUBSTITUTIONS.items():
-                    if SequenceMatcher(None, argument.name, name).ratio() > 0.8:
-                        initial = value['name']
-                plugin_fields[identifier] = forms.CharField(label=argument.name,
-                                                            required=argument.required,
-                                                            initial=initial)
-
-            created_fieldsets.append([str(plugin), {'fields': arguments}])
-
-
-        # Dynamically creted pluginform
-        class PluginForm(BetterForm):
-
-            class Meta:
-                fieldsets = created_fieldsets
-
-            def __init__(self, *args, **kwargs):
-                super(PluginForm, self).__init__(*args, **kwargs)
-                self.fields = plugin_fields
-
-        return PluginForm(post)
-
-
-def create_substitutions_for_display():
-    display_dict = {}
-    for substitution, value in SUBSTITUTIONS.items():
-        display_dict[value['name']] = value['description']
-
-    return display_dict
 
 
 def install(request):
@@ -129,7 +61,6 @@ def install(request):
     else:
         form = get_form(plugins, request.POST or None, 'install')
 
-    print(create_substitutions_for_display())
     return render(request, 'smartshark/plugin/install.html', {
         'form': form,
         'plugins': plugins,
@@ -223,6 +154,7 @@ def collection_start(request):
         # check whether it's valid:
         if form.is_valid():
             plugin_ids = []
+            hpc_handler = HPCHandler()
             # check requirements
             for plugin in form.cleaned_data['plugins']:
                 plugin_ids.append(str(plugin.id))
@@ -243,10 +175,19 @@ def collection_start(request):
 
                 # if plugin with this project is in plugin execution and has status != finished | error -> problem
                 for project in projects:
+                    # Update job information
                     plugin_executions = PluginExecution.objects.all().filter(plugin=plugin, project=project)
-                    unfinished_jobs = [plugin_execution.get_unfinished_jobs() for plugin_execution in plugin_executions]
-                    unfinished_jobs = list(itertools.chain.from_iterable(unfinished_jobs))
-                    if unfinished_jobs:
+                    jobs = [plugin_execution.job_set.all() for plugin_execution in plugin_executions]
+                    jobs = list(itertools.chain.from_iterable(jobs))
+                    hpc_handler.update_job_information(jobs)
+
+                    # check if some plugin has unfinished jobs
+                    has_unfinished_jobs = False
+                    for plugin_execution in plugin_executions:
+                        if plugin_execution.has_unfinished_jobs():
+                            has_unfinished_jobs = True
+
+                    if has_unfinished_jobs:
                         messages.error(request, 'Plugin %s is already scheduled for project %s.' % (str(plugin),
                                                                                                     project))
                         return HttpResponseRedirect(request.get_full_path())
@@ -297,20 +238,31 @@ def collection_arguments(request):
         # create a form instance and populate it with data from the request:
         form = get_form(plugins, request.POST, 'execute')
 
+
         # check whether it's valid:
         if form.is_valid():
             parse_argument_values(form.cleaned_data, parameters)
             hpc_handler = HPCHandler()
+            execution = None
+            revisions = None
+            if 'execution' in form.cleaned_data:
+                execution = form.cleaned_data['execution']
+
+            if 'revisions' in form.cleaned_data:
+                revisions = form.cleaned_data['revisions']
 
             try:
                 for project in projects:
-                    # Sorting arguments according to position attribute and execute for each chosen project
-                    hpc_handler.prepare_project(project, plugins, form.cleaned_data['execution'],
-                                                form.cleaned_data['revisions'])
+                    # First prepare project (clone repo, set up revisions, etc.)
+                    hpc_handler.prepare_project(project, plugins, execution, revisions)
 
-                    for plugin_id, value in parameters.items():
+                    # Sort plugins (first the one without requirements, than the one that requires the first, etc.)
+                    sorted_plugins = order_plugins(parameters)
+
+                    # For each plugin: execute it with the choosen project
+                    for value in sorted_plugins:
                         sorted_parameter = sorted(value['parameters'], key=lambda k: k['argument'].position)
-                        hpc_handler.execute_plugin(value['plugin'], project, sorted_parameter)
+                        hpc_handler.execute_plugin(value['plugin'], project, sorted_parameter, execution, revisions)
 
                 messages.success(request, 'Started the data collection of plugins %s for projects %s' %
                                 (plugins, projects))
@@ -319,8 +271,6 @@ def collection_arguments(request):
                 return HttpResponseRedirect('/admin/smartshark/project')
 
             return HttpResponseRedirect('/admin/smartshark/project')
-
-
 
     # if a GET (or any other method) we'll create a blank form
     else:

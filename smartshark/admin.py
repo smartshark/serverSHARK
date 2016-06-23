@@ -56,6 +56,7 @@ class PluginAdmin(admin.ModelAdmin):
         storage = get_messages(request)
         all_messages = list(get_messages(request))
 
+        # Go through all messages and delete the one that the plugin was successfully deleted (this may not be the case)
         for i in range(0, len(all_messages)):
             if storage._loaded_messages[i].message.startswith('The plugin "'):
                 del storage._loaded_messages[i]
@@ -63,6 +64,15 @@ class PluginAdmin(admin.ModelAdmin):
         return super(PluginAdmin, self).changelist_view(request, extra_context)
 
     def change_view(self, request, object_id, form_url='', extra_context=None):
+        """
+        If plugin is changed, we need to check if the required plugins that may be added/changed are still valid
+
+        :param request: django request
+        :param object_id: id of the plugin that is to be changed
+        :param form_url: url of the form that is used
+        :param extra_context: possible extra content
+        :return: redirect to the plugin changed page if not successful
+        """
         if request.method == 'POST':
             changed_plugin = get_object_or_404(Plugin, pk=object_id)
             required_plugins = request.POST.getlist('requires')
@@ -101,6 +111,17 @@ class PluginAdmin(admin.ModelAdmin):
         return actions
 
     def save_model(self, request, obj, form, change):
+        """
+        We need to overwrite this method, as for a change: we just save the model, but if the plugin is first
+        added, it must be loaded from the json file in the archive.
+
+
+        :param request:
+        :param obj:
+        :param form:
+        :param change:
+        :return:
+        """
         if change:
             obj.save()
         else:
@@ -132,7 +153,7 @@ class PluginAdmin(admin.ModelAdmin):
                 messages.error(request, 'Could not delete plugin, because it is required by other plugins '
                                         'and requirements can not be matched otherwise!')
 
-            # Otherwise, we need to go through all plugins that require this plugin again to substitue the requires
+            # Otherwise, we need to go through all plugins that require this plugin again to substitute the requires
             else:
                 plugin.delete()
                 for requires_this_plugin in plugins:

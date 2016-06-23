@@ -32,15 +32,23 @@ class HPCHandler(object):
 
         self.ssh = ShellHandler(self.host, self.username, self.password, self.port)
 
-    def execute_plugin(self, plugin, project, parameters):
-        path_to_execute_script = "%s/%s/execute.sh " % (self.plugin_path, str(plugin))
-        self.execute_command("chmod +x %s" % path_to_execute_script)
-
-        command = path_to_execute_script
+    def add_parameters_to_command(self, path_to_script, parameters):
+        command = path_to_script
         for parameter in parameters:
             command += parameter["value"]+" "
+        return command
 
-        org_command = string.Template(command).safe_substitute({
+    def create_execution_command(self, plugin, project, parameters):
+        path_to_execute_script = "%s/%s/execute.sh " % (self.plugin_path, str(plugin))
+
+        # Make execution script executable
+        self.execute_command("chmod +x %s" % path_to_execute_script)
+
+        # Add parameters
+        command = self.add_parameters_to_command(path_to_execute_script, parameters)
+
+        # Substitute stuff
+        return string.Template(command).safe_substitute({
                 'db_user': DATABASES['mongodb']['USER'],
                 'db_password': DATABASES['mongodb']['PASSWORD'],
                 'db_database': DATABASES['mongodb']['NAME'],
@@ -49,6 +57,28 @@ class HPCHandler(object):
                 'db_authentication': DATABASES['mongodb']['AUTHENTICATION_DB'],
                 'url': project.url,
         })
+
+    def create_install_command(self, plugin, parameters):
+        path_to_install_script = "%s/%s/install.sh " % (self.plugin_path, str(plugin))
+
+        # Make execution script executable
+        self.execute_command("chmod +x %s" % path_to_install_script)
+
+        # Add parameters
+        command = self.add_parameters_to_command(path_to_install_script, parameters)
+
+        return string.Template(command).substitute({
+            'plugin_path': os.path.join(self.plugin_path, str(plugin))
+        })
+
+    def execute_install(self, plugin, parameters):
+        # Build parameter for install script.
+        command = self.create_install_command(plugin, parameters)
+
+        self.execute_command(command)
+
+    def execute_plugin(self, plugin, project, parameters, execution, revisions):
+        org_command = self.create_execution_command(plugin, project, parameters)
 
         # Create plugin execution
         plugin_execution = PluginExecution(project=project, plugin=plugin)
@@ -63,19 +93,57 @@ class HPCHandler(object):
 
             # create command execution
             self.send_bsub_command(command, plugin, project, path_to_repo, plugin_execution)
-        elif plugin.abstraction_level == 'rev':
-            for revision_path in self.get_all_revision_paths(project):
-                command = string.Template(org_command).safe_substitute({
-                    'path': revision_path,
-                    'revision': os.path.basename(os.path.normpath(revision_path))
-                })
 
+        elif plugin.abstraction_level == 'rev':
+            # if plugin operated on abstraction level, check execution type
+
+            all_revisions_on_hpc = self.get_all_revision_paths(project)
+            revisions_to_execute_plugin_on = []
+            if execution == 'all':
+                revisions_to_execute_plugin_on = all_revisions_on_hpc
+
+            elif execution == 'rev':
+                # If only some revisions (comma-separated list) need to be executed, create path and add it to list
+                for revision in revisions.split(","):
+                    revision_path = os.path.join(self.project_path, project.name, 'rev', revision)
+                    revisions_to_execute_plugin_on.append(revision_path)
+
+            elif execution == 'new':
+                # Get all jobs that were executed with this plugin on this project
+                jobs = plugin.get_all_jobs_for_project(project)
+                job_revision_hashes = [job.revision_hash for job in jobs]
+
+                # Go through all paths: If the revision was already processed by a job, it is not new, so exclude it
+                for revision_path in all_revisions_on_hpc:
+                    revision = os.path.basename(os.path.normpath(revision_path))
+                    if revision not in job_revision_hashes:
+                        revisions_to_execute_plugin_on.append(revision_path)
+
+            elif execution == 'error':
+                # Get all revisions on which this plugin failed (in some revisions) on this project. Important:
+                # if the plugin on revision X failed in first run, but worked on revision X in the second it is not longer
+                # marked as failing for this revision
+                revisions = self.get_revisions_for_failed_plugins([plugin], project)
+                for revision in revisions:
+                    revision_path = os.path.join(self.project_path, project.name, 'rev', revision)
+                    revisions_to_execute_plugin_on.append(revision_path)
+
+            # Create command
+            for revision_path in revisions_to_execute_plugin_on:
+                # Create command
+                command = string.Template(org_command).safe_substitute({
+                        'path': revision_path,
+                        'revision': os.path.basename(os.path.normpath(revision_path))
+                    })
                 # create command execution
                 self.send_bsub_command(command, plugin, project, revision_path, plugin_execution)
 
+
+
     def send_bsub_command(self, command, plugin, project, revision, plugin_execution):
         (bsub_command, output_path, error_path) = self.generate_bsub_command(command, plugin, project)
-
+        print(bsub_command)
+        '''
         #TODO
         bsub_command = 'bsub -q mpi -o %s -e %s -J "vcsshark_vcsSHARK_0.11" ~/bin/req.sh test' % (output_path, error_path)
         output = self.execute_command(bsub_command)
@@ -94,6 +162,7 @@ class HPCHandler(object):
                   error_log=error_path, revision_path=revision, submission_string=bsub_command,
                   revision_hash=revision_hash)
         job.save()
+        '''
 
     def update_job_information(self, jobs):
         # first check via bjobs output, if the job is found: use this status, if not check if there is an error log
@@ -103,10 +172,14 @@ class HPCHandler(object):
             self.update_single_job_information(job)
 
     def update_single_job_information(self, job):
+        # If job is already in exit state, it is fine
         if job.status in ['DONE', 'EXIT']:
             return
 
+        # Try bjobs command (only some jobs are listed there) and update job
         found_job = self.check_bjobs_output(job)
+
+        # If job is not found, try to get the error log. If the error log is empty the job was successful
         if not found_job:
             error_log = self.get_error_log(job)
 
@@ -188,7 +261,6 @@ class HPCHandler(object):
 
         return (bsub_command, output_path, error_path)
 
-
     def get_all_revision_paths(self, project):
         path = os.path.join(self.project_path, project.name, 'rev')
         out = self.execute_command('ls %s' % path)
@@ -202,29 +274,22 @@ class HPCHandler(object):
     def get_revisions_for_failed_plugins(self, plugins, project):
         revisions = []
         for plugin in plugins:
-            if plugin.abstraction_level == 'rev':
-                plugin_executions = plugin.pluginexecution_set.all().filter(project_id=project.id)
-                for plugin_execution in plugin_executions:
-                    for job in plugin_execution.job_set.all():
-                        self.update_single_job_information(job)
-                        job.refresh_from_db()
-                        if job.status == 'EXIT':
-                            revisions.append(job.revision_hash)
-
+            revisions.extend(list(plugin.get_revision_hashes_of_failed_jobs_for_project(project)))
         return revisions
 
-
-
     def prepare_project(self, project, plugins, execution, revisions):
-        if execution is None:
+        if execution is None or execution == '':
             execution = 'False'
 
-        if revisions is None:
+        if revisions is None or revisions == '':
             revisions = 'False'
 
         if execution == 'error':
             revisions = self.get_revisions_for_failed_plugins(plugins, project)
             revisions = ','.join(revisions)
+            execution = 'rev'
+
+
 
         plugin_types_str = ','.join([plugin.abstraction_level for plugin in plugins])
         self.execute_command('mkdir %s/%s' % (self.project_path, project.name), ignore_errors=True)
@@ -238,6 +303,10 @@ class HPCHandler(object):
             revisions
         )
 
+        # If revisions are choosen but no revisions are given, we do not need to execute the preparer
+        if execution == 'rev' and not revisions:
+            return
+
         self.execute_command(command)
 
     def install_plugin(self, plugin, parameters):
@@ -246,18 +315,6 @@ class HPCHandler(object):
 
     def delete_plugin(self, plugin):
         self.execute_command('rm -rf %s/%s' % (self.plugin_path, str(plugin)))
-
-    def execute_install(self, plugin, parameters):
-        # Build parameter for install script.
-        path_to_install_script = "%s/%s/install.sh " % (self.plugin_path, str(plugin))
-        command = path_to_install_script
-        for parameter in parameters:
-            command += parameter['value']+" "
-
-        command = string.Template(command).substitute({'plugin_path': os.path.join(self.plugin_path, str(plugin))})
-
-        self.execute_command("chmod +x %s" % path_to_install_script)
-        self.execute_command(command)
 
     def copy_plugin(self, plugin):
         scp = SCPClient(self.ssh.get_ssh_client().get_transport())
@@ -278,7 +335,7 @@ class HPCHandler(object):
         self.execute_command('rm -f ~/%s' % (plugin.get_name_of_archive()))
 
     def execute_command(self, command, ignore_errors=False):
-        print("Excute command: %s" % command)
+        print("Execute command: %s" % command)
         (stdin, stdout, stderr) = self.ssh.execute(command)
 
         if stderr and not ignore_errors:
