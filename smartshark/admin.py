@@ -47,7 +47,7 @@ class ArgumentAdmin(admin.ModelAdmin):
 
 
 class PluginAdmin(admin.ModelAdmin):
-    list_display = ('name', 'version', 'abstraction_level', 'active', 'installed')
+    list_display = ('name', 'version', 'description', 'abstraction_level', 'active', 'installed')
     actions = ('delete_model', 'install_plugin' )
 
     # A little hack to remove the plugin deleted successfully message
@@ -96,14 +96,15 @@ class PluginAdmin(admin.ModelAdmin):
         if not obj:
             return 'archive',
         else:
-            return 'name', 'author', 'version', 'abstraction_level', 'archive', 'requires', 'active', 'installed', \
-                   'description'
+            return 'name', 'author', 'version', 'description', 'abstraction_level', 'archive', 'requires', 'active', \
+                   'installed'
+
 
     def get_readonly_fields(self, request, obj=None):
         if not obj:
-            return 'name', 'author', 'version', 'abstraction_level', 'installed', 'description'
+            return 'name', 'author', 'version', 'description',  'abstraction_level', 'installed'
         else:
-            return 'name', 'author', 'version', 'abstraction_level', 'archive', 'installed', 'description'
+            return 'name', 'author', 'version', 'description', 'abstraction_level', 'archive', 'installed'
 
     def get_actions(self, request):
         actions = super(PluginAdmin, self).get_actions(request)

@@ -15,7 +15,7 @@ import re
 
 class HPCHandler(object):
     plugin_path = '~/bin/plugins'
-    project_path = '~/bin/projects'
+    project_path = '/home/uni08/jgrabow1/bin/projects'
     tools_path = '~/bin/tools'
     bsub_output_path = '~/bin/output'
     home_folder = '/usr/users/jgrabow1'
@@ -56,6 +56,7 @@ class HPCHandler(object):
                 'db_port': DATABASES['mongodb']['PORT'],
                 'db_authentication': DATABASES['mongodb']['AUTHENTICATION_DB'],
                 'url': project.url,
+                'plugin_path': os.path.join(self.plugin_path, str(plugin))
         })
 
     def create_install_command(self, plugin, parameters):
@@ -138,14 +139,9 @@ class HPCHandler(object):
                 # create command execution
                 self.send_bsub_command(command, plugin, project, revision_path, plugin_execution)
 
-
-
     def send_bsub_command(self, command, plugin, project, revision, plugin_execution):
         (bsub_command, output_path, error_path) = self.generate_bsub_command(command, plugin, project)
-        print(bsub_command)
-        '''
-        #TODO
-        bsub_command = 'bsub -q mpi -o %s -e %s -J "vcsshark_vcsSHARK_0.11" ~/bin/req.sh test' % (output_path, error_path)
+
         output = self.execute_command(bsub_command)
         job_id_match = re.match(r"(\w*) <([0-9]*)>", output[-1])
         job_id = job_id_match.group(2)
@@ -157,12 +153,14 @@ class HPCHandler(object):
         revision_hash = None
         if plugin.abstraction_level == 'rev':
             revision_hash = os.path.basename(os.path.normpath(revision))
+            job = Job(job_id=job_id, plugin_execution=plugin_execution, status='WAIT', output_log=output_path,
+                      error_log=error_path, revision_path=revision, submission_string=bsub_command,
+                      revision_hash=revision_hash)
+        else:
+            job = Job(job_id=job_id, plugin_execution=plugin_execution, status='WAIT', output_log=output_path,
+                      error_log=error_path, revision_path=revision, submission_string=bsub_command)
 
-        job = Job(job_id=job_id, plugin_execution=plugin_execution, status='WAIT', output_log=output_path,
-                  error_log=error_path, revision_path=revision, submission_string=bsub_command,
-                  revision_hash=revision_hash)
         job.save()
-        '''
 
     def update_job_information(self, jobs):
         # first check via bjobs output, if the job is found: use this status, if not check if there is an error log
@@ -177,17 +175,17 @@ class HPCHandler(object):
             return
 
         # Try bjobs command (only some jobs are listed there) and update job
-        found_job = self.check_bjobs_output(job)
+        #found_job = self.check_bjobs_output(job)
 
         # If job is not found, try to get the error log. If the error log is empty the job was successful
-        if not found_job:
-            error_log = self.get_error_log(job)
+        #if not found_job:
+        error_log = self.get_error_log(job)
 
-            if not error_log:
-                job.status = 'DONE'
-            else:
-                job.status = 'EXIT'
-            job.save()
+        if not error_log:
+            job.status = 'DONE'
+        else:
+           job.status = 'EXIT'
+        job.save()
 
     def get_history(self, job):
         out = self.execute_command('bhist -l %s' % job.job_id)

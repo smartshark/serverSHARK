@@ -89,7 +89,7 @@ class Plugin(models.Model):
     version = models.DecimalField(max_digits=5, decimal_places=2)
     description = models.CharField(max_length=400)
     abstraction_level = models.CharField(max_length=5, choices=ABSTRACTIONLEVEL_CHOICES)
-    validate_file = FileValidator(max_size=1024*1024*50, content_types=('application/x-tar', 'application/octet-stream'))
+    validate_file = FileValidator(max_size=1024*1024*500, content_types=('application/x-tar', 'application/octet-stream'))
     archive = models.FileField(upload_to="uploads/plugins/", validators=[validate_file])
     requires = models.ManyToManyField("self", blank=True, symmetrical=False)
 
@@ -282,7 +282,7 @@ class Job(models.Model):
     output_log = models.CharField(max_length=200)
     error_log = models.CharField(max_length=200)
     revision_path = models.CharField(max_length=100, blank=True)
-    submission_string = models.CharField(max_length=300)
+    submission_string = models.CharField(max_length=2000)
     revision_hash = models.CharField(max_length=100, blank=True)
 
 
