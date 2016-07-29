@@ -2,11 +2,13 @@ import copy
 
 import itertools
 from django.contrib import messages
+from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import render, get_object_or_404
 
 # Create your views here.
 from smartshark.common import create_substitutions_for_display, order_plugins
+from smartshark.filters import JobExecutionFilter
 from smartshark.forms import ProjectForm, get_form, parse_argument_values
 from smartshark.hpchandler import HPCHandler
 from smartshark.models import Project, Plugin, Argument, PluginExecution, Job
@@ -72,40 +74,59 @@ def plugin_execution_status(request, id):
     if not request.user.is_authenticated() or not request.user.has_perm('smartshark.plugin_execution_status'):
         messages.error(request, 'You are not authorized to perform this action.')
         return HttpResponseRedirect('/admin/smartshark/project')
-
+    hpc_handler = HPCHandler()
     plugin_execution = get_object_or_404(PluginExecution, pk=id)
 
-    jobs = Job.objects.all().filter(plugin_execution=plugin_execution).order_by('job_id')
-    hpc_handler = HPCHandler()
-    hpc_handler.update_job_information(jobs)
+    # Update information for all jobs
+    hpc_handler.update_job_information(Job.objects.all().filter(plugin_execution=plugin_execution))
+
+    job_filter = JobExecutionFilter(request.GET, queryset=Job.objects.all().filter(plugin_execution=plugin_execution))
+
+
+
+    # Set up pagination
+    paginator = Paginator(job_filter.qs, 10)
+    page = request.GET.get('page')
+    try:
+        jobs = paginator.page(page)
+    except PageNotAnInteger:
+        # If page is not an integer, deliver first page.
+        jobs = paginator.page(1)
+    except EmptyPage:
+        # If page is out of range (e.g. 9999), deliver last page of results.
+        jobs = paginator.page(paginator.num_pages)
 
     return render(request, 'smartshark/project/plugin_execution_status.html', {
         'plugin_execution': plugin_execution,
+        'filter': job_filter,
         'jobs': jobs,
+        'overall': len(job_filter.qs)
     })
 
 
-def plugin_status(request):
-    projects = []
+def plugin_status(request, id):
     if not request.user.is_authenticated() or not request.user.has_perm('smartshark.plugin_status'):
         messages.error(request, 'You are not authorized to perform this action.')
         return HttpResponseRedirect('/admin/smartshark/project')
 
-    if request.GET.get('ids'):
-        for project_id in request.GET.get('ids', '').split(','):
-            projects.append(get_object_or_404(Project, pk=project_id))
-    else:
-        messages.error(request, 'No project ids were given.')
-        return HttpResponseRedirect('/admin/smartshark/project')
+    project = get_object_or_404(Project, pk=id)
+    execution_list = PluginExecution.objects.all().filter(project=project).order_by('-submitted_at')
 
-    executions = {}
-    for project in projects:
-        executions[project.name] = PluginExecution.objects.all().filter(project=project).order_by('submitted_at')
+    paginator = Paginator(execution_list, 10)
+    page = request.GET.get('page')
+    try:
+        executions = paginator.page(page)
+    except PageNotAnInteger:
+        # If page is not an integer, deliver first page.
+        executions = paginator.page(1)
+    except EmptyPage:
+        # If page is out of range (e.g. 9999), deliver last page of results.
+        executions = paginator.page(paginator.num_pages)
+
+
 
     return render(request, 'smartshark/project/plugin_status.html', {
-        'projects': projects,
         'executions': executions,
-
     })
 
 
@@ -179,7 +200,10 @@ def collection_start(request):
                     plugin_executions = PluginExecution.objects.all().filter(plugin=plugin, project=project)
                     jobs = [plugin_execution.job_set.all() for plugin_execution in plugin_executions]
                     jobs = list(itertools.chain.from_iterable(jobs))
-                    hpc_handler.update_job_information(jobs)
+
+                    for job in jobs:
+                        if job.status not in ['DONE', 'EXIT']:
+                            hpc_handler.update_job_information([job])
 
                     # check if some plugin has unfinished jobs
                     has_unfinished_jobs = False
@@ -258,7 +282,6 @@ def collection_arguments(request):
 
                     # Sort plugins (first the one without requirements, than the one that requires the first, etc.)
                     sorted_plugins = order_plugins(parameters)
-
                     # For each plugin: execute it with the choosen project
                     for value in sorted_plugins:
                         sorted_parameter = sorted(value['parameters'], key=lambda k: k['argument'].position)

@@ -4,8 +4,10 @@
 
 {% block content %}
     <h1>Plugin Status for chosen Projects</h1>
-    {% for project in projects %}
         <h3>{{ project.name }}</h3>
+        <span class="current">
+                Page {{ executions.number }} of {{ executions.paginator.num_pages }}.
+         </span>
         <div id="{{ project.name }}_container">
             <table id="execution_list" class="table table-striped table-bordered table-hover table-condensed">
             <thead>
@@ -30,7 +32,7 @@
                     </div>
                 </th>
             </thead>
-        {% for execution in executions|get_item:project.name %}
+        {% for execution in executions %}
             <tr>
                 <td>{{ execution.plugin }}</td>
                 <td>{{ execution.submitted_at }}</td>
@@ -40,5 +42,15 @@
         {% endfor %}
             </table>
         </div>
-    {% endfor %}
+    <div class="pagination">
+        <span class="step-links">
+            {% if executions.has_previous %}
+                <a href="?page={{ executions.previous_page_number }}" class="btn btn-info">previous</a>
+            {% endif %}
+
+            {% if executions.has_next %}
+                <a href="?page={{ executions.next_page_number }}" class="btn btn-info">next</a>
+            {% endif %}
+        </span>
+    </div>
 {% endblock %}

@@ -137,6 +137,8 @@ class Plugin(models.Model):
 
         # Get all plugin executions for this plugin and project
         plugin_executions = self.pluginexecution_set.all().filter(project=project, plugin=self)
+        exit_job_set = set()
+        done_job_set = set()
         for plugin_execution in plugin_executions:
             # For each plugin_execution get all done_jobs and their revisions
             done_jobs_revisions = plugin_execution.job_set.all().filter(status='DONE').order_by('revision_hash')\
@@ -146,9 +148,14 @@ class Plugin(models.Model):
             exit_jobs_revisions = plugin_execution.job_set.all().filter(status='EXIT').order_by('revision_hash')\
                 .values_list('revision_hash', flat=True).distinct()
 
-            # For each plugin execution get all error jobs. If this job is also in done_jobs then ignore it
-            difference_set = set(exit_jobs_revisions) - set(done_jobs_revisions)
-            revisions = revisions.union(difference_set)
+
+
+            exit_job_set = exit_job_set | set(exit_jobs_revisions)
+            done_job_set = done_job_set | set(done_jobs_revisions)
+
+        # For each plugin execution get all error jobs. If this job is also in done_jobs then ignore it
+        difference_set = exit_job_set - done_job_set
+        revisions = revisions.union(difference_set)
 
         return revisions
 
@@ -263,6 +270,7 @@ class PluginExecution(models.Model):
 
 
 class Job(models.Model):
+    '''
     STATUS_CHOICES = (
         ('PEND', 'Pending'),
         ('PROV', 'Dispatched to power-save host'),
@@ -276,6 +284,12 @@ class Job(models.Model):
         ('WAIT', 'Waiting'),
         ('ZOMBI', 'Zombie!!'),
     )
+    '''
+    STATUS_CHOICES = (
+        ('DONE', 'Done'),
+        ('EXIT', 'Exit'),
+        ('WAIT', 'Waiting'),
+    )
     job_id = models.IntegerField()
     plugin_execution = models.ForeignKey(PluginExecution)
     status = models.CharField(max_length=8, choices=STATUS_CHOICES)
@@ -284,8 +298,8 @@ class Job(models.Model):
     revision_path = models.CharField(max_length=100, blank=True)
     submission_string = models.CharField(max_length=2000)
     revision_hash = models.CharField(max_length=100, blank=True)
-
-
+    output_file_exists = False
+    error_file_exists = False
 
 
 class MongoRole(models.Model):

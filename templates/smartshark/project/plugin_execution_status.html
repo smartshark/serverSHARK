@@ -5,6 +5,27 @@
 {% block content %}
     <h1>Plugin Status for Project {{ plugin_execution.project.name }} and Plugin {{ plugin_execution.plugin.name }}</h1>
     <div id="{{ project.name }}_container">
+            <form action="" method="get">
+                <div class="row">
+                <div class="span2">
+                        {{ filter.form.status.errors }}
+                        {{ filter.form.status.label_tag }}
+                        {{ filter.form.status }}
+                </div>
+                <div class="span2">
+                        {{ filter.form.revision_hash.errors }}
+                        {{ filter.form.revision_hash.label_tag }}
+                        {{ filter.form.revision_hash }}
+                </div>
+
+                </div>
+                <input class="btn btn-info" type="submit" />
+            </form>
+
+
+         <span class="current">
+                Page {{ jobs.number }} of {{ jobs.paginator.num_pages }}. Overall: {{ overall }}
+         </span>
         <table id="execution_list" class="table table-striped table-bordered table-hover table-condensed">
             <thead>
                 <th scope="col">
@@ -24,7 +45,7 @@
                 </th>
                 <th scope="col">
                     <div class="text">
-                        Revision Path
+                        Revision
                     </div>
                 </th>
                 <th scope="col">
@@ -38,14 +59,33 @@
                     <td>{{ job.job_id }}</td>
                     <td>{{ job.status }}</td>
                     <td>{{ job.submission_string }}</td>
-                    <td>{{ job.revision_path }}</td>
+                    <td>{{ job.revision_hash }}</td>
                     <td>
-                        <a class="btn btn-info" href="{% url 'job_output' id=job.id type='output'%}">Show Output</a>
-                        <a class="btn btn-info" href="{% url 'job_output' id=job.id type='error'%}">Show Errors</a>
-                        <a class="btn btn-info" href="{% url 'job_output' id=job.id type='history'%}">Show History</a>
+                        {% if job.output_file_exists %}
+                            <a class="btn btn-info" href="{% url 'job_output' id=job.id type='output'%}">Show Output</a>
+                        {% endif %}
+
+                        {% if job.error_file_exists %}
+                            <a class="btn btn-info" href="{% url 'job_output' id=job.id type='error'%}">Show Errors</a>
+                        {% endif %}
+
+                        {% if job.output_file_exists %}
+                            <a class="btn btn-info" href="{% url 'job_output' id=job.id type='history'%}">Show History</a>
+                        {% endif %}
                     </td>
                 </tr>
             {% endfor %}
         </table>
+    </div>
+    <div class="pagination">
+        <span class="step-links">
+            {% if jobs.has_previous %}
+                <a href="?page={{ jobs.previous_page_number }}" class="btn btn-info">previous</a>
+            {% endif %}
+
+            {% if jobs.has_next %}
+                <a href="?page={{ jobs.next_page_number }}" class="btn btn-info">next</a>
+            {% endif %}
+        </span>
     </div>
 {% endblock %}

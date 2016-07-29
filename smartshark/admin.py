@@ -8,9 +8,11 @@ from django.contrib.contenttypes.models import ContentType
 from django.contrib.messages import get_messages
 from django.core.exceptions import ValidationError
 from django import forms
+from django.core.urlresolvers import reverse
 from django.http import HttpResponseRedirect
 from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils.safestring import mark_safe
 from form_utils.forms import BetterForm
 
 from smartshark.hpchandler import HPCHandler
@@ -166,7 +168,7 @@ class PluginAdmin(admin.ModelAdmin):
 
 class ProjectAdmin(admin.ModelAdmin):
     fields = ('name', 'url', 'mongo_id', 'clone_username' )
-    list_display = ('name', 'url', 'mongo_id')
+    list_display = ('name', 'url', 'mongo_id', 'plugin_executions')
     readonly_fields = ('mongo_id', )
     actions = ['start_collection', 'show_executions']
 
@@ -178,16 +180,16 @@ class ProjectAdmin(admin.ModelAdmin):
             return self.readonly_fields + ('name', 'url')
         return self.readonly_fields
 
+    def plugin_executions(self, obj):
+        return mark_safe('<a class="btn btn-info" href="%s">Plugin Executions</a>' %
+                         reverse('plugin_status', kwargs={'id': obj.id}))
+
     def start_collection(self, request, queryset):
         selected = request.POST.getlist(admin.ACTION_CHECKBOX_NAME)
         return HttpResponseRedirect("/smartshark/project/collection/start/?ids=%s" % (",".join(selected)))
 
-    def show_executions(self, request, queryset):
-        selected = request.POST.getlist(admin.ACTION_CHECKBOX_NAME)
-        return HttpResponseRedirect("/smartshark/project/plugin_status/?ids=%s" % (",".join(selected)))
 
     start_collection.short_description = 'Start Collection for selected Projects'
-    show_executions.short_description = 'Show Plugin status for selected Projects'
 
 
 admin.site.register(User, MyUserAdmin)
