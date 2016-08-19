@@ -327,13 +327,20 @@ class SmartsharkUser(models.Model):
     @receiver(pre_save, sender=User)
     def get_user_in_signal(sender, **kwargs):
         user = kwargs["instance"]
+
+        # If we create the superuser via django manage.py we do not want to call the update_user function
+        initial_user = True
+
         for entry in reversed(inspect.stack()):
             if entry[1].endswith('/django/contrib/admin/sites.py'):
+                initial_user = False
                 try:
                     password = entry[0].f_locals['request'].POST.get('password1')
                 except:
                     password = None
                 break
-        handler.update_user(username=user.username, password=password, roles=[])
+
+        if not initial_user:
+            handler.update_user(username=user.username, password=password, roles=[])
 
 
