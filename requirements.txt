@@ -1,2 +1,2 @@
 django-suit == 0.2.21
-django-filters
+django-filter
