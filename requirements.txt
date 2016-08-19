@@ -2,3 +2,6 @@ django
 django-suit == 0.2.21
 django-filter
 mysqlclient
+python-magic
+paramiko
+django-form-utils
