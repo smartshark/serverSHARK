@@ -8,8 +8,12 @@ https://docs.djangoproject.com/en/1.9/howto/deployment/wsgi/
 """
 
 import os
+import sys
 
 from django.core.wsgi import get_wsgi_application
+
+# Add the path to 3rd party django application and to django itself.
+sys.path.append('/var/www/servershark')
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "server.settings")
 
