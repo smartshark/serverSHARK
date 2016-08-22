@@ -5,3 +5,4 @@ mysqlclient
 python-magic
 paramiko
 django-form-utils
+pymongo
