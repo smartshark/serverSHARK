@@ -1,0 +1,67 @@
+---
+- hosts: server
+  vars_files:
+    - vars.yml
+  gather_facts: false
+  become: yes
+  remote_user: root
+
+  tasks:
+    - name: Install system packages
+      apt: pkg={{ item }} update-cache=yes
+      with_items: "{{ system_packages }}"
+
+    - name: Create directory for app
+      file: path={{ project_dir }} state=directory
+
+    - name: make sure mysql server is running
+      service: name=mysql state=started enabled=yes
+
+    - name: create database
+      mysql_db: name={{ mysqldb_name }} state=present
+
+    - name: Set root user password
+      mysql_user: name=root password={{mysqldb_root_password}} check_implicit_admin=yes
+
+    - name: Copy root credentials as .my.cnf file
+      template: src=templates/root.cnf.j2 dest=~/.my.cnf mode=0600 owner=root group=root
+
+    - name: Ensure Anonymous user(s) are not in the database
+      mysql_user: name='' host=localhost state=absent
+
+    - name: Remove the test database
+      mysql_db: name=test state=absent
+      notify:
+        - restart mysql
+
+    - name: create database user
+      mysql_user: name={{ mysqldb_user }} password={{ mysqldb_password }} check_implicit_admin=yes priv={{mysqldb_name}}.*:ALL,GRANT state=present
+
+    - name: remove default nginx site
+      file: path=/etc/nginx/sites-enabled/default state=absent
+
+    - name: install system wide python3 packages
+      pip: executable=pip3 name={{ item }} state=present
+      with_items: "{{ pip3_packages }}"
+
+    - name: install system wide python2 packages
+      pip: executable=pip2 name={{ item }} state=present
+      with_items: "{{ pip2_packages }}"
+
+    - name: copy nginx config
+      template: src=templates/nginx.j2 dest=/etc/nginx/sites-available/{{ project_name }}
+
+    - name: enable nginx config
+      file: state=link src=/etc/nginx/sites-available/{{project_name}} dest=/etc/nginx/sites-enabled/{{project_name}} owner=www-data group=www-data
+      notify:
+        - restart nginx
+
+  handlers:
+    - name: restart mysql
+      service: name=mysql state=restart
+
+    - name: restart nginx
+      command: systemctl restart nginx
+
+- include: smartshark_setup.yml
+# vim:ft=ansible:

@@ -1,0 +1,20 @@
+server {
+    listen 80;
+    server_name {{ server_name }};
+    charset utf-8;
+
+    location = /favicon.ico { access_log off; log_not_found off; }
+
+    location /static/ {
+        root {{ static_root }};
+    }
+
+    location /media/ {
+        root {{ media_root }};
+    }
+
+    location / {
+        include proxy_params;
+        proxy_pass http://unix:{{socket}}/{{ project_name}}.sock;
+    }
+}

@@ -1,0 +1,81 @@
+---
+- hosts: server
+  vars_files:
+    - vars.yml
+  gather_facts: false
+  become: yes
+  remote_user: root
+
+  tasks:
+    - name: Clone/pull project repo
+      git: repo={{ project_repo }} dest={{ project_dir }} accept_hostkey=yes force=yes
+
+    - name: Install gunicorn in virtualenv
+      pip: name=gunicorn virtualenv={{virtual_env}} virtualenv_python=python3.5
+
+    - name: install python packages in virtualenv
+      pip: requirements={{ project_dir }}/requirements.txt virtualenv={{virtual_env}} virtualenv_python=python3.5
+      notify:
+      - restart gunicorn
+
+    - name: copy smartshark config
+      template: src=templates/settings.py.j2 dest={{ project_dir }}/server/settings.py
+
+    - name: django migrate
+      django_manage: command=migrate virtualenv={{ virtual_env }} app_path={{ project_dir }}
+
+    - name: django collectstatic
+      django_manage: command=collectstatic virtualenv={{ virtual_env }} app_path={{ project_dir }}
+
+    - name: hack to create superuser
+      shell: echo "from django.contrib.auth.models import User; User.objects.create_superuser('{{smartshark_user}}', '{{smartshark_email}}', '{{smartshark_password}}')" | /{{virtual_env}}/bin/python /{{project_dir}}/manage.py shell
+
+    - name: create associated mongodb user
+      mongodb_user: name={{smartshark_user}} password={{smartshark_password}} roles='dbAdmin,dbOwner' state=present database={{mongodb_dbname}} login_database={{mongodb_authentication_db}} login_host={{mongodb_host}} login_port={{mongodb_port}} login_user={{mongodb_user}} login_password={{mongodb_password}}
+
+    - name: django execute fixtures
+      django_manage: command=loaddata virtualenv={{ virtual_env }} app_path={{ project_dir }} fixtures={{ project_dir }}/smartshark/fixtures/roles.json
+
+    - name: copy role data
+      copy: src=templates/mysql_dump.sql dest=/tmp/mysql_dump.sql
+      register: mysql_dump
+
+    - name: add role data
+      mysql_db: name={{mysqldb_name}} state=import target=/tmp/mysql_dump.sql
+      when: mysql_dump.changed
+
+    - name: create folder for gunicorn socket
+      file: path={{socket}} state=directory owner=www-data group=www-data
+
+    - name: copy gunicorn config
+      template: src=templates/gunicorn.j2 dest=/etc/systemd/system/gunicorn.service
+      notify:
+      - restart gunicorn
+
+    - name: start nginx
+      command: systemctl start nginx
+
+    - name: start gunicorn
+      command: systemctl start gunicorn
+
+    - name: make sure nginx server is started on boot
+      command: systemctl enable nginx
+      notify:
+        - restart nginx
+
+    - name: make sure gunicorn server is started on boot
+      command: systemctl enable gunicorn
+      notify:
+        - restart gunicorn
+
+    - name: set permissions
+      file: path={{project_dir}} state=directory owner=www-data group=www-data
+
+
+  handlers:
+    - name: restart nginx
+      command: systemctl restart nginx
+
+    - name: restart gunicorn
+      command: systemctl restart gunicorn
+# vim:ft=ansible:

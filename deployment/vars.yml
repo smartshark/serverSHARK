@@ -1,0 +1,97 @@
+---
+# a unix path-friendly name (IE, no spaces or special characters)
+project_name: server
+
+# the base path to install to. You should not need to change this.
+install_root: /srv
+
+# installdir
+project_dir: "{{install_root}}/{{project_name}}"
+
+# virtual environement
+virtual_env: "{{install_root}}/smartsharkenv"
+
+# socket pint
+socket: "{{install_root}}/socket"
+
+# the python module path to your project's wsgi file. E.g. for a directory
+# layout like this (assuming `django_hello` is the project_name and top level
+# directory name):
+# django_hello
+# ├── hello
+# │   ├── apps
+# │   ├── __init__.py
+# │   ├── settings.py
+# │   ├── urls.py
+# │   └── wsgi.py
+# ├── manage.py
+# └── requirements.txt
+# the correct wsgi_module value would be `hello.wsgi`
+wsgi_module: server.wsgi
+
+# the git repository URL for the project
+project_repo: https://gitlab.gwdg.de/smartshark/servershark.git
+
+# The value of your django project's STATIC_ROOT settings.
+# This will be the directory that django's `collectstatic` management command
+# copies static files to, and it must be an absolute path. The default value
+# here assumes that STATIC_ROOT is set in your settings.py like so:
+# STATIC_ROOT = os.path.abspath(os.path.join(BASE_DIR, 'static'))
+static_root: "{{project_dir}}"
+media_root: "{{ project_dir }}"
+
+# the dns name or names (space separated) for your server
+server_name: smartshark.de
+
+# MySQL Database stuff
+mysqldb_name: smartshark
+mysqldb_user: smartshark_user
+mysqldb_password: root
+mysqldb_root_password: xxx
+
+# HPC Login
+hpc_username: xxxx
+hpc_password: xxxx
+hpc_host: xxxx
+hpc_port: 22
+hpc_default_queue: xxx
+
+# MongoDB
+mongodb_dbname: smartshark_test
+mongodb_user: root
+mongodb_password: xxx
+mongodb_host: xxx
+mongodb_port: xxx
+mongodb_authentication_db: xxx
+
+# Secret Key
+secret_key: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+# Superuser for django app
+smartshark_user: test2
+smartshark_password: smartshark
+smartshark_email: smartshark@smartshark.de
+
+# apt packages, you should not need to change this unless you have packages
+# listed in your requirements.txt that depend on system packages.
+system_packages:
+  - git
+  - nginx
+  - python3-pip
+  - python-pip
+  - python3-dev
+  - libmysqlclient-dev
+  - mysql-server
+  - python-mysqldb
+  - python-pexpect
+  - openssl
+  - libssl-dev
+
+pip3_packages:
+  - virtualenv
+
+pip2_packages:
+  - pymongo
+
+
+# vim:ft=ansible:
