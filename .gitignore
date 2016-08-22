@@ -8,6 +8,7 @@ __pycache__/
 
 # deployment
 deployment/vars.yml
+deployment/inventory
 
 # Distribution / packaging
 .Python
