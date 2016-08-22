@@ -6,6 +6,9 @@ __pycache__/
 # C extensions
 *.so
 
+# deployment
+deployment/vars.yml
+
 # Distribution / packaging
 .Python
 env/
