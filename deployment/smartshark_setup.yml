@@ -68,8 +68,14 @@
       notify:
         - restart gunicorn
 
+    - name: add needed folders
+      file: path={{item}} state=directory owner=www-data group=www-data
+      with_items:
+        - "{{project_dir}}/media/tmp"
+        - "{{project_dir}}/uploads/plugins"
+
     - name: set permissions
-      file: path={{project_dir}} state=directory owner=www-data group=www-data
+      file: path={{project_dir}} state=directory owner=www-data group=www-data recurse=yes
 
 
   handlers:

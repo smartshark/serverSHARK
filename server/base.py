@@ -19,12 +19,18 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 
 
+# Login redirect
+LOGIN_REDIRECT_URL = 'index'
+
+
 # Application definition
 
 INSTALLED_APPS = [
     'smartshark.apps.ServersharkConfig',
     'suit',
     'django_filters',
+    'bootstrap3',
+    'progressbarupload',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -43,6 +49,12 @@ MIDDLEWARE_CLASSES = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+FILE_UPLOAD_HANDLERS = (
+    "progressbarupload.uploadhandler.ProgressBarUploadHandler",
+    "django.core.files.uploadhandler.MemoryFileUploadHandler",
+    "django.core.files.uploadhandler.TemporaryFileUploadHandler",
+)
 
 ROOT_URLCONF = 'server.urls'
 

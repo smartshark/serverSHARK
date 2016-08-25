@@ -11,6 +11,15 @@ from django import forms
 class ProjectForm(forms.Form):
     plugins = forms.ModelMultipleChoiceField(queryset=Plugin.objects.all().filter(active=True, installed=True))
 
+class SparkSubmitForm(forms.Form):
+    change_form_template = 'progressbarupload/change_form.html'
+    add_form_template = 'progressbarupload/change_form.html'
+
+    file = forms.FileField(label='Jar / Python File')
+    class_name = forms.CharField(label='Fully Qualified Class Name', max_length=300, required=False)
+    arguments = forms.CharField(label='Arguments', max_length=1000, required=False)
+
+
 def parse_argument_values(form_data, parameters):
     for id_string, value in form_data.items():
         if "argument" in id_string:

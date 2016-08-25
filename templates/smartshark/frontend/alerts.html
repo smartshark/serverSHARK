@@ -1,0 +1,19 @@
+{% if messages %}
+    {% for message in messages %}
+        {% if message.level == 40 %}
+            <div class="alert alert-danger" role="alert">{{ message }}</div>
+        {% endif %}
+        {% if message.level ==  30%}
+            <div class="alert alert-warning" role="alert">{{ message }}</div>
+        {% endif %}
+        {% if message.level ==  25%}
+            <div class="alert alert-success" role="alert">{{ message }}</div>
+        {% endif %}
+        {% if message.level ==  20%}
+            <div class="alert alert-info" role="alert">{{ message }}</div>
+        {% endif %}
+        {% if message.level ==  10%}
+            <div class="alert alert-info" role="alert">{{ message }}</div>
+        {% endif %}
+    {% endfor %}
+{% endif %}

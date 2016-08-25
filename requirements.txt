@@ -6,3 +6,5 @@ python-magic
 paramiko
 django-form-utils
 pymongo
+django-bootstrap3
+git+http://github.com/ouhouhsami/django-progressbarupload.git#egg=django-progressbarupload

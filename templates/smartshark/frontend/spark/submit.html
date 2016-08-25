@@ -1,0 +1,19 @@
+{% extends "smartshark/frontend/base.html" %}
+{% load bootstrap3 %}
+{% load progress_bar %}
+
+
+{% block title %}Spark Submit{% endblock %}
+
+{% block content %}
+    <form method="POST" action="." class="form" enctype="multipart/form-data">
+    {% csrf_token %}
+      {% bootstrap_form form %}
+      {% progress_bar %}
+      {% buttons %}
+        <button type="submit" class="btn btn-primary">
+          Submit
+        </button>
+      {% endbuttons %}
+    </form>
+{% endblock %}
