@@ -1,22 +1,16 @@
 from django.contrib import admin
 from django.contrib.auth.models import User
 from django.contrib.auth.admin import UserAdmin
-import tarfile
-import json
 
-from django.contrib.contenttypes.models import ContentType
+
 from django.contrib.messages import get_messages
 from django.core.exceptions import ValidationError
-from django import forms
 from django.core.urlresolvers import reverse
 from django.http import HttpResponseRedirect
 from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.safestring import mark_safe
-from form_utils.forms import BetterForm
 
-from smartshark.hpchandler import HPCHandler
-from smartshark.pluginhandler import PluginInformationHandler
 from .models import MongoRole, SmartsharkUser, Plugin, Argument, Project
 # Register your models here.
 

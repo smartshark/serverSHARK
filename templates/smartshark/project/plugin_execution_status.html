@@ -61,17 +61,9 @@
                     <td>{{ job.submission_string }}</td>
                     <td>{{ job.revision_hash }}</td>
                     <td>
-                        {% if job.output_file_exists %}
-                            <a class="btn btn-info" href="{% url 'job_output' id=job.id type='output'%}">Show Output</a>
-                        {% endif %}
-
-                        {% if job.error_file_exists %}
-                            <a class="btn btn-info" href="{% url 'job_output' id=job.id type='error'%}">Show Errors</a>
-                        {% endif %}
-
-                        {% if job.output_file_exists %}
-                            <a class="btn btn-info" href="{% url 'job_output' id=job.id type='history'%}">Show History</a>
-                        {% endif %}
+                        <a class="btn btn-info" href="{% url 'job_output' id=job.id type='output'%}">Show Output</a>
+                        <a class="btn btn-info" href="{% url 'job_output' id=job.id type='error'%}">Show Errors</a>
+                        <a class="btn btn-info" href="{% url 'job_output' id=job.id type='history'%}">Show History</a>
                     </td>
                 </tr>
             {% endfor %}

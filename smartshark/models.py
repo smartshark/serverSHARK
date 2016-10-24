@@ -11,9 +11,6 @@ from smartshark.mongohandler import handler
 import inspect, os
 from django.template.defaultfilters import filesizeformat
 import magic
-import tarfile
-import json
-from collections import Counter
 
 from smartshark.pluginhandler import PluginInformationHandler
 

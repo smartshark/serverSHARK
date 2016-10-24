@@ -1,70 +1,14 @@
-import copy
-
 import itertools
-import os
 from django.contrib import messages
-from django.core.files.storage import default_storage
-from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
-from django.http import HttpResponse, HttpResponseRedirect
+from django.http import HttpResponseRedirect
 from django.shortcuts import render, get_object_or_404
 
-# Create your views here.
 from smartshark.common import create_substitutions_for_display, order_plugins
-from smartshark.filters import JobExecutionFilter
-from smartshark.forms import ProjectForm, get_form, parse_argument_values, SparkSubmitForm
-from smartshark.hpchandler import HPCHandler
-from smartshark.models import Project, Plugin, Argument, PluginExecution, Job
-from smartshark.scp import SCPClient
-from smartshark.shellhandler import ShellHandler
-from smartshark.sparkconnector import SparkConnector
+from smartshark.forms import ProjectForm, get_form, parse_argument_values
+from smartshark.models import Plugin, Project, PluginExecution
 
+from server.settings import COLLECTION_CONNECTOR
 
-def index(request):
-    return render(request, 'smartshark/frontend/index.html')
-
-
-def spark_submit(request):
-    if not request.user.is_authenticated() or not request.user.has_perm('smartshark.spark_submit'):
-        messages.error(request, 'You are not authorized to perform this action.')
-        return HttpResponseRedirect('/smartshark')
-
-    if request.method == 'POST':
-        # create a form instance and populate it with data from the request:
-        form = SparkSubmitForm(request.POST or None, request.FILES)
-        # check whether it's valid:
-        if form.is_valid():
-            file_obj = request.FILES['file']
-            file_name = request.user.username+"_"+str(file_obj)
-
-            # Write file to a temp file
-            with open(default_storage.path('tmp/'+file_name), 'wb+') as destination:
-                for chunk in file_obj.chunks():
-                    destination.write(chunk)
-
-            ssh = ShellHandler('gwdu102.gwdg.de', 'jgrabow1', 'H5zAxRYMm6', 22)
-            scp = SCPClient(ssh.get_ssh_client().get_transport())
-
-            # Copy analysis
-            scp.put(default_storage.path('tmp/'+file_name), remote_path=b'~/sparkjobs')
-
-            # delete temp file
-            os.remove(default_storage.path('tmp/'+file_name))
-
-            # Send batch job
-            sc = SparkConnector()
-            sc.submit_batch_job('~/sparkjobs/'+file_name, class_name=form.cleaned_data['class_name'],
-                                args=form.cleaned_data['arguments'].split(','))
-
-            messages.success(request, 'Spark Job submitted successfully!')
-            return HttpResponseRedirect('/smartshark/spark/submit')
-
-    # if a GET (or any other method) we'll create a blank form
-    else:
-        form = SparkSubmitForm(request.POST or None)
-
-    return render(request, 'smartshark/frontend/spark/submit.html', {
-        'form': form
-    })
 
 def install(request):
     plugins = []
@@ -92,12 +36,12 @@ def install(request):
         # check whether it's valid:
         if form.is_valid():
             parse_argument_values(form.cleaned_data, parameters)
-            hpc_handler = HPCHandler()
+            #hpc_handler = HPCHandler()
             try:
                 # Sorting arguments according to position attribute and install
                 for plugin_id, value in parameters.items():
                     sorted_parameter = sorted(value['parameters'], key=lambda k: k['argument'].position)
-                    hpc_handler.install_plugin(value['plugin'], sorted_parameter)
+                    #hpc_handler.install_plugin(value['plugin'], sorted_parameter)
 
                     # Save the status
                     value['plugin'].installed = True
@@ -119,87 +63,6 @@ def install(request):
         'form': form,
         'plugins': plugins,
         'substitutions': create_substitutions_for_display()
-    })
-
-
-def plugin_execution_status(request, id):
-    if not request.user.is_authenticated() or not request.user.has_perm('smartshark.plugin_execution_status'):
-        messages.error(request, 'You are not authorized to perform this action.')
-        return HttpResponseRedirect('/admin/smartshark/project')
-    hpc_handler = HPCHandler()
-    plugin_execution = get_object_or_404(PluginExecution, pk=id)
-
-    # Update information for all jobs
-    hpc_handler.update_job_information(Job.objects.all().filter(plugin_execution=plugin_execution))
-
-    job_filter = JobExecutionFilter(request.GET, queryset=Job.objects.all().filter(plugin_execution=plugin_execution))
-
-
-
-    # Set up pagination
-    paginator = Paginator(job_filter.qs, 10)
-    page = request.GET.get('page')
-    try:
-        jobs = paginator.page(page)
-    except PageNotAnInteger:
-        # If page is not an integer, deliver first page.
-        jobs = paginator.page(1)
-    except EmptyPage:
-        # If page is out of range (e.g. 9999), deliver last page of results.
-        jobs = paginator.page(paginator.num_pages)
-
-    return render(request, 'smartshark/project/plugin_execution_status.html', {
-        'plugin_execution': plugin_execution,
-        'filter': job_filter,
-        'jobs': jobs,
-        'overall': len(job_filter.qs)
-    })
-
-
-def plugin_status(request, id):
-    if not request.user.is_authenticated() or not request.user.has_perm('smartshark.plugin_status'):
-        messages.error(request, 'You are not authorized to perform this action.')
-        return HttpResponseRedirect('/admin/smartshark/project')
-
-    project = get_object_or_404(Project, pk=id)
-    execution_list = PluginExecution.objects.all().filter(project=project).order_by('-submitted_at')
-
-    paginator = Paginator(execution_list, 10)
-    page = request.GET.get('page')
-    try:
-        executions = paginator.page(page)
-    except PageNotAnInteger:
-        # If page is not an integer, deliver first page.
-        executions = paginator.page(1)
-    except EmptyPage:
-        # If page is out of range (e.g. 9999), deliver last page of results.
-        executions = paginator.page(paginator.num_pages)
-
-
-
-    return render(request, 'smartshark/project/plugin_status.html', {
-        'executions': executions,
-    })
-
-
-def job_output(request, id, type):
-    if not request.user.is_authenticated() or not request.user.has_perm('smartshark.job_output'):
-        messages.error(request, 'You are not authorized to perform this action.')
-        return HttpResponseRedirect('/admin/smartshark/project')
-
-    job = get_object_or_404(Job, pk=id)
-
-    hpc_handler = HPCHandler()
-    if type == 'output':
-        output = hpc_handler.get_output_log(job)
-    elif type == 'error':
-        output = hpc_handler.get_error_log(job)
-    elif type == 'history':
-        output = hpc_handler.get_history(job)
-
-    return render(request, 'smartshark/job/output.html', {
-        'output': '\n'.join(output),
-        'job': job,
     })
 
 
@@ -357,9 +220,6 @@ def collection_arguments(request):
         'projects': projects,
         'substitutions': create_substitutions_for_display()
     })
-
-
-
 
 
 
