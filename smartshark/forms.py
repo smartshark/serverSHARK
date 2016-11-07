@@ -4,7 +4,7 @@ from django.shortcuts import get_object_or_404
 from form_utils.forms import BetterForm
 
 from server.base import SUBSTITUTIONS
-from .models import Plugin, Argument
+from .models import Plugin, Argument, ExecutionHistory, PluginExecution
 from django import forms
 
 
@@ -20,14 +20,32 @@ class SparkSubmitForm(forms.Form):
     arguments = forms.CharField(label='Arguments', max_length=1000, required=False)
 
 
-def parse_argument_values(form_data, parameters):
+def set_argument_values(form_data):
+    for id_string, value in form_data.items():
+        if "argument" in id_string:
+            parts = id_string.split("_")
+            argument_id = parts[2]
+            argument = get_object_or_404(Argument, pk=argument_id)
+            argument.install_value = value
+            argument.save()
+
+
+def set_argument_execution_values(form_data, plugin_executions):
     for id_string, value in form_data.items():
         if "argument" in id_string:
             parts = id_string.split("_")
             plugin_id = parts[0]
             argument_id = parts[2]
-            parameter = {'argument': get_object_or_404(Argument, pk=argument_id), 'value': value}
-            parameters[plugin_id]['parameters'].append(parameter)
+
+            for plugin_execution in plugin_executions:
+                if plugin_execution.plugin.id == int(plugin_id):
+                    found_plugin_execution = plugin_execution
+
+            exe = ExecutionHistory(execution_argument=get_object_or_404(Argument, pk=argument_id),
+                                   plugin_execution=found_plugin_execution,
+                                   execution_value=value)
+            exe.save()
+
 
 
 def get_form(plugins, post, type):
@@ -37,7 +55,7 @@ def get_form(plugins, post, type):
                         ('new', 'Execute on new revisions'), ('rev', 'Execute on following revisions:'))
 
         if type == 'execute':
-            rev_plugins = [plugin for plugin in plugins if plugin.abstraction_level == 'rev']
+            rev_plugins = [plugin for plugin in plugins if plugin.plugin_type == 'rev']
             if len(rev_plugins) > 0:
                 plugin_fields['execution'] = forms.ChoiceField(widget=forms.RadioSelect, choices=EXEC_OPTIONS)
                 plugin_fields['revisions'] = forms.CharField(label='Revisions (comma-separated)', required=False)
@@ -59,8 +77,7 @@ def get_form(plugins, post, type):
 
             created_fieldsets.append([str(plugin), {'fields': arguments}])
 
-
-        # Dynamically creted pluginform
+        # Dynamically created pluginform
         class PluginForm(BetterForm):
 
             class Meta:

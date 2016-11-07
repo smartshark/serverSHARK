@@ -1,6 +1,6 @@
 import os
 
-from smartshark.hpchandler import HPCHandler
+from smartshark.datacollection.pluginmanagementinterface import PluginManagementInterface
 from smartshark.models import SmartsharkUser, Plugin, Project
 from django.db.models.signals import post_save, pre_save, m2m_changed, post_delete, pre_delete
 from django.dispatch import receiver
@@ -8,6 +8,8 @@ import tarfile
 
 from smartshark.mongohandler import handler
 
+
+interface = PluginManagementInterface.find_correct_plugin_manager()
 
 @receiver(m2m_changed, sender=SmartsharkUser.roles.through)
 def add_roles(sender, **kwargs):
@@ -20,12 +22,16 @@ def add_roles(sender, **kwargs):
 @receiver(post_delete, sender=Plugin)
 def delete_archive(sender, **kwargs):
     plugin = kwargs["instance"]
-    os.remove(plugin.get_full_path_to_archive())
+    try:
+        os.remove(plugin.get_full_path_to_archive())
+    except FileNotFoundError:
+        pass
 
-    # delete plugin on hpc
-    hpc_handler = HPCHandler()
-    hpc_handler.delete_plugin(plugin)
+    # delete plugin on bash system
+    interface.delete_plugins([plugin])
 
+    # delete schema
+    handler.delete_schema(plugin)
 
 @receiver(pre_save, sender=Project)
 def add_project_to_mongodb(sender, **kwargs):

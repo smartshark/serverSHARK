@@ -12,6 +12,7 @@ class MongoHandler(object):
         self.password = server.settings.DATABASES['mongodb']['PASSWORD']
         self.database = server.settings.DATABASES['mongodb']['NAME']
         self.authentication_database = server.settings.DATABASES['mongodb']['AUTHENTICATION_DB']
+        self.schema_collection = server.settings.DATABASES['mongodb']['PLUGIN_SCHEMA_COLLECTION']
 
         self.client = MongoClient(host=self.address, port=self.port)
         self.client[self.database].authenticate(self.user, self.password, source=self.authentication_database)
@@ -40,5 +41,13 @@ class MongoHandler(object):
 
     def delete_project(self, project):
         self.client.get_database(self.database).get_collection('project').delete_one({'url': project.url})
+
+    def add_schema(self, plugin_schema, plugin):
+        plugin_schema['plugin'] = str(plugin)
+        self.client.get_database(self.database).get_collection(self.schema_collection).insert_one(plugin_schema)
+
+    def delete_schema(self, plugin):
+        self.client.get_database(self.database).get_collection(self.schema_collection)\
+            .find_one_and_delete({'plugin': str(plugin)})
 
 handler = MongoHandler()

@@ -1,5 +1,7 @@
-from server.base import SUBSTITUTIONS
+import os
 
+from server.base import SUBSTITUTIONS
+from django.contrib import messages
 
 def create_substitutions_for_display():
     display_dict = {}
@@ -10,28 +12,42 @@ def create_substitutions_for_display():
 
 
 def order_plugins(plugins):
-    sorted_plugin_ids = []
+    sorted_plugins = []
 
-    while len(sorted_plugin_ids) != len(plugins):
-        for plugin_id, value in plugins.items():
-            if plugin_id in sorted_plugin_ids:
+    while len(sorted_plugins) != len(plugins):
+        for plugin in plugins:
+            if plugin in sorted_plugins:
                 continue
 
             # If a plugin do not have any required plugins: add it
-            if not value['plugin'].requires.all():
-                sorted_plugin_ids.append(plugin_id)
+            if not plugin.requires.all():
+                sorted_plugins.append(plugin)
             else:
                 # Check if all requirements are met for the plugin. If yes: add it
                 all_requirements_met = True
-                for req_plugin in value['plugin'].requires.all():
-                    if str(req_plugin.id) not in sorted_plugin_ids:
+                for req_plugin in plugin.requires.all():
+                    if req_plugin not in sorted_plugins:
                         all_requirements_met = False
 
                 if all_requirements_met:
-                    sorted_plugin_ids.append(plugin_id)
+                    sorted_plugins.append(plugin)
 
-    return_list = []
-    for plugin_id in sorted_plugin_ids:
-        return_list.append(plugins[plugin_id])
+    return sorted_plugins
 
-    return return_list
+
+def append_success_messages_to_req(plugin_action, plugins, request):
+    i = 0
+    for action_status in plugin_action:
+        plugin = plugins[i]
+
+        if action_status[0]:
+            plugin.installed = True
+            plugin.save()
+
+            messages.success(request, 'Successfully installed/executed plugin %s in version %.2f' %
+                             (plugin.name, plugin.version))
+        else:
+            messages.error(request, 'Plugin %s was not installed/executed! Message: %s' % (plugin,
+                                                                                           action_status[1]))
+
+        i += 1

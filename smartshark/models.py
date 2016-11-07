@@ -6,6 +6,8 @@ from django.db.models.signals import post_save, pre_save
 from django import forms
 from django.utils.deconstruct import deconstructible
 
+from collections import OrderedDict
+
 from server import settings
 from smartshark.mongohandler import handler
 import inspect, os
@@ -60,6 +62,7 @@ class FileValidator(object):
     def __eq__(self, other):
         return isinstance(other, FileValidator)
 
+
 class Project(models.Model):
     name = models.CharField(max_length=100, unique=True)
     url = models.URLField(unique=True)
@@ -76,19 +79,21 @@ class Project(models.Model):
 
 
 class Plugin(models.Model):
-    ABSTRACTIONLEVEL_CHOICES = (
+    TYPE_CHOICES = (
         ('rev', 'Revision'),
         ('repo', 'Repository'),
         ('other', 'Other'),
+        ('analysis', 'Analysis')
     )
     name = models.CharField(max_length=100)
     author = models.CharField(max_length=200)
     version = models.DecimalField(max_digits=5, decimal_places=2)
     description = models.CharField(max_length=400)
-    abstraction_level = models.CharField(max_length=5, choices=ABSTRACTIONLEVEL_CHOICES)
+    plugin_type = models.CharField(max_length=5, choices=TYPE_CHOICES)
     validate_file = FileValidator(max_size=1024*1024*500, content_types=('application/x-tar', 'application/octet-stream'))
     archive = models.FileField(upload_to="uploads/plugins/", validators=[validate_file])
     requires = models.ManyToManyField("self", blank=True, symmetrical=False)
+    linux_libraries = models.CharField(max_length=1000, default=None, blank=True, null=True)
 
     active = models.BooleanField(default=False)
     installed = models.BooleanField(default=False)
@@ -103,7 +108,7 @@ class Plugin(models.Model):
         return self.name+"_"+str(self.version)
 
     def __eq__(self, other):
-        if self.name == other.name and self.version == other.version:
+        if other and self.name == other.name and self.version == other.version:
             return True
 
         return False
@@ -144,8 +149,6 @@ class Plugin(models.Model):
             # Get all revisions of exit jobs
             exit_jobs_revisions = plugin_execution.job_set.all().filter(status='EXIT').order_by('revision_hash')\
                 .values_list('revision_hash', flat=True).distinct()
-
-
 
             exit_job_set = exit_job_set | set(exit_jobs_revisions)
             done_job_set = done_job_set | set(done_jobs_revisions)
@@ -200,13 +203,19 @@ class Plugin(models.Model):
     def load_from_json(self, archive):
         plugin_handler = PluginInformationHandler(archive)
         info_json = plugin_handler.get_info()
+        schema_json = plugin_handler.get_schema()
         self.name = info_json['name']
         self.author = info_json['author']
         self.version = info_json['version']
-        self.abstraction_level = info_json['abstraction_level']
+        self.plugin_type = info_json['plugin_type']
         self.description = info_json['description']
+        self.linux_libraries = ','.join(info_json['linux_libraries'])
         self.archive = archive
 
+        # Save the schema of the plugin in the mongodb
+        handler.add_schema(schema_json, self)
+
+        # Save plugin, afterwards we can add the dependencies
         try:
             self.full_clean()
         except ValidationError as e:
@@ -214,9 +223,11 @@ class Plugin(models.Model):
         else:
             self.save()
 
+        # Add dependencies
         for db_plugin in plugin_handler.find_fitting_plugins():
             self.requires.add(db_plugin)
 
+        # Add arguments of the plugin in the database
         for argument in plugin_handler.get_arguments():
             argument.plugin = self
             try:
@@ -250,6 +261,10 @@ class Argument(models.Model):
     position = models.IntegerField()
     type = models.CharField(max_length=7, choices=TYPE_CHOICES)
     plugin = models.ForeignKey(Plugin, on_delete=models.CASCADE)
+    install_value = models.CharField(max_length=300, default=None, null=True, blank=True)
+
+    def __str__(self):
+        return self.name
 
 
 class PluginExecution(models.Model):
@@ -258,12 +273,38 @@ class PluginExecution(models.Model):
     project = models.ForeignKey(Project)
     submitted_at = models.DateTimeField(auto_now_add=True)
 
+    def __str__(self):
+        return "Plugin Execution of Plugin %s and Project %s" % (self.plugin, self.project)
+
     def has_unfinished_jobs(self):
         for job in self.job_set.all():
             if job.status not in ['DONE', 'EXIT']:
+                print(job.id)
                 return True
 
         return False
+
+    def get_sorted_argument_values(self):
+        arguments = OrderedDict()
+
+        for execution_history in ExecutionHistory.objects.filter(plugin_execution__pk=self.id):
+            arguments[execution_history.execution_argument.position] = execution_history.execution_value
+
+        arguments = sorted(arguments.items(), key=lambda t: t[0])
+
+        sorted_values = ''
+        for key, value in arguments:
+            sorted_values += value + ' '
+        return sorted_values
+
+
+class ExecutionHistory(models.Model):
+    execution_argument = models.ForeignKey(Argument, on_delete=models.CASCADE)
+    plugin_execution = models.ForeignKey(PluginExecution, on_delete=models.CASCADE)
+    execution_value = models.CharField(max_length=300, default=None, null=True, blank=True)
+
+    def __str__(self):
+        return "Argument: %s, Value: %s, plugin_execution: %s" % (self.execution_argument, self.execution_value, self.plugin_execution.id)
 
 
 class Job(models.Model):
@@ -282,21 +323,23 @@ class Job(models.Model):
         ('ZOMBI', 'Zombie!!'),
     )
     '''
+
     STATUS_CHOICES = (
         ('DONE', 'Done'),
         ('EXIT', 'Exit'),
         ('WAIT', 'Waiting'),
     )
-    job_id = models.IntegerField()
+    job_id = models.IntegerField(blank=True, null=True)
     plugin_execution = models.ForeignKey(PluginExecution)
-    status = models.CharField(max_length=8, choices=STATUS_CHOICES)
-    output_log = models.CharField(max_length=200)
-    error_log = models.CharField(max_length=200)
-    revision_path = models.CharField(max_length=100, blank=True)
-    submission_string = models.CharField(max_length=2000)
-    revision_hash = models.CharField(max_length=100, blank=True)
-    output_file_exists = False
-    error_file_exists = False
+    status = models.CharField(max_length=8, choices=STATUS_CHOICES, default='WAIT')
+    revision_hash = models.CharField(max_length=100, blank=True, null=True, default=None)
+    requires = models.ManyToManyField("self", blank=True, symmetrical=False)
+
+    def __str__(self):
+        return "job_id: %s, plugin: %s, project: %s, status: %s, hash: %s" % (self.job_id,
+                                                                              str(self.plugin_execution.plugin),
+                                                                              self.plugin_execution.project.name,
+                                                                              self.status, self.revision_hash)
 
 
 class MongoRole(models.Model):

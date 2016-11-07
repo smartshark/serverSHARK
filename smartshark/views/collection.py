@@ -3,16 +3,17 @@ from django.contrib import messages
 from django.http import HttpResponseRedirect
 from django.shortcuts import render, get_object_or_404
 
-from smartshark.common import create_substitutions_for_display, order_plugins
-from smartshark.forms import ProjectForm, get_form, parse_argument_values
-from smartshark.models import Plugin, Project, PluginExecution
+from smartshark.common import create_substitutions_for_display, order_plugins, append_success_messages_to_req
+from smartshark.datacollection.executionutils import create_jobs_for_execution
+from smartshark.forms import ProjectForm, get_form, set_argument_values, set_argument_execution_values
+from smartshark.hpchandler import HPCHandler
+from smartshark.models import Plugin, Project, PluginExecution, Job
 
-from server.settings import COLLECTION_CONNECTOR
+from smartshark.datacollection.pluginmanagementinterface import PluginManagementInterface
 
 
 def install(request):
     plugins = []
-    parameters = {}
 
     if not request.user.is_authenticated() or not request.user.has_perm('smartshark.install_plugin'):
         messages.error(request, 'You are not authorized to perform this action.')
@@ -24,7 +25,6 @@ def install(request):
 
     for plugin_id in request.GET.get('ids', '').split(','):
         plugin = get_object_or_404(Plugin, pk=plugin_id)
-        parameters[plugin_id] = {'plugin': plugin, 'parameters': []}
         plugins.append(plugin)
 
     if request.method == 'POST':
@@ -35,23 +35,14 @@ def install(request):
         form = get_form(plugins, request.POST, 'install')
         # check whether it's valid:
         if form.is_valid():
-            parse_argument_values(form.cleaned_data, parameters)
-            #hpc_handler = HPCHandler()
-            try:
-                # Sorting arguments according to position attribute and install
-                for plugin_id, value in parameters.items():
-                    sorted_parameter = sorted(value['parameters'], key=lambda k: k['argument'].position)
-                    #hpc_handler.install_plugin(value['plugin'], sorted_parameter)
+            # Parse the fields and set the corresponding values of the install arguments in the database
+            set_argument_values(form.cleaned_data)
 
-                    # Save the status
-                    value['plugin'].installed = True
-                    value['plugin'].save()
+            # Install plugins
+            installations = PluginManagementInterface.find_correct_plugin_manager().install_plugins(plugins)
 
-                    messages.success(request, 'Successfully installed plugin %s in version %.2f' %
-                                     (value['plugin'].name, value['plugin'].version))
-            except Exception as e:
-                messages.error(request, str(e))
-                return HttpResponseRedirect('/admin/smartshark/plugin')
+            # Check if plugins successfully installed
+            append_success_messages_to_req(installations, plugins, request)
 
             return HttpResponseRedirect('/admin/smartshark/plugin')
 
@@ -66,7 +57,7 @@ def install(request):
     })
 
 
-def collection_start(request):
+def choose_plugins(request):
     projects = []
 
     if not request.user.is_authenticated() or not request.user.has_perm('smartshark.start_collection'):
@@ -90,7 +81,8 @@ def collection_start(request):
         # check whether it's valid:
         if form.is_valid():
             plugin_ids = []
-            hpc_handler = HPCHandler()
+            interface = PluginManagementInterface.find_correct_plugin_manager()
+
             # check requirements
             for plugin in form.cleaned_data['plugins']:
                 plugin_ids.append(str(plugin.id))
@@ -113,12 +105,18 @@ def collection_start(request):
                 for project in projects:
                     # Update job information
                     plugin_executions = PluginExecution.objects.all().filter(plugin=plugin, project=project)
-                    jobs = [plugin_execution.job_set.all() for plugin_execution in plugin_executions]
-                    jobs = list(itertools.chain.from_iterable(jobs))
 
+                    # Get all jobs from all plugin_executions which did not terminate yet
+                    jobs = []
+                    for plugin_execution in plugin_executions:
+                        jobs.extend(Job.objects.filter(plugin_execution=plugin_execution, status='WAIT').all())
+
+                    # Update the job stati for these jobs
+                    job_stati = interface.get_job_stati(jobs)
+                    i = 0
                     for job in jobs:
-                        if job.status not in ['DONE', 'EXIT']:
-                            hpc_handler.update_job_information([job])
+                        job.status = job_stati[i]
+                        job.save()
 
                     # check if some plugin has unfinished jobs
                     has_unfinished_jobs = False
@@ -131,7 +129,7 @@ def collection_start(request):
                                                                                                     project))
                         return HttpResponseRedirect(request.get_full_path())
 
-            return HttpResponseRedirect('/smartshark/project/collection/arguments?plugins=%s&projects=%s' %
+            return HttpResponseRedirect('/smartshark/project/collection/start?plugins=%s&projects=%s' %
                                         (','.join(plugin_ids), request.GET.get('ids')))
 
     # if a GET (or any other method) we'll create a blank form
@@ -145,10 +143,9 @@ def collection_start(request):
     })
 
 
-def collection_arguments(request):
+def start_collection(request):
     projects = []
     plugins = []
-    parameters = {}
 
     if not request.user.is_authenticated() or not request.user.has_perm('smartshark.start_collection'):
         messages.error(request, 'You are not authorized to perform this action.')
@@ -164,7 +161,6 @@ def collection_arguments(request):
     if request.GET.get('plugins'):
         for plugin_id in request.GET.get('plugins', '').split(','):
             plugin = get_object_or_404(Plugin, pk=plugin_id)
-            parameters[plugin_id] = {'plugin': plugin, 'parameters': []}
             plugins.append(plugin)
     else:
         messages.error(request, 'No plugin ids were given.')
@@ -177,11 +173,8 @@ def collection_arguments(request):
         # create a form instance and populate it with data from the request:
         form = get_form(plugins, request.POST, 'execute')
 
-
         # check whether it's valid:
         if form.is_valid():
-            parse_argument_values(form.cleaned_data, parameters)
-            hpc_handler = HPCHandler()
             execution = None
             revisions = None
             if 'execution' in form.cleaned_data:
@@ -190,23 +183,26 @@ def collection_arguments(request):
             if 'revisions' in form.cleaned_data:
                 revisions = form.cleaned_data['revisions']
 
-            try:
-                for project in projects:
-                    # First prepare project (clone repo, set up revisions, etc.)
-                    hpc_handler.prepare_project(project, plugins, execution, revisions)
+            sorted_plugins = order_plugins(plugins)
 
-                    # Sort plugins (first the one without requirements, than the one that requires the first, etc.)
-                    sorted_plugins = order_plugins(parameters)
-                    # For each plugin: execute it with the choosen project
-                    for value in sorted_plugins:
-                        sorted_parameter = sorted(value['parameters'], key=lambda k: k['argument'].position)
-                        hpc_handler.execute_plugin(value['plugin'], project, sorted_parameter, execution, revisions)
+            interface = PluginManagementInterface.find_correct_plugin_manager()
+            for project in projects:
 
-                messages.success(request, 'Started the data collection of plugins %s for projects %s' %
-                                (plugins, projects))
-            except Exception as e:
-                messages.error(request, str(e))
-                return HttpResponseRedirect('/admin/smartshark/project')
+                plugin_executions = []
+                for plugin in sorted_plugins:
+                    # Create Plugin Execution Objects
+                    plugin_execution = PluginExecution(project=project, plugin=plugin)
+                    plugin_execution.save()
+                    plugin_executions.append(plugin_execution)
+
+                    messages.success(request, 'Started plugin %s on project %s.' %
+                             (str(plugin), project.name))
+
+                # Set execution history with execution values for the plugin execution
+                set_argument_execution_values(form.cleaned_data, plugin_executions)
+
+                jobs = create_jobs_for_execution(project, plugin_executions, execution, revisions)
+                interface.execute_plugins(project, jobs, plugin_executions)
 
             return HttpResponseRedirect('/admin/smartshark/project')
 

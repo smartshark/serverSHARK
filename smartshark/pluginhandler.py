@@ -5,8 +5,8 @@ from django.core.exceptions import ValidationError
 
 
 class PluginInformationHandler(object):
-    info_file_required_fields = ['name', 'author', 'version', 'abstraction_level', 'requires', 'arguments',
-                                 'description']
+    info_file_required_fields = ['name', 'author', 'version', 'plugin_type', 'requires', 'arguments',
+                                 'description', 'linux_libraries']
     info_file_requires_required_fields = ['name', 'operator', 'version']
     info_file_argument_required_fields = ['name', 'required', 'position', 'type', 'description']
 
@@ -60,6 +60,9 @@ class PluginInformationHandler(object):
 
     def get_info(self):
         return self.info_json
+
+    def get_schema(self):
+        return self.schema
 
     def validate_tar(self):
         self.validate_info_file()

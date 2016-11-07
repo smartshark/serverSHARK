@@ -18,10 +18,8 @@ MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 
-
 # Login redirect
 LOGIN_REDIRECT_URL = 'index'
-
 
 # Application definition
 
@@ -77,8 +75,6 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'server.wsgi.application'
 
-
-
 # Password validation
 # https://docs.djangoproject.com/en/1.9/ref/settings/#auth-password-validators
 
@@ -97,7 +93,6 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-
 # Internationalization
 # https://docs.djangoproject.com/en/1.9/topics/i18n/
 
@@ -110,7 +105,6 @@ USE_I18N = True
 USE_L10N = True
 
 USE_TZ = True
-
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/1.9/howto/static-files/
@@ -128,4 +122,61 @@ SUBSTITUTIONS = {
     'plugin_path': {'name': '$plugin_path', 'description': 'path to the plugins root folder'},
     'url': {'name': '$url', 'description': 'url of the project'},
     'revision': {'name': '$revision', 'description': 'revision hash of the revision which is processed'},
+}
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'filters': {
+        'require_debug_false': {
+            '()': 'django.utils.log.RequireDebugFalse',
+        },
+        'require_debug_true': {
+            '()': 'django.utils.log.RequireDebugTrue',
+        },
+    },
+    'formatters': {
+        'simple': {
+            'format': '[%(asctime)s] %(levelname)s %(message)s',
+            'datefmt': '%Y-%m-%d %H:%M:%S'
+        },
+        'verbose': {
+            'format': '[%(asctime)s] %(levelname)s [%(name)s.%(funcName)s:%(lineno)d] %(message)s',
+            'datefmt': '%Y-%m-%d %H:%M:%S'
+        },
+    },
+    'handlers': {
+        'console': {
+            'level': 'DEBUG',
+            'filters': ['require_debug_true'],
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple'
+        },
+        'development_logfile': {
+            'level': 'DEBUG',
+            'filters': ['require_debug_true'],
+            'class': 'logging.FileHandler',
+            'filename': '/tmp/django_dev.log',
+            'formatter': 'verbose'
+        },
+        'production_logfile': {
+            'level': 'ERROR',
+            'filters': ['require_debug_false'],
+            'class': 'logging.FileHandler',
+            'filename': '/tmp/django_production.log',
+            'formatter': 'simple'
+        }
+    },
+    'loggers': {
+        'hpcconnector': {
+            'handlers': ['console', 'development_logfile', 'production_logfile'],
+            'level': 'DEBUG',
+        },
+        'django': {
+            'handlers': ['console', 'development_logfile', 'production_logfile'],
+        },
+        'py.warnings': {
+            'handlers': ['console', 'development_logfile'],
+        },
+    }
 }

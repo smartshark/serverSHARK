@@ -41,10 +41,36 @@ class ArgumentAdmin(admin.ModelAdmin):
     def get_model_perms(self, request):
         return {}
 
+class ArgumentInline(admin.TabularInline):
+    model = Argument
+    extra = 0
+    fields = ('name', 'install_value', 'plugin')
+    readonly_fields = ('name', 'install_value')
+    show_change_link = False
+    can_delete = False
+    verbose_name = 'Install Argument'
+    verbose_name_plural = 'Install Arguments'
+
+    def has_add_permission(self, request):
+        return False
+
+    def get_queryset(self, request):
+        qs = super(ArgumentInline, self).get_queryset(request)
+        return qs.filter(type='install')
+
+
 
 class PluginAdmin(admin.ModelAdmin):
-    list_display = ('name', 'version', 'description', 'abstraction_level', 'active', 'installed')
+    list_display = ('name', 'version', 'description', 'plugin_type', 'active', 'installed')
     actions = ('delete_model', 'install_plugin' )
+    inlines = (ArgumentInline, )
+
+    def get_formsets_with_inlines(self, request, obj=None):
+        for inline in self.get_inline_instances(request, obj):
+            # hide ArgumentInline in the add view
+            if isinstance(inline, ArgumentInline) and obj is None:
+                continue
+            yield inline.get_formset(request, obj), inline
 
     # A little hack to remove the plugin deleted successfully message
     def changelist_view(self, request, extra_context=None):
@@ -92,15 +118,14 @@ class PluginAdmin(admin.ModelAdmin):
         if not obj:
             return 'archive',
         else:
-            return 'name', 'author', 'version', 'description', 'abstraction_level', 'archive', 'requires', 'active', \
-                   'installed'
-
+            return 'name', 'author', 'version', 'description', 'plugin_type', 'archive', 'requires', 'active', \
+                   'installed', 'linux_libraries'
 
     def get_readonly_fields(self, request, obj=None):
         if not obj:
-            return 'name', 'author', 'version', 'description',  'abstraction_level', 'installed'
+            return 'name', 'author', 'version', 'description',  'plugin_type', 'installed', 'linux_libraries'
         else:
-            return 'name', 'author', 'version', 'description', 'abstraction_level', 'archive', 'installed'
+            return 'name', 'author', 'version', 'description', 'plugin_type', 'archive', 'installed', 'linux_libraries'
 
     def get_actions(self, request):
         actions = super(PluginAdmin, self).get_actions(request)
@@ -160,6 +185,7 @@ class PluginAdmin(admin.ModelAdmin):
     delete_model.short_description = 'Delete Plugin(s)'
     install_plugin.short_description = 'Install Plugin(s)'
 
+
 class ProjectAdmin(admin.ModelAdmin):
     fields = ('name', 'url', 'mongo_id', 'clone_username' )
     list_display = ('name', 'url', 'mongo_id', 'plugin_executions')
@@ -180,8 +206,7 @@ class ProjectAdmin(admin.ModelAdmin):
 
     def start_collection(self, request, queryset):
         selected = request.POST.getlist(admin.ACTION_CHECKBOX_NAME)
-        return HttpResponseRedirect("/smartshark/project/collection/start/?ids=%s" % (",".join(selected)))
-
+        return HttpResponseRedirect("/smartshark/project/collection/choose/?ids=%s" % (",".join(selected)))
 
     start_collection.short_description = 'Start Collection for selected Projects'
 

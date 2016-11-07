@@ -30,17 +30,12 @@
             <thead>
                 <th scope="col">
                     <div class="text">
-                        JobID
+                        ID
                     </div>
                 </th>
                 <th scope="col">
                     <div class="text">
                         Status
-                    </div>
-                </th>
-                <th scope="col">
-                    <div class="text">
-                        Submission String
                     </div>
                 </th>
                 <th scope="col">
@@ -56,14 +51,13 @@
             </thead>
             {% for job in jobs %}
                 <tr>
-                    <td>{{ job.job_id }}</td>
+                    <td>{{ job.id }}</td>
                     <td>{{ job.status }}</td>
-                    <td>{{ job.submission_string }}</td>
                     <td>{{ job.revision_hash }}</td>
                     <td>
                         <a class="btn btn-info" href="{% url 'job_output' id=job.id type='output'%}">Show Output</a>
                         <a class="btn btn-info" href="{% url 'job_output' id=job.id type='error'%}">Show Errors</a>
-                        <a class="btn btn-info" href="{% url 'job_output' id=job.id type='history'%}">Show History</a>
+                        <a class="btn btn-info" href="{% url 'job_output' id=job.id type='arguments'%}">Show Arguments</a>
                     </td>
                 </tr>
             {% endfor %}

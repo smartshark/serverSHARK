@@ -136,7 +136,7 @@ class HPCHandler(object):
                 command = string.Template(org_command).safe_substitute({
                         'path': path_to_repo,
                         'revision': revision
-                    })
+                })
                 # create command execution
                 self.send_bsub_command(command, plugin, project, revision, plugin_execution)
 

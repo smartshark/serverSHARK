@@ -1,0 +1,26 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+    <h1>Output for Job {{ job.job_id }}</h1>
+    Executed Command: {{ cmd }}
+    <table id="execution_arguments" class="table table-striped table-bordered table-hover table-condensed">
+            <thead>
+                <th scope="col">
+                    <div class="text">
+                        Argument Name
+                    </div>
+                </th>
+                <th scope="col">
+                    <div class="text">
+                        Argument Value
+                    </div>
+                </th>
+            </thead>
+            {% for arg in exe_arguments %}
+                <tr>
+                    <td>{{ arg.execution_argument.name }}</td>
+                    <td>{{ arg.execution_value }}</td>
+                </tr>
+            {% endfor %}
+        </table>
+{% endblock %}
