@@ -220,9 +220,11 @@ class HPCConnector(PluginManagementInterface):
 
     def create_install_command(self, plugin):
         path_to_install_script = "%s/%s/install.sh " % (self.plugin_path, str(plugin))
+        path_to_execute_script = "%s/%s/execute.sh " % (self.plugin_path, str(plugin))
 
         # Make execution script executable
         self.execute_command("chmod +x %s" % path_to_install_script)
+        self.execute_command("chmod +x %s" % path_to_execute_script)
 
         # Add parameters
         command = self.add_parameters_to_install_command(path_to_install_script, plugin)

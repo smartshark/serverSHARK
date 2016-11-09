@@ -29,11 +29,9 @@ def spark_submit(request):
                 for chunk in file_obj.chunks():
                     destination.write(chunk)
 
-            ssh = ShellHandler('gwdu102.gwdg.de', 'jgrabow1', 'H5zAxRYMm6', 22)
-            scp = SCPClient(ssh.get_ssh_client().get_transport())
+
 
             # Copy analysis
-            scp.put(default_storage.path('tmp/'+file_name), remote_path=b'~/sparkjobs')
 
             # delete temp file
             os.remove(default_storage.path('tmp/'+file_name))
