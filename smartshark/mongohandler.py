@@ -15,7 +15,8 @@ class MongoHandler(object):
         self.schema_collection = server.settings.DATABASES['mongodb']['PLUGIN_SCHEMA_COLLECTION']
 
         self.client = MongoClient(host=self.address, port=self.port)
-        self.client[self.database].authenticate(self.user, self.password, source=self.authentication_database)
+        if self.user is not None and self.password is not None and self.authentication_database is not None:
+            self.client[self.database].authenticate(self.user, self.password, source=self.authentication_database)
 
     def add_user(self, username, password, roles):
         self.client[self.database].add_user(name=username, password=password, roles=roles)
