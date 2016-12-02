@@ -65,8 +65,6 @@ class FileValidator(object):
 
 class Project(models.Model):
     name = models.CharField(max_length=100, unique=True)
-    url = models.URLField(unique=True)
-    clone_username = models.CharField(max_length=200, blank=True)
     mongo_id = models.CharField(max_length=50, blank=True)
 
     class Meta:
@@ -214,6 +212,7 @@ class Plugin(models.Model):
 
         # Save the schema of the plugin in the mongodb
         handler.add_schema(schema_json, self)
+        handler.create_and_shard_collections(info_json['created_collections'])
 
         # Save plugin, afterwards we can add the dependencies
         try:

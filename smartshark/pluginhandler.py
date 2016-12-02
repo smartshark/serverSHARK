@@ -6,7 +6,8 @@ from django.core.exceptions import ValidationError
 
 class PluginInformationHandler(object):
     info_file_required_fields = ['name', 'author', 'version', 'plugin_type', 'requires', 'arguments',
-                                 'description', 'linux_libraries']
+                                 'description', 'linux_libraries', 'created_collections']
+    info_file_created_collection_required_fields = ['name', 'shard_key']
     info_file_requires_required_fields = ['name', 'operator', 'version']
     info_file_argument_required_fields = ['name', 'required', 'position', 'type', 'description']
 
@@ -80,6 +81,12 @@ class PluginInformationHandler(object):
         for field in self.info_file_required_fields:
             if field not in self.info_json:
                 raise ValidationError("%s not in info_json" % field, 'info_file_%s' % field)
+
+        for created_collection_fields in self.info_json['created_collections']:
+            for field in self.info_file_created_collection_required_fields:
+                if field not in created_collection_fields:
+                    raise ValidationError("%s not in info_json created_collections attribute" % field,
+                                          'info_file_created_collections_%s' %field)
 
         for requires_fields in self.info_json['requires']:
             for field in self.info_file_requires_required_fields:

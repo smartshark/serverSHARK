@@ -20,7 +20,13 @@ HPC = {
     'host': '{{hpc_host}}',
     'port': {{hpc_port}},
     'queue': '{{hpc_default_queue}}',
-    'node_properties': []
+    'node_properties': [],
+    'root_path': '{{hpc_root_path}}',
+    'log_path': '{{hpc_log_path}}'
+}
+
+AZURE = {
+
 }
 
 
@@ -28,6 +34,8 @@ SPARK_MASTER = {
     'host': '{{spark_hostname}}',
     'port': '{{spark_port}}',
 }
+
+COLLECTION_CONNECTOR_IDENTIFIER = '{{collection_connector}}'
 
 # Database
 # https://docs.djangoproject.com/en/1.9/ref/settings/#databases
@@ -43,11 +51,12 @@ DATABASES = {
     'mongodb' : {
         'ENGINE': '',
         'NAME': '{{mongodb_dbname}}',
-        'USER': '{{mongodb_user}}',
-        'PASSWORD': '{{mongodb_password}}',
+        'USER': {{mongodb_user}},
+        'PASSWORD': {{mongodb_password}},
         'HOST': '{{mongodb_host}}',
         'PORT': {{mongodb_port}},
-        'AUTHENTICATION_DB': '{{mongodb_authentication_db}}'
+        'AUTHENTICATION_DB': {{mongodb_authentication_db}},
+        'PLUGIN_SCHEMA_COLLECTION': '{{mongodb_plugin_schema_collection}}'
     }
 }
 

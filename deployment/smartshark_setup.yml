@@ -14,7 +14,8 @@
       pip: name=gunicorn virtualenv={{virtual_env}} virtualenv_python=python3.5
 
     - name: install python packages in virtualenv
-      pip: requirements={{ project_dir }}/requirements.txt virtualenv={{virtual_env}} virtualenv_python=python3.5
+      command: "{{virtual_env}}/bin/pip3.5 install -r {{project_dir}}/requirements.txt"
+      #pip: requirements={{ project_dir }}/requirements.txt virtualenv={{virtual_env}} virtualenv_python=python3.5
       notify:
       - restart gunicorn
 

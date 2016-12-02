@@ -38,7 +38,7 @@ class MongoHandler(object):
 
     def add_project(self, project):
         return self.client.get_database(self.database).get_collection('project')\
-            .insert_one({'url': project.url}).inserted_id
+            .insert_one({'name': project.name}).inserted_id
 
     def delete_project(self, project):
         self.client.get_database(self.database).get_collection('project').delete_one({'url': project.url})
@@ -50,5 +50,20 @@ class MongoHandler(object):
     def delete_schema(self, plugin):
         self.client.get_database(self.database).get_collection(self.schema_collection)\
             .find_one_and_delete({'plugin': str(plugin)})
+
+    def create_and_shard_collections(self, created_collections):
+        for collection in created_collections:
+            name = collection['name']
+            shard_key = collection['shard_key']
+            unique = collection.get('unique', False)
+
+            # Create collection, if it is already existent --> ignore it
+            try:
+                self.client.get_database(self.database).create_collection(name)
+                self.client.get_database('admin').command('shardCollection', self.database+'.'+name, key=shard_key,
+                                                          unique=unique)
+            except:
+                pass
+
 
 handler = MongoHandler()

@@ -187,8 +187,8 @@ class PluginAdmin(admin.ModelAdmin):
 
 
 class ProjectAdmin(admin.ModelAdmin):
-    fields = ('name', 'url', 'mongo_id', 'clone_username' )
-    list_display = ('name', 'url', 'mongo_id', 'plugin_executions')
+    fields = ('name', 'mongo_id')
+    list_display = ('name', 'mongo_id', 'plugin_executions')
     readonly_fields = ('mongo_id', )
     actions = ['start_collection', 'show_executions']
 
