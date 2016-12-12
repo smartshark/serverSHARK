@@ -1,20 +1,53 @@
-
-
 import paramiko
 import re
-import time
+from sshtunnel import SSHTunnelForwarder
 
 class ShellHandler:
 
-    def __init__(self, host, user, psw, port):
+    def __init__(self, host, user, psw, port, tunnel_host, tunnel_user, tunnel_psw, tunnel_port, use_tunnel):
         self.host = host
         self.user = user
         self.psw = psw
         self.port = port
+        self.tunnel_host = tunnel_host
+        self.tunnel_user = tunnel_user
+        self.tunnel_psw = tunnel_psw
+        self.tunnel_port = tunnel_port
+        self.use_tunnel = use_tunnel
+        self.ssh = None
+        self.server = None
 
-        self.ssh = paramiko.SSHClient()
-        self.ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        self.ssh.connect(self.host, username=self.user, password=self.psw, port=self.port)
+    def __enter__(self):
+        if self.use_tunnel:
+            self.server = SSHTunnelForwarder(
+                (self.tunnel_host, self.tunnel_port),
+                ssh_username=self.tunnel_user,
+                ssh_password=self.tunnel_psw,
+                remote_bind_address=(self.host, self.port),
+                local_bind_address=('127.0.0.1', 10023)
+            )
+            self.server.start()
+
+            self.ssh = paramiko.SSHClient()
+            self.ssh.load_system_host_keys()
+            self.ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            self.ssh.connect('127.0.0.1', 10023, username=self.user, password=self.psw)
+        else:
+            self.ssh = paramiko.SSHClient()
+            self.ssh.load_system_host_keys()
+            self.ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            self.ssh.connect(self.host, self.port, username=self.user, password=self.psw)
+
+
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self.use_tunnel:
+            self.server.close()
+        else:
+            self.ssh.close()
+
+        return
 
     def get_ssh_client(self):
         return self.ssh

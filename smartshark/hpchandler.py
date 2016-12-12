@@ -28,10 +28,15 @@ class HPCHandler(object):
         self.port = HPC['port']
         self.queue = HPC['queue']
         self.node_properties = HPC['node_properties']
+        self.tunnel_username = HPC['ssh_tunnel_username']
+        self.tunnel_password = HPC['ssh_tunnel_password']
+        self.tunnel_host = HPC['ssh_tunnel_host']
+        self.tunnel_port = HPC['ssh_tunnel_port']
 
         self.logger = logging.getLogger(__name__)
 
-        self.ssh = ShellHandler(self.host, self.username, self.password, self.port)
+        self.ssh = ShellHandler(self.host, self.username, self.password, self.port, self.tunnel_host,
+                                self.tunnel_username, self.tunnel_password, self.tunnel_port)
 
     def add_parameters_to_command(self, path_to_script, parameters):
         command = path_to_script

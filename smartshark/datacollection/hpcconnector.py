@@ -36,8 +36,11 @@ class HPCConnector(PluginManagementInterface):
         self.plugin_path = os.path.join(HPC['root_path'], 'plugins')
         self.project_path = os.path.join(HPC['root_path'], 'projects')
         self.log_path = HPC['log_path']
-
-        self.ssh = ShellHandler(self.host, self.username, self.password, self.port)
+        self.tunnel_username = HPC['ssh_tunnel_username']
+        self.tunnel_password = HPC['ssh_tunnel_password']
+        self.tunnel_host = HPC['ssh_tunnel_host']
+        self.tunnel_port = HPC['ssh_tunnel_port']
+        self.use_tunnel = HPC['ssh_use_tunnel']
 
     @property
     def identifier(self):
@@ -121,34 +124,38 @@ class HPCConnector(PluginManagementInterface):
             self.execute_command('cd %s && git pull > /dev/null 2>&1' % os.path.join(self.project_path, project.name))
 
     def get_output_log(self, job):
-        sftp_client = self.ssh.get_ssh_client().open_sftp()
-        try:
-            remote_file = sftp_client.open(os.path.join(self.log_path, str(job.id)+'_out.txt'))
-        except FileNotFoundError:
-            return ['File Not Found']
+        with ShellHandler(self.host, self.username, self.password, self.port, self.tunnel_host,
+                          self.tunnel_username, self.tunnel_password, self.tunnel_port, self.use_tunnel) as handler:
+            sftp_client = handler.get_ssh_client().open_sftp()
+            try:
+                remote_file = sftp_client.open(os.path.join(self.log_path, str(job.id)+'_out.txt'))
+            except FileNotFoundError:
+                return ['File Not Found']
 
-        output = []
-        try:
-            for line in remote_file:
-                output.append(line.strip())
-        finally:
-            remote_file.close()
+            output = []
+            try:
+                for line in remote_file:
+                    output.append(line.strip())
+            finally:
+                remote_file.close()
 
         return output
 
     def get_error_log(self, job):
-        sftp_client = self.ssh.get_ssh_client().open_sftp()
-        try:
-            remote_file = sftp_client.open(os.path.join(self.log_path, str(job.id)+'_err.txt'))
-        except FileNotFoundError:
-            return ['File Not Found']
+        with ShellHandler(self.host, self.username, self.password, self.port, self.tunnel_host,
+                          self.tunnel_username, self.tunnel_password, self.tunnel_port, self.use_tunnel) as handler:
+            sftp_client = handler.get_ssh_client().open_sftp()
+            try:
+                remote_file = sftp_client.open(os.path.join(self.log_path, str(job.id)+'_err.txt'))
+            except FileNotFoundError:
+                return ['File Not Found']
 
-        output = []
-        try:
-            for line in remote_file:
-                output.append(line.strip())
-        finally:
-            remote_file.close()
+            output = []
+            try:
+                for line in remote_file:
+                    output.append(line.strip())
+            finally:
+                remote_file.close()
 
         return output
 
@@ -196,17 +203,20 @@ class HPCConnector(PluginManagementInterface):
         return installations
 
     def copy_plugin(self, plugin):
-        scp = SCPClient(self.ssh.get_ssh_client().get_transport())
+        with ShellHandler(self.host, self.username, self.password, self.port, self.tunnel_host,
+                          self.tunnel_username, self.tunnel_password, self.tunnel_port, self.use_tunnel) as handler:
+            scp = SCPClient(handler.get_ssh_client().get_transport())
 
-        # Copy plugin
-        scp.put(plugin.get_full_path_to_archive(), remote_path=b'~')
+            # Copy plugin
+            scp.put(plugin.get_full_path_to_archive(), remote_path=b'~')
 
-        # Untar plugin
+
         try:
             self.delete_plugin(plugin)
         except Exception:
             pass
 
+        # Untar plugin
         self.execute_command('mkdir %s/%s' % (self.plugin_path, str(plugin)))
         self.execute_command('tar -C %s/%s -xvf %s' % (self.plugin_path, str(plugin), plugin.get_name_of_archive()))
 
@@ -243,12 +253,15 @@ class HPCConnector(PluginManagementInterface):
 
     def execute_command(self, command, ignore_errors=False, combine_stderr_stdout=False):
         logging.info('Execute command: %s' % command)
-        (stdout, stderr) = self.ssh.execute(command, stderr_stdout_combined=combine_stderr_stdout)
 
-        logging.debug('Output: %s' % ' '.join(stdout))
-        logging.debug('ErrorOut: %s' % ' '.join(stderr))
-        if stderr and not ignore_errors:
-            raise Exception('Error in executing command %s! Error: %s.' % (command, ','.join(stderr)))
+        with ShellHandler(self.host, self.username, self.password, self.port, self.tunnel_host,
+                          self.tunnel_username, self.tunnel_password, self.tunnel_port, self.use_tunnel) as handler:
+            (stdout, stderr) = handler.execute(command, stderr_stdout_combined=combine_stderr_stdout)
+
+            logging.debug('Output: %s' % ' '.join(stdout))
+            logging.debug('ErrorOut: %s' % ' '.join(stderr))
+            if stderr and not ignore_errors:
+                raise Exception('Error in executing command %s! Error: %s.' % (command, ','.join(stderr)))
 
         return stdout
 
@@ -264,8 +277,10 @@ class HPCConnector(PluginManagementInterface):
             shell_file.write("rm -rf %s\n" % path_to_remote_sh_file)
 
         # Copy Shell file with jobs to execute
-        scp = SCPClient(self.ssh.get_ssh_client().get_transport())
-        scp.put(path_to_sh_file, remote_path=b'%s' % str.encode(path_to_remote_sh_file))
+        with ShellHandler(self.host, self.username, self.password, self.port, self.tunnel_host,
+                          self.tunnel_username, self.tunnel_password, self.tunnel_port, self.use_tunnel) as handler:
+            scp = SCPClient(handler.get_ssh_client().get_transport())
+            scp.put(path_to_sh_file, remote_path=b'%s' % str.encode(path_to_remote_sh_file))
 
         # Delete local file
         subprocess.run(['rm', '-rf', path_to_sh_file])
@@ -275,12 +290,15 @@ class HPCConnector(PluginManagementInterface):
 
         # Execute. We need the variable order_needed as it distighushes between two separate possible execution methods
         logging.info("Execute command: %s" % path_to_remote_sh_file)
-        if order_needed:
-            out = self.ssh.execute_file(path_to_remote_sh_file, order_needed)
-        else:
-            thread = threading.Thread(target=self.ssh.execute_file, args=(path_to_remote_sh_file, order_needed))
-            thread.start()
-            out = []
+
+        with ShellHandler(self.host, self.username, self.password, self.port, self.tunnel_host,
+                          self.tunnel_username, self.tunnel_password, self.tunnel_port, self.use_tunnel) as handler:
+            if order_needed:
+                out = handler.execute_file(path_to_remote_sh_file, order_needed)
+            else:
+                thread = threading.Thread(target=handler.execute_file, args=(path_to_remote_sh_file, order_needed))
+                thread.start()
+                out = []
 
         logging.debug('Output: %s' % ' '.join(out))
 
