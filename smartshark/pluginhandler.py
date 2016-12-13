@@ -138,29 +138,18 @@ class PluginInformationHandler(object):
 
         # validate them:
         # 1) position must not be missing (e.g. position 1, position 3)
-        # 2) a required argument must not follow an optional argument
         pos = 1
-        old_required = None
         for install_argument in install_arguments_sorted:
             if install_argument['position'] != pos:
                 raise ValidationError("Positions are not consistent (e.g., position 3 follows position 1).")
 
-            if old_required is not None and install_argument['required'] is True and old_required is False:
-                raise ValidationError("Required arguments can not follow optional ones!")
-
-            old_required = install_argument['required']
             pos += 1
 
         pos = 1
-        old_required = None
         for execute_argument in execution_arguments_sorted:
             if execute_argument['position'] != pos:
                 raise ValidationError("Positions are not consistent (e.g., position 3 follows position 1).")
 
-            if old_required is not None and execute_argument['required'] is True and old_required is False:
-                raise ValidationError("Required arguments can not follow optional ones!")
-
-            old_required = execute_argument['required']
             pos += 1
 
     def validate_schema_structure(self):

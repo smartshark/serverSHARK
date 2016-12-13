@@ -7,9 +7,6 @@
   remote_user: root
 
   tasks:
-    - name: apt-get update (because apt-get module has a bug)
-      shell: apt-get update
-
     - name: Install system packages
       apt: pkg={{ item }}
       with_items: "{{ system_packages }}"

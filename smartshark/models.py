@@ -50,11 +50,11 @@ class FileValidator(object):
         if self.content_types:
             content_type = magic.from_buffer(data.read(), mime=True)
             data.seek(0)
-            if content_type.decode("utf-8") not in self.content_types:
+            if content_type not in self.content_types:
                 params = {'content_type': content_type}
                 raise ValidationError(self.error_messages['content_type'], 'content_type', params)
 
-            if content_type.decode("utf-8") == 'application/x-tar':
+            if content_type == 'application/x-tar':
                 plugin_handler = PluginInformationHandler(data)
                 plugin_handler.validate_tar()
                 data.seek(0)
@@ -287,7 +287,11 @@ class PluginExecution(models.Model):
         arguments = OrderedDict()
 
         for execution_history in ExecutionHistory.objects.filter(plugin_execution__pk=self.id):
-            arguments[execution_history.execution_argument.position] = execution_history.execution_value
+            # Add none if the value is not set, this needs to be catched in the execute.sh of the plugin
+            if not execution_history.execution_value:
+                arguments[execution_history.execution_argument.position] = "None"
+            else:
+                arguments[execution_history.execution_argument.position] = execution_history.execution_value
 
         arguments = sorted(arguments.items(), key=lambda t: t[0])
 

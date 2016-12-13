@@ -10,14 +10,12 @@
     - name: Clone/pull project repo
       git: repo={{ project_repo }} dest={{ project_dir }} accept_hostkey=yes force=yes
 
-    - name: Install gunicorn in virtualenv
-      pip: name=gunicorn virtualenv={{virtual_env}} virtualenv_python=python3.5
+    - name: Create virtual env (pip command of ansible does not work with python 3)
+      command: virtualenv {{virtual_env}} -p python3.5 creates="{{virtual_env}}"
 
     - name: install python packages in virtualenv
       command: "{{virtual_env}}/bin/pip3.5 install -r {{project_dir}}/requirements.txt"
       #pip: requirements={{ project_dir }}/requirements.txt virtualenv={{virtual_env}} virtualenv_python=python3.5
-      notify:
-      - restart gunicorn
 
     - name: copy smartshark config
       template: src=templates/settings.py.j2 dest={{ project_dir }}/server/settings.py
@@ -25,14 +23,33 @@
     - name: django migrate
       django_manage: command=migrate virtualenv={{ virtual_env }} app_path={{ project_dir }}
 
+    - name: Set permissions of log files
+      file: path={{ item }} state=file owner=www-data group=www-data
+      with_items:
+        - /tmp/django_dev.log
+        - /tmp/django_production.log
+
     - name: django collectstatic
       django_manage: command=collectstatic virtualenv={{ virtual_env }} app_path={{ project_dir }}
 
     - name: hack to create superuser
       shell: echo "from django.contrib.auth.models import User; User.objects.create_superuser('{{smartshark_user}}', '{{smartshark_email}}', '{{smartshark_password}}')" | /{{virtual_env}}/bin/python /{{project_dir}}/manage.py shell
 
-    - name: create associated mongodb user
+    # Without authentication we can not add the corresponding mongodb user
+    - name: create associated mongodb user with authentication
       mongodb_user: name={{smartshark_user}} password={{smartshark_password}} roles='dbAdmin,dbOwner' state=present database={{mongodb_dbname}} login_database={{mongodb_authentication_db}} login_host={{mongodb_host}} login_port={{mongodb_port}} login_user={{mongodb_user}} login_password={{mongodb_password}}
+      when: mongodb_authentication_db != "None"
+
+    - name: copy javascript file
+      template: src=templates/initial_config.js.j2 dest={{ project_dir }}/initial_config.js
+
+    - name: intial mongodb config (with authentication)
+      command: mongo --host {{mongodb_host}} --port {{mongodb_port}} --username {{mongodb_user}} --password {{mongodb_password}} --authenticationDatabase {{mongodb_authentication_db}} --eval 'load("{{ project_dir }}/initial_config.js")'
+      when: mongodb_authentication_db != "None"
+
+    - name: initial mongodb config (without authentication)
+      command: mongo --host {{mongodb_host}} --port {{mongodb_port}} --eval 'load("{{ project_dir }}/initial_config.js")'
+      when: mongodb_authentication_db == "None"
 
     - name: django execute fixtures
       django_manage: command=loaddata virtualenv={{ virtual_env }} app_path={{ project_dir }} fixtures={{ project_dir }}/smartshark/fixtures/roles.json
@@ -48,16 +65,27 @@
     - name: create folder for gunicorn socket
       file: path={{socket}} state=directory owner=www-data group=www-data
 
+    - name: set permissions of project dir
+      file: path={{ project_dir }} state=directory owner=www-data group=www-data recurse=yes
+
+    - name: set permissions of virtual env
+      file: path={{ virtual_env }} state=directory owner=www-data group=www-data recurse=yes
+
+    - name: Install gunicorn in virtualenv
+      command : "{{virtual_env}}/bin/pip3.5 install gunicorn"
+      #pip: name=gunicorn virtualenv={{virtual_env}} virtualenv_python=python3.5
+
     - name: copy gunicorn config
       template: src=templates/gunicorn.j2 dest=/etc/systemd/system/gunicorn.service
-      notify:
-      - restart gunicorn
+
+    - name: reload gunicorn config
+      command: systemctl daemon-reload
 
     - name: start nginx
       command: systemctl start nginx
 
     - name: start gunicorn
-      command: systemctl start gunicorn
+      command: systemctl restart gunicorn
 
     - name: make sure nginx server is started on boot
       command: systemctl enable nginx
@@ -75,8 +103,7 @@
         - "{{project_dir}}/media/tmp"
         - "{{project_dir}}/media/uploads/plugins"
 
-    - name: set permissions
-      file: path={{project_dir}} state=directory owner=www-data group=www-data recurse=yes
+
 
 
   handlers:
