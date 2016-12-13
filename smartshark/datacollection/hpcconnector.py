@@ -248,7 +248,7 @@ class HPCConnector(PluginManagementInterface):
 
         for argument in plugin.argument_set.all().filter(type='install').order_by('position'):
             # Add none if the value is not set, this needs to be catched in the install.sh of the plugin
-            if not argument.install_value:
+            if not argument.install_value.strip():
                 command += "None"
             else:
                 command += argument.install_value+" "

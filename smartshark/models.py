@@ -288,7 +288,7 @@ class PluginExecution(models.Model):
 
         for execution_history in ExecutionHistory.objects.filter(plugin_execution__pk=self.id):
             # Add none if the value is not set, this needs to be catched in the execute.sh of the plugin
-            if not execution_history.execution_value:
+            if not execution_history.execution_value.strip():
                 arguments[execution_history.execution_argument.position] = "None"
             else:
                 arguments[execution_history.execution_argument.position] = execution_history.execution_value
