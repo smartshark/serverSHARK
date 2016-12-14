@@ -1,4 +1,4 @@
-import itertools
+import sys
 from django.contrib import messages
 from django.http import HttpResponseRedirect
 from django.shortcuts import render, get_object_or_404
@@ -6,7 +6,6 @@ from django.shortcuts import render, get_object_or_404
 from smartshark.common import create_substitutions_for_display, order_plugins, append_success_messages_to_req
 from smartshark.datacollection.executionutils import create_jobs_for_execution
 from smartshark.forms import ProjectForm, get_form, set_argument_values, set_argument_execution_values
-from smartshark.hpchandler import HPCHandler
 from smartshark.models import Plugin, Project, PluginExecution, Job
 
 from smartshark.datacollection.pluginmanagementinterface import PluginManagementInterface
@@ -39,10 +38,13 @@ def install(request):
             set_argument_values(form.cleaned_data)
 
             # Install plugins
-            installations = PluginManagementInterface.find_correct_plugin_manager().install_plugins(plugins)
+            try:
+                installations = PluginManagementInterface.find_correct_plugin_manager().install_plugins(plugins)
 
-            # Check if plugins successfully installed
-            append_success_messages_to_req(installations, plugins, request)
+                # Check if plugins successfully installed
+                append_success_messages_to_req(installations, plugins, request)
+            except Exception:
+                return HttpResponseRedirect('/admin/smartshark/plugin')
 
             return HttpResponseRedirect('/admin/smartshark/plugin')
 
@@ -175,13 +177,9 @@ def start_collection(request):
 
         # check whether it's valid:
         if form.is_valid():
-            execution = None
-            revisions = None
-            if 'execution' in form.cleaned_data:
-                execution = form.cleaned_data['execution']
-
-            if 'revisions' in form.cleaned_data:
-                revisions = form.cleaned_data['revisions']
+            execution_type = form.cleaned_data.get('execution', None)
+            revisions = form.cleaned_data.get('revisions', None)
+            repository_url = form.cleaned_data.get('repository_url', None)
 
             sorted_plugins = order_plugins(plugins)
 
@@ -192,6 +190,14 @@ def start_collection(request):
                 for plugin in sorted_plugins:
                     # Create Plugin Execution Objects
                     plugin_execution = PluginExecution(project=project, plugin=plugin)
+
+                    if plugin.plugin_type == 'repo' or plugin.plugin_type == 'rev':
+                        plugin_execution.repository_url = repository_url
+
+                    if plugin.plugin_type == 'rev':
+                        plugin_execution.execution_type = execution_type
+                        plugin_execution.revisions = revisions
+
                     plugin_execution.save()
                     plugin_executions.append(plugin_execution)
 
@@ -200,8 +206,7 @@ def start_collection(request):
 
                 # Set execution history with execution values for the plugin execution
                 set_argument_execution_values(form.cleaned_data, plugin_executions)
-
-                jobs = create_jobs_for_execution(project, plugin_executions, execution, revisions)
+                jobs = create_jobs_for_execution(project, plugin_executions)
                 interface.execute_plugins(project, jobs, plugin_executions)
 
             return HttpResponseRedirect('/admin/smartshark/project')

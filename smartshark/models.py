@@ -267,9 +267,19 @@ class Argument(models.Model):
 
 
 class PluginExecution(models.Model):
+    EXECUTION_TYPES = (
+        ('all', 'Executed on all revisions'),
+        ('new', 'Executed on new revisions'),
+        ('rev', 'Executed on specified revisions'),
+        ('error', 'Executed on revisions that previously threw an error'),
+    )
 
     plugin = models.ForeignKey(Plugin)
     project = models.ForeignKey(Project)
+    repository_url = models.CharField(max_length=500, null=True, blank=True)
+    execution_type = models.CharField(max_length=5, choices=EXECUTION_TYPES, null=True, blank=True)
+    revisions = models.TextField(null=True, blank=True)
+
     submitted_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

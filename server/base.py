@@ -120,7 +120,7 @@ SUBSTITUTIONS = {
     'db_authentication': {'name': '$db_authentication', 'description': 'database used for authentication'},
     'path': {'name': '$path', 'description': 'path to the repository / the revision'},
     'plugin_path': {'name': '$plugin_path', 'description': 'path to the plugins root folder'},
-    'url': {'name': '$url', 'description': 'url of the project'},
+    'project_name': {'name': '$project_name', 'description': 'Name of the project'},
     'revision': {'name': '$revision', 'description': 'revision hash of the revision which is processed'},
 }
 

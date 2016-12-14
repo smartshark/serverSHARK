@@ -55,11 +55,22 @@ def get_form(plugins, post, type):
                         ('new', 'Execute on new revisions'), ('rev', 'Execute on following revisions:'))
 
         if type == 'execute':
+            added_fields = []
+            # Add fields if there are plugins that work on revision level
             rev_plugins = [plugin for plugin in plugins if plugin.plugin_type == 'rev']
             if len(rev_plugins) > 0:
                 plugin_fields['execution'] = forms.ChoiceField(widget=forms.RadioSelect, choices=EXEC_OPTIONS)
                 plugin_fields['revisions'] = forms.CharField(label='Revisions (comma-separated)', required=False)
-                created_fieldsets.append(['Basis Configuration', {'fields': ['execution', 'revisions']}])
+                added_fields.append('execution')
+                added_fields.append('revisions')
+
+            repo_plugins = [plugin for plugin in plugins if plugin.plugin_type == 'repo']
+            # If we have revision or repository plugins, we need to ask for the repository to use
+            if len(rev_plugins) > 0 or len(repo_plugins) > 0:
+                plugin_fields['repository_url'] = forms.CharField(label='Repository URL', required=True)
+                added_fields.append('repository_url')
+
+                created_fieldsets.append(['Basis Configuration', {'fields': added_fields}])
 
         # Create lists for the fieldsets and a list for the fields of the form
         for plugin in plugins:

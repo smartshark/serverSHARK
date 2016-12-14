@@ -2,7 +2,7 @@ import os
 import string
 import subprocess
 import threading
-import timeit
+import sys
 import uuid
 import logging
 
@@ -60,7 +60,7 @@ class HPCConnector(PluginManagementInterface):
                 'db_hostname': DATABASES['mongodb']['HOST'],
                 'db_port': DATABASES['mongodb']['PORT'],
                 'db_authentication': DATABASES['mongodb']['AUTHENTICATION_DB'],
-                'url': plugin_execution.project.url,
+                'project_name': plugin_execution.project.name,
                 'plugin_path': os.path.join(self.plugin_path, str(plugin_execution.plugin))
         })
 
@@ -101,8 +101,9 @@ class HPCConnector(PluginManagementInterface):
     def execute_plugins(self, project, jobs, plugin_executions):
         # Prepare project (clone / pull)
         logger.info('Preparing project...')
-        self.prepare_project(project)
+        self.prepare_project(plugin_executions)
 
+        sys.exit(1)
         logger.info('Generating bsub script...')
         commands = []
         for plugin_execution in plugin_executions:
@@ -115,13 +116,26 @@ class HPCConnector(PluginManagementInterface):
         logger.info('Sending and executing bsub script...')
         self.send_and_execute_file(commands, False)
 
-    def prepare_project(self, project):
-        # Create project folder if not existent
-        try:
-            self.execute_command('mkdir %s' % os.path.join(self.project_path, project.name))
-            self.execute_command('git clone %s %s' % (project.url, os.path.join(self.project_path, project.name)))
-        except Exception:
-            self.execute_command('cd %s && git pull > /dev/null 2>&1' % os.path.join(self.project_path, project.name))
+    def get_plugin_execution_where_repository_url_is_set(self, plugin_executions):
+        for plugin_execution in plugin_executions:
+            if plugin_execution.repository_url is not None:
+                return plugin_execution
+
+        return None
+
+    def prepare_project(self, plugin_executions):
+        # As all plugin executions need to have the same repository url, we just look if we find a execution with a
+        # set repository url
+        found_plugin_execution = self.get_plugin_execution_where_repository_url_is_set(plugin_executions)
+
+        if found_plugin_execution is not None:
+            # Create project folder if not existent
+            git_clone_target = os.path.join(self.project_path, found_plugin_execution.project.name)
+            try:
+                self.execute_command('mkdir %s' % git_clone_target)
+                self.execute_command('git clone %s %s' % (found_plugin_execution.repository_url, git_clone_target))
+            except Exception:
+                self.execute_command('cd %s && git pull > /dev/null 2>&1' % git_clone_target)
 
     def get_output_log(self, job):
         with ShellHandler(self.host, self.username, self.password, self.port, self.tunnel_host,
@@ -256,14 +270,15 @@ class HPCConnector(PluginManagementInterface):
         return command
 
     def execute_command(self, command, ignore_errors=False, combine_stderr_stdout=False):
-        logging.info('Execute command: %s' % command)
+
+        logger.info('Execute command: %s' % command)
 
         with ShellHandler(self.host, self.username, self.password, self.port, self.tunnel_host,
                           self.tunnel_username, self.tunnel_password, self.tunnel_port, self.use_tunnel) as handler:
             (stdout, stderr) = handler.execute(command, stderr_stdout_combined=combine_stderr_stdout)
 
-            logging.debug('Output: %s' % ' '.join(stdout))
-            logging.debug('ErrorOut: %s' % ' '.join(stderr))
+            logger.debug('Output: %s' % ' '.join(stdout))
+            logger.debug('ErrorOut: %s' % ' '.join(stderr))
             if stderr and not ignore_errors:
                 raise Exception('Error in executing command %s! Error: %s.' % (command, ','.join(stderr)))
 
@@ -293,7 +308,7 @@ class HPCConnector(PluginManagementInterface):
         self.execute_command('chmod +x %s' % path_to_remote_sh_file)
 
         # Execute. We need the variable order_needed as it distighushes between two separate possible execution methods
-        logging.info("Execute command: %s" % path_to_remote_sh_file)
+        logger.info("Execute command: %s" % path_to_remote_sh_file)
 
         with ShellHandler(self.host, self.username, self.password, self.port, self.tunnel_host,
                           self.tunnel_username, self.tunnel_password, self.tunnel_port, self.use_tunnel) as handler:
@@ -304,6 +319,6 @@ class HPCConnector(PluginManagementInterface):
                 thread.start()
                 out = []
 
-        logging.debug('Output: %s' % ' '.join(out))
+        logger.debug('Output: %s' % ' '.join(out))
 
         return out

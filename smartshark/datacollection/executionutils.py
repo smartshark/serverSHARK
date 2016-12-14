@@ -17,12 +17,12 @@ def get_revisions_for_failed_plugins(plugins, project):
     return revisions
 
 
-def get_all_revisions(project):
+def get_all_revisions(plugin_execution):
     revisions = set()
-    path_to_repo = os.path.join(os.path.dirname(__file__), 'temp', project.name)
+    path_to_repo = os.path.join(os.path.dirname(__file__), 'temp', plugin_execution.project.name)
 
     # Clone project
-    subprocess.run(['git', 'clone', project.url, path_to_repo])
+    subprocess.run(['git', 'clone', plugin_execution.repository_url, path_to_repo])
 
     discovered_repo = pygit2.discover_repository(path_to_repo)
     repository = pygit2.Repository(discovered_repo)
@@ -51,43 +51,53 @@ def find_required_jobs(plugin_execution, all_jobs):
     return job_list
 
 
-def create_jobs_for_execution(project, plugin_executions, execution, revisions):
+def create_job(plugin_execution, req_jobs, revision_hash=None):
+    job = Job(plugin_execution=plugin_execution, revision_hash=revision_hash)
+    job.save()
+
+    for req_job in req_jobs:
+        job.requires.add(req_job)
+    job.save()
+
+    return job
+
+def create_jobs_for_execution(project, plugin_executions):
     jobs_temp = defaultdict(list)
     ret_jobs = []
 
-    # We need to check if we need the actual list of revisions. This is the
-    # case if the plugin should be executed on all or new revisions
-    if execution == 'all' or execution == 'new':
-        all_revisions = get_all_revisions(project)
-
+    # We have three plugin_types that are interesting here: repo, rev and other. We need to define to handle them
+    # separately
     for plugin_execution in plugin_executions:
         req_jobs = find_required_jobs(plugin_execution, jobs_temp)
 
-        if plugin_execution.plugin.plugin_type == 'repo' or plugin_execution.plugin.plugin_type == 'other':
-            job = Job(plugin_execution=plugin_execution)
-            job.save()
-
-            for req_job in req_jobs:
-                job.requires.add(req_job)
-            job.save()
-
+        if plugin_execution.plugin.plugin_type == 'other':
+            job = create_job(plugin_execution, req_jobs)
             jobs_temp[plugin_execution.plugin.id].append(job)
             ret_jobs.append(job)
 
-        elif plugin_execution.plugin.plugin_type == 'rev':
+        if plugin_execution.plugin.plugin_type == 'repo':
+            job = create_job(plugin_execution, req_jobs)
+            jobs_temp[plugin_execution.plugin.id].append(job)
+            ret_jobs.append(job)
+
+        if plugin_execution.plugin.plugin_type == 'rev':
             revisions_to_execute_plugin_on = []
 
-            if execution == 'all':
+            # We need to get all actual revisions first, if we want to execute them on all revisions or new ones
+            if plugin_execution.execution_type == 'all' or plugin_execution.execution_type == 'new':
+                all_revisions = get_all_revisions(plugin_execution)
+
+            if plugin_execution.execution_type == 'all':
                 revisions_to_execute_plugin_on = all_revisions
-            elif execution == 'rev':
-                if len(revisions.split(",")) == 1:
-                    revisions_to_execute_plugin_on.append(revisions)
+            elif plugin_execution.execution_type == 'rev':
+                if len(plugin_execution.revisions.split(",")) == 1:
+                    revisions_to_execute_plugin_on.append(plugin_execution.revisions)
                 else:
                     # If only some revisions (comma-separated list) need to be executed, create path and add it to list
-                    for revision in revisions.split(","):
+                    for revision in plugin_execution.revisions.split(","):
                         revisions_to_execute_plugin_on.append(revision)
 
-            elif execution == 'new':
+            elif plugin_execution.execution_type == 'new':
                 # Get all jobs that were executed with this plugin on this project
                 jobs = plugin_execution.plugin.get_all_jobs_for_project(plugin_execution.project)
                 job_revision_hashes = [job.revision_hash for job in jobs]
@@ -97,22 +107,17 @@ def create_jobs_for_execution(project, plugin_executions, execution, revisions):
                     if revision not in job_revision_hashes:
                         revisions_to_execute_plugin_on.append(revision)
 
-            elif execution == 'error':
+            elif plugin_execution.execution_type == 'error':
                 # Get all revisions on which this plugin failed (in some revisions) on this project. Important:
-                # if the plugin on revision X failed in first run, but worked on revision X in the second it is not longer
-                # marked as failing for this revision
+                # if the plugin on revision X failed in first run, but worked on revision X in the second it is not
+                # longer marked as failing for this revision
                 revisions = get_revisions_for_failed_plugins([plugin_execution.plugin], plugin_execution.project)
                 for revision in revisions:
                     revisions_to_execute_plugin_on.append(revision)
 
             # Create command
             for revision in revisions_to_execute_plugin_on:
-                job = Job(plugin_execution=plugin_execution, revision_hash=revision)
-                job.save()
-
-                for req_job in req_jobs:
-                    job.requires.add(req_job)
-                job.save()
+                job = create_job(plugin_execution, req_jobs, revision_hash=revision)
 
                 jobs_temp[plugin_execution.plugin.id].append(job)
                 ret_jobs.append(job)
