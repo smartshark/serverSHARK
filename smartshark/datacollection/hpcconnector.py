@@ -103,7 +103,6 @@ class HPCConnector(PluginManagementInterface):
         logger.info('Preparing project...')
         self.prepare_project(plugin_executions)
 
-        sys.exit(1)
         logger.info('Generating bsub script...')
         commands = []
         for plugin_execution in plugin_executions:
