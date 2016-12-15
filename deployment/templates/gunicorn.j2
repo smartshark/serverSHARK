@@ -6,7 +6,7 @@ After=network.target
 User=www-data
 Group=www-data
 WorkingDirectory={{ project_dir }}
-ExecStart={{virtual_env}}/bin/gunicorn --workers 6 --bind unix:{{socket}}/{{ project_name}}.sock -m 007 {{wsgi_module}}:application
+ExecStart={{virtual_env}}/bin/gunicorn --workers 1 --timeout 600 --bind unix:{{socket}}/{{ project_name}}.sock -m 007 {{wsgi_module}}:application
 
 [Install]
 WantedBy=multi-user.target
