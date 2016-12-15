@@ -49,10 +49,7 @@
       with_items: "{{ pip2_packages }}"
 
     - name: copy nginx config
-      template: src=templates/nginx.j2 dest=/etc/nginx/sites-available/{{ project_name }}
-
-    - name: enable nginx config
-      file: state=link src=/etc/nginx/sites-available/{{project_name}} dest=/etc/nginx/sites-enabled/{{project_name}} owner=www-data group=www-data
+      template: src=templates/nginx.j2 dest=/etc/nginx/nginx.conf
       notify:
         - restart nginx
 

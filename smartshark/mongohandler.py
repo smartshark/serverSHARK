@@ -1,3 +1,5 @@
+from collections import OrderedDict
+
 from pymongo import MongoClient
 from pymongo.errors import OperationFailure
 
@@ -54,13 +56,16 @@ class MongoHandler(object):
     def create_and_shard_collections(self, created_collections):
         for collection in created_collections:
             name = collection['name']
-            shard_key = collection['shard_key']
             unique = collection.get('unique', False)
+            shard_keys = collection['shard_key']
+            ordered_dict = OrderedDict()
+            for shard_key in shard_keys:
+                ordered_dict.update(shard_key)
 
             # Create collection, if it is already existent --> ignore it
             try:
                 self.client.get_database(self.database).create_collection(name)
-                self.client.get_database('admin').command('shardCollection', self.database+'.'+name, key=shard_key,
+                self.client.get_database('admin').command('shardCollection', self.database+'.'+name, key=ordered_dict,
                                                           unique=unique)
             except:
                 pass

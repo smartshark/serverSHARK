@@ -127,7 +127,7 @@ class PluginInformationHandler(object):
                                           'required': argument_fields['required']})
             elif argument_fields['type'] == 'execute':
                 execution_arguments.append({'position': argument_fields['position'],
-                                          'required': argument_fields['required']})
+                                            'required': argument_fields['required']})
             else:
                 raise ValidationError("Argument %s does not have a valid type (install or execute)" %
                                       argument_fields['name'])

@@ -16,6 +16,37 @@ from smartshark.shellhandler import ShellHandler
 logger = logging.getLogger('hpcconnector')
 
 
+class JobSubmissionThread(threading.Thread):
+    def __init__(self, path_to_remote_file, host, username, password, port, tunnel_host, tunnel_username,
+                 tunnel_password, tunnel_port, use_tunnel, plugin_to_install=None):
+        threading.Thread.__init__(self)
+        self.remote_file = path_to_remote_file
+        self.host = host
+        self.username = username
+        self.password = password
+        self.port = port
+        self.tunnel_host = tunnel_host
+        self.tunnel_username = tunnel_username
+        self.tunnel_password = tunnel_password
+        self.tunnel_port = tunnel_port
+        self.use_tunnel = use_tunnel
+        self.plugin_to_install = plugin_to_install
+
+    def run(self):
+        with ShellHandler(self.host, self.username, self.password, self.port, self.tunnel_host,
+                          self.tunnel_username, self.tunnel_password, self.tunnel_port, self.use_tunnel) as handler:
+            out, err = handler.execute_file(self.remote_file, False)
+            logger.debug(out)
+            logger.debug(err)
+
+            # If we have an install ocmmand_ we need to set the plugin to installed
+            if self.plugin_to_install is not None and not err:
+                self.plugin_to_install.installed = True
+                self.plugin_to_install.save()
+
+
+
+
 class HPCConnector(PluginManagementInterface):
     """
     Connector for the HPC cluster of the GWDG.
@@ -204,16 +235,9 @@ class HPCConnector(PluginManagementInterface):
         self.execute_command('rm -rf %s/%s' % (self.plugin_path, str(plugin)))
 
     def install_plugins(self, plugins):
-        installations = []
         for plugin in plugins:
-            try:
-                self.copy_plugin(plugin)
-                self.execute_install(plugin)
-                installations.append((True, None))
-            except Exception as e:
-                installations.append((False, str(e)))
-
-        return installations
+            self.copy_plugin(plugin)
+            self.execute_install(plugin)
 
     def copy_plugin(self, plugin):
         with ShellHandler(self.host, self.username, self.password, self.port, self.tunnel_host,
@@ -222,7 +246,6 @@ class HPCConnector(PluginManagementInterface):
 
             # Copy plugin
             scp.put(plugin.get_full_path_to_archive(), remote_path=b'~')
-
 
         try:
             self.delete_plugin(plugin)
@@ -239,7 +262,7 @@ class HPCConnector(PluginManagementInterface):
     def execute_install(self, plugin):
         # Build parameter for install script.
         command = self.create_install_command(plugin)
-        self.execute_command(command)
+        self.send_and_execute_file([command], False, plugin)
 
     def create_install_command(self, plugin):
         path_to_install_script = "%s/%s/install.sh " % (self.plugin_path, str(plugin))
@@ -268,13 +291,13 @@ class HPCConnector(PluginManagementInterface):
 
         return command
 
-    def execute_command(self, command, ignore_errors=False, combine_stderr_stdout=False):
+    def execute_command(self, command, ignore_errors=False):
 
         logger.info('Execute command: %s' % command)
 
         with ShellHandler(self.host, self.username, self.password, self.port, self.tunnel_host,
                           self.tunnel_username, self.tunnel_password, self.tunnel_port, self.use_tunnel) as handler:
-            (stdout, stderr) = handler.execute(command, stderr_stdout_combined=combine_stderr_stdout)
+            (stdout, stderr) = handler.execute(command)
 
             logger.debug('Output: %s' % ' '.join(stdout))
             logger.debug('ErrorOut: %s' % ' '.join(stderr))
@@ -283,7 +306,7 @@ class HPCConnector(PluginManagementInterface):
 
         return stdout
 
-    def send_and_execute_file(self, commands, order_needed):
+    def send_and_execute_file(self, commands, blocking, plugin_to_install=None):
         generated_uuid = str(uuid.uuid4())
         path_to_sh_file = os.path.join(os.path.dirname(__file__), 'temp', generated_uuid+'.sh')
         path_to_remote_sh_file = os.path.join(self.project_path, generated_uuid+'.sh')
@@ -308,16 +331,15 @@ class HPCConnector(PluginManagementInterface):
 
         # Execute. We need the variable order_needed as it distighushes between two separate possible execution methods
         logger.info("Execute command: %s" % path_to_remote_sh_file)
-
-        with ShellHandler(self.host, self.username, self.password, self.port, self.tunnel_host,
-                          self.tunnel_username, self.tunnel_password, self.tunnel_port, self.use_tunnel) as handler:
-            if order_needed:
-                out = handler.execute_file(path_to_remote_sh_file, order_needed)
-            else:
-                thread = threading.Thread(target=handler.execute_file, args=(path_to_remote_sh_file, order_needed))
-                thread.start()
-                out = []
-
-        logger.debug('Output: %s' % ' '.join(out))
-
-        return out
+        if blocking:
+            with ShellHandler(self.host, self.username, self.password, self.port, self.tunnel_host,
+                              self.tunnel_username, self.tunnel_password, self.tunnel_port, self.use_tunnel) as handler:
+                out = handler.execute_file(path_to_remote_sh_file, True)
+                logger.debug('Output: %s' % ' '.join(out))
+                return out
+        else:
+            thread = JobSubmissionThread(path_to_remote_sh_file, self.host, self.username, self.password, self.port,
+                                         self.tunnel_host, self.tunnel_username, self.tunnel_password,self.tunnel_port,
+                                         self.use_tunnel, plugin_to_install)
+            thread.start()
+            return None

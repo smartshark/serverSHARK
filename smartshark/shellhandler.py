@@ -52,7 +52,7 @@ class ShellHandler:
     def get_ssh_client(self):
         return self.ssh
 
-    def execute(self, cmd, stderr_stdout_combined=False):
+    def execute(self, cmd):
         """
 
         :param cmd: the command to be executed on the remote computer
@@ -72,8 +72,7 @@ class ShellHandler:
             chan.exec_command(cmd)
             return out.readlines()
         else:
-            ssh = self.get_ssh_client()
-            channel = ssh.invoke_shell()
+            channel = self.ssh.invoke_shell()
             stdin = channel.makefile('wb')
             stdout = channel.makefile('r')
 
@@ -118,8 +117,3 @@ class ShellHandler:
                 sherr.pop(0)
 
             return shout, sherr
-
-
-
-
-
