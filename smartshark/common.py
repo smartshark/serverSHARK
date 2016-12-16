@@ -1,4 +1,4 @@
-import os
+from smartshark.mongohandler import handler
 
 from server.base import SUBSTITUTIONS
 from django.contrib import messages

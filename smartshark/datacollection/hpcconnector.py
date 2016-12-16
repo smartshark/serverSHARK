@@ -235,9 +235,16 @@ class HPCConnector(PluginManagementInterface):
         self.execute_command('rm -rf %s/%s' % (self.plugin_path, str(plugin)))
 
     def install_plugins(self, plugins):
+        installations = []
         for plugin in plugins:
-            self.copy_plugin(plugin)
-            self.execute_install(plugin)
+            try:
+                self.copy_plugin(plugin)
+                self.execute_install(plugin)
+                installations.append((True, None))
+            except Exception as e:
+                installations.append((False, str(e)))
+
+        return installations
 
     def copy_plugin(self, plugin):
         with ShellHandler(self.host, self.username, self.password, self.port, self.tunnel_host,
@@ -262,7 +269,7 @@ class HPCConnector(PluginManagementInterface):
     def execute_install(self, plugin):
         # Build parameter for install script.
         command = self.create_install_command(plugin)
-        self.send_and_execute_file([command], False, plugin)
+        self.execute_command(command)
 
     def create_install_command(self, plugin):
         path_to_install_script = "%s/%s/install.sh " % (self.plugin_path, str(plugin))

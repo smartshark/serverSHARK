@@ -3,7 +3,7 @@ from django.contrib import messages
 from django.http import HttpResponseRedirect
 from django.shortcuts import render, get_object_or_404
 
-from smartshark.common import create_substitutions_for_display, order_plugins
+from smartshark.common import create_substitutions_for_display, order_plugins, append_success_messages_to_req
 from smartshark.datacollection.executionutils import create_jobs_for_execution
 from smartshark.forms import ProjectForm, get_form, set_argument_values, set_argument_execution_values
 from smartshark.models import Plugin, Project, PluginExecution, Job
@@ -38,10 +38,10 @@ def install(request):
             set_argument_values(form.cleaned_data)
 
             # Install plugins
-            PluginManagementInterface.find_correct_plugin_manager().install_plugins(plugins)
-            for plugin in plugins:
-                messages.success(request, 'Successfully started installation for plugin %s in version %.2f' %
-                                 (plugin.name, plugin.version))
+            installations = PluginManagementInterface.find_correct_plugin_manager().install_plugins(plugins)
+
+            # Check if plugins successfully installed
+            append_success_messages_to_req(installations, plugins, request)
 
             return HttpResponseRedirect('/admin/smartshark/plugin')
 
