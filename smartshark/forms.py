@@ -1,9 +1,11 @@
 from difflib import SequenceMatcher
 
+from django.forms import HiddenInput
 from django.shortcuts import get_object_or_404
 from form_utils.forms import BetterForm
 
 from server.base import SUBSTITUTIONS
+from server.settings import DATABASES
 from .models import Plugin, Argument, ExecutionHistory, PluginExecution
 from django import forms
 
@@ -82,9 +84,9 @@ def get_form(plugins, post, type):
                 for name, value in SUBSTITUTIONS.items():
                     if SequenceMatcher(None, argument.name, name).ratio() > 0.8:
                         initial = value['name']
-                plugin_fields[identifier] = forms.CharField(label=argument.name,
-                                                            required=argument.required,
-                                                            initial=initial)
+
+                plugin_fields[identifier] = forms.CharField(label=argument.name, required=argument.required,
+                                                            initial=initial, help_text=argument.description)
 
             created_fieldsets.append([str(plugin), {'fields': arguments}])
 

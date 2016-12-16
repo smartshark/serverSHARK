@@ -3,6 +3,29 @@
 
 {% block extrajs %}
  <script type="text/javascript" src="{% static 'js/argument_selection.js' %}"></script>
+ <script type="text/javascript">
+ $(document).ready(function() {
+    $('#show_all_button').on('click', function() {
+        $("li").each(function(){
+            var input = $(this);
+            input.show()
+        });
+    });
+});
+
+ $("form#arguments_form :input").each(function(){
+     var input = $(this); // This is the jquery object of the input, do what you will
+     if(input.val()) {
+         var id_to_hide = input.attr('id');
+         var object_to_hide = ($("li#"+id_to_hide))
+         if(typeof id_to_hide !== 'undefined') {
+             object_to_hide.hide()
+         }
+     }
+});
+
+
+ </script>
 {% endblock %}
 
 {% block content %}
@@ -25,7 +48,7 @@
             <li>{{ name }} - {{ description }}</li>
         {% endfor %}
     </ul>
-    <h2>Set the parameter for execution:</h2>
+    <button type="button" class="btn btn-primary" id="show_all_button">Show all fields</button>
     <form action="" method="post" id="arguments_form">
         {% csrf_token %}
         {% if form.non_field_errors %}{{ form.non_field_errors }}{% endif %}
@@ -42,10 +65,14 @@
             {% if field.is_hidden %}
               {{ field }}
             {% else %}
-              <li{{ field.row_attrs }} style="list-style-type: none; padding: 5px 0px;">
+              <li{{ field.row_attrs }} style="list-style-type: none; padding: 5px 0px;" id="{{ field.auto_id }}">
                 {{ field.label_tag }}
                 {{ field }}
+                <p class="help-block text-muted">
+                    {{ field.help_text }}
+                </p>
                 {{ field.errors }}
+
               </li>
             {% endif %}
           {% endfor %}
