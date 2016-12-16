@@ -39,6 +39,10 @@ class PluginManagementInterface(metaclass=abc.ABCMeta):
     def get_sent_bash_command(self, job):
         return
 
+    @abc.abstractmethod
+    def delete_output_for_plugin_execution(self, plugin_execution):
+        return
+
     @staticmethod
     def find_correct_plugin_manager():
         plugin_files = [x[:-3] for x in os.listdir(os.path.dirname(os.path.realpath(__file__))) if x.endswith(".py")]

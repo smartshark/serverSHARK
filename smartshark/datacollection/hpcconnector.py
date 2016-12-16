@@ -18,7 +18,7 @@ logger = logging.getLogger('hpcconnector')
 
 class JobSubmissionThread(threading.Thread):
     def __init__(self, path_to_remote_file, host, username, password, port, tunnel_host, tunnel_username,
-                 tunnel_password, tunnel_port, use_tunnel, plugin_to_install=None):
+                 tunnel_password, tunnel_port, use_tunnel):
         threading.Thread.__init__(self)
         self.remote_file = path_to_remote_file
         self.host = host
@@ -30,7 +30,6 @@ class JobSubmissionThread(threading.Thread):
         self.tunnel_password = tunnel_password
         self.tunnel_port = tunnel_port
         self.use_tunnel = use_tunnel
-        self.plugin_to_install = plugin_to_install
 
     def run(self):
         with ShellHandler(self.host, self.username, self.password, self.port, self.tunnel_host,
@@ -38,13 +37,6 @@ class JobSubmissionThread(threading.Thread):
             out, err = handler.execute_file(self.remote_file, False)
             logger.debug(out)
             logger.debug(err)
-
-            # If we have an install ocmmand_ we need to set the plugin to installed
-            if self.plugin_to_install is not None and not err:
-                self.plugin_to_install.installed = True
-                self.plugin_to_install.save()
-
-
 
 
 class HPCConnector(PluginManagementInterface):
@@ -95,11 +87,11 @@ class HPCConnector(PluginManagementInterface):
                 'plugin_path': os.path.join(self.plugin_path, str(plugin_execution.plugin))
         })
 
-    def generate_bsub_command(self, plugin_command, job):
-        output_path = os.path.join(self.log_path, str(job.id)+'_out.txt')
-        error_path = os.path.join(self.log_path, str(job.id)+'_err.txt')
+    def generate_bsub_command(self, plugin_command, job, plugin_execution_output_path):
+        output_path = os.path.join(plugin_execution_output_path, str(job.id)+'_out.txt')
+        error_path = os.path.join(plugin_execution_output_path, str(job.id)+'_err.txt')
 
-        bsub_command = 'bsub -q %s -o %s -e %s -J "%s" ' % (
+        bsub_command = 'bsub -W 48:00 -q %s -o %s -e %s -J "%s" ' % (
             self.queue, output_path, error_path, str(job.id)
         )
 
@@ -127,7 +119,8 @@ class HPCConnector(PluginManagementInterface):
 
     def get_sent_bash_command(self, job):
         plugin_command = self.generate_plugin_execution_command(job.plugin_execution)
-        return self.generate_bsub_command(plugin_command, job)
+        plugin_execution_output_path = os.path.join(self.log_path, str(job.plugin_execution.id))
+        return self.generate_bsub_command(plugin_command, job, plugin_execution_output_path)
 
     def execute_plugins(self, project, jobs, plugin_executions):
         # Prepare project (clone / pull)
@@ -139,9 +132,11 @@ class HPCConnector(PluginManagementInterface):
         for plugin_execution in plugin_executions:
             plugin_command = self.generate_plugin_execution_command(plugin_execution)
             jobs = Job.objects.filter(plugin_execution=plugin_execution).all()
+            plugin_execution_output_path = os.path.join(self.log_path, str(plugin_execution.id))
+            self.execute_command('mkdir %s' % plugin_execution_output_path, ignore_errors=True)
 
             for job in jobs:
-                commands.append(self.generate_bsub_command(plugin_command, job))
+                commands.append(self.generate_bsub_command(plugin_command, job, plugin_execution_output_path))
 
         logger.info('Sending and executing bsub script...')
         self.send_and_execute_file(commands, False)
@@ -167,12 +162,16 @@ class HPCConnector(PluginManagementInterface):
             except Exception:
                 self.execute_command('cd %s && git pull > /dev/null 2>&1' % git_clone_target)
 
+    def delete_output_for_plugin_execution(self, plugin_execution):
+        self.execute_command('rm -rf %s' % os.path.join(self.log_path, str(plugin_execution.id)))
+
     def get_output_log(self, job):
         with ShellHandler(self.host, self.username, self.password, self.port, self.tunnel_host,
                           self.tunnel_username, self.tunnel_password, self.tunnel_port, self.use_tunnel) as handler:
             sftp_client = handler.get_ssh_client().open_sftp()
+            plugin_execution_output_path = os.path.join(self.log_path, str(job.plugin_execution.id))
             try:
-                remote_file = sftp_client.open(os.path.join(self.log_path, str(job.id)+'_out.txt'))
+                remote_file = sftp_client.open(os.path.join(plugin_execution_output_path, str(job.id)+'_out.txt'))
             except FileNotFoundError:
                 return ['File Not Found']
 
@@ -189,8 +188,9 @@ class HPCConnector(PluginManagementInterface):
         with ShellHandler(self.host, self.username, self.password, self.port, self.tunnel_host,
                           self.tunnel_username, self.tunnel_password, self.tunnel_port, self.use_tunnel) as handler:
             sftp_client = handler.get_ssh_client().open_sftp()
+            plugin_execution_output_path = os.path.join(self.log_path, str(job.plugin_execution.id))
             try:
-                remote_file = sftp_client.open(os.path.join(self.log_path, str(job.id)+'_err.txt'))
+                remote_file = sftp_client.open(os.path.join(plugin_execution_output_path, str(job.id)+'_err.txt'))
             except FileNotFoundError:
                 return ['File Not Found']
 
@@ -209,8 +209,9 @@ class HPCConnector(PluginManagementInterface):
 
         job_status_list = []
         commands = []
+        plugin_execution_output_path = os.path.join(self.log_path, str(jobs[0].plugin_execution.id))
         for job in jobs:
-            error_path = os.path.join(self.log_path, str(job.id)+'_err.txt')
+            error_path = os.path.join(plugin_execution_output_path, str(job.id)+'_err.txt')
             commands.append("wc -c < %s" % error_path)
 
         out = self.send_and_execute_file(commands, True)
@@ -313,7 +314,7 @@ class HPCConnector(PluginManagementInterface):
 
         return stdout
 
-    def send_and_execute_file(self, commands, blocking, plugin_to_install=None):
+    def send_and_execute_file(self, commands, blocking):
         generated_uuid = str(uuid.uuid4())
         path_to_sh_file = os.path.join(os.path.dirname(__file__), 'temp', generated_uuid+'.sh')
         path_to_remote_sh_file = os.path.join(self.project_path, generated_uuid+'.sh')
@@ -347,6 +348,6 @@ class HPCConnector(PluginManagementInterface):
         else:
             thread = JobSubmissionThread(path_to_remote_sh_file, self.host, self.username, self.password, self.port,
                                          self.tunnel_host, self.tunnel_username, self.tunnel_password,self.tunnel_port,
-                                         self.use_tunnel, plugin_to_install)
+                                         self.use_tunnel)
             thread.start()
             return None

@@ -43,7 +43,7 @@ class MongoHandler(object):
             .insert_one({'name': project.name}).inserted_id
 
     def delete_project(self, project):
-        self.client.get_database(self.database).get_collection('project').delete_one({'url': project.url})
+        self.client.get_database(self.database).get_collection('project').delete_one({'name': project.name})
 
     def add_schema(self, plugin_schema, plugin):
         plugin_schema['plugin'] = str(plugin)

@@ -29,3 +29,6 @@ class AzureConnector(PluginManagementInterface):
 
     def install_plugins(self, plugins):
         pass
+
+    def delete_output_for_plugin_execution(self, plugin_execution):
+        pass

@@ -1,7 +1,7 @@
 import os
 
 from smartshark.datacollection.pluginmanagementinterface import PluginManagementInterface
-from smartshark.models import SmartsharkUser, Plugin, Project
+from smartshark.models import SmartsharkUser, Plugin, Project, PluginExecution
 from django.db.models.signals import post_save, pre_save, m2m_changed, post_delete, pre_delete
 from django.dispatch import receiver
 import tarfile
@@ -44,3 +44,8 @@ def add_project_to_mongodb(sender, **kwargs):
 def delete_project_from_mongodb(sender, **kwargs):
     project = kwargs["instance"]
     handler.delete_project(project)
+
+@receiver(post_delete, sender=PluginExecution)
+def delete_outputs(sender, **kwargs):
+    plugin_execution = kwargs["instance"]
+    interface.delete_output_for_plugin_execution(plugin_execution)
