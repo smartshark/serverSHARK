@@ -8,6 +8,7 @@ urlpatterns = [
     url(r'^login/$', login, name='mysite_login'),
     url(r'^logout/$', logout, {'next_page': reverse_lazy('index')}, name='mysite_logout'),
     url(r'^$', common.index, name='index'),
+    url(r'^documentation/$', common.documentation, name='documentation'),
     url(r'^spark/submit/$', analysis.spark_submit, name='spark_submit'),
     url(r'^project/collection/choose/$', collection.choose_plugins, name='choose_plugins'),
     url(r'^project/collection/start/$', collection.start_collection, name='collection_start'),

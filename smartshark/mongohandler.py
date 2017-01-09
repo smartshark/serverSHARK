@@ -32,6 +32,10 @@ class MongoHandler(object):
 
             self.add_user(username, password, roles)
 
+    def get_plugin_schemas(self):
+        schemas =  self.client.get_database(self.database).get_collection(self.schema_collection).find()
+        return [schema for schema in schemas]
+
     def remove_user(self, username):
         self.client[self.database].remove_user(username)
 

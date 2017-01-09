@@ -1,3 +1,7 @@
+import json
+from collections import defaultdict
+from queue import Queue
+
 from django.contrib import messages
 from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
 from django.http import HttpResponseRedirect
@@ -5,11 +9,103 @@ from django.shortcuts import render, get_object_or_404
 
 from smartshark.datacollection.pluginmanagementinterface import PluginManagementInterface
 from smartshark.filters import JobExecutionFilter
-from smartshark.models import PluginExecution, Job, Project
+from smartshark.models import PluginExecution, Job, Project, Plugin
+from smartshark.mongohandler import handler
 
 
 def index(request):
     return render(request, 'smartshark/frontend/index.html')
+
+
+class Item(object):
+    def __init__(self, id, name, desc=None, sub_fields=None, parent='#', logical_types=None, reference_to=None):
+        self.id = id
+        self.name = name
+        self.reference_to = reference_to
+
+        if desc is None:
+            self.desc = []
+        else:
+            self.desc = [desc]
+
+        if sub_fields is None:
+            self.sub_fields = []
+
+        if logical_types is None:
+            self.logical_types = []
+        else:
+            self.logical_types = logical_types
+
+        self.parent=parent
+
+    def add_field(self, field):
+        self.sub_fields.append(field)
+
+    def add_description(self, description):
+        self.desc.append(description)
+
+
+def recursion(item, parent, plugin_name, items):
+    if 'fields' not in item:
+        return
+
+    for field in item['fields']:
+        if isinstance(field['logical_type'], list):
+            logical_types = field['logical_type']
+        else:
+            logical_types = [field['logical_type']]
+
+        reference_to = None
+        if 'reference_to' in field:
+            reference_to = field['reference_to']
+
+        new_field = Item(
+            parent+'_'+field['field_name'], field['field_name'], desc={'desc': field['desc'], 'plugin': ' '.join(plugin_name.split('_'))},
+            parent=parent, logical_types=logical_types, reference_to=reference_to)
+
+        if new_field.id in items:
+            stored_field = items[new_field.id]
+            stored_field.add_description({'desc': field['desc'], 'plugin': ' '.join(plugin_name.split('_'))})
+        else:
+            items[new_field.id] = new_field
+
+        if 'fields' in field:
+            recursion(field, new_field.id, plugin_name, items)
+
+def documentation(request):
+    items = {}
+    data = []
+
+    for schema in handler.get_plugin_schemas():
+        plugin_name = schema['plugin']
+        for mongo_collection in schema['collections']:
+            print(mongo_collection)
+            collection = Item(mongo_collection['collection_name'], mongo_collection['collection_name'], desc={'desc': mongo_collection['desc'], 'plugin': ' '.join(plugin_name.split('_'))})
+            if collection.id in items:
+                stored_collection = items[collection.id]
+                stored_collection.add_description({'desc': mongo_collection['desc'], 'plugin': ' '.join(plugin_name.split('_'))})
+            else:
+                items[collection.id] = collection
+
+            recursion(mongo_collection, mongo_collection['collection_name'], plugin_name, items)
+
+    for item_id, item_data in items.items():
+        json_collection = {
+            'id': item_id,
+            'parent': item_data.parent,
+            'text': item_data.name,
+            'data': {
+                'desc': item_data.desc,
+                'logical_types': item_data.logical_types,
+                'reference_to': item_data.reference_to
+            }
+        }
+        data.append(json_collection)
+
+    return render(request, 'smartshark/frontend/documentation.html', {
+        'data': json.dumps(data),
+        'plugins': Plugin.objects.all().filter(active=True).order_by('name'),
+    })
 
 
 def plugin_execution_status(request, id):

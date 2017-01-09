@@ -1,0 +1,158 @@
+{% extends "smartshark/frontend/base.html" %}
+{% load staticfiles %}
+{% block title %}Documentation{% endblock %}
+
+{% block content %}
+    <script type="application/javascript">
+        $(function () {
+            $('#structure').on('changed.jstree', function (e, data) {
+                var selected_node = data.instance.get_node(data.selected[0]);
+                console.log(selected_node);
+                var result_div = $('#detailed_information')
+                // Handle clicked node
+                var content = '<h3>Detailed Information for: '+selected_node.text+'</h3>';
+                content += '<table class="table table-striped">';
+                content += '<tbody>';
+                content += '<tr>';
+                if(selected_node.data.logical_types.length > 0) {
+                    content += '<th>Logical Type(s)</th>';
+                }
+                if(selected_node.data.reference_to != null) {
+                    content += '<th>Reference To</th>';
+                }
+                content += '<th>Defined By</th>';
+                content += '<th>Description</th>';
+                content += '</tr>';
+                content += '<tr>';
+                if(selected_node.data.logical_types.length > 0) {
+                    content += '<td>' + selected_node.data.logical_types.join(", ") + '</td>';
+                }
+                if(selected_node.data.reference_to != null) {
+                    content += '<td>' + selected_node.data.reference_to + '</td>';
+                }
+                for(i = 0, j = selected_node.data.desc.length; i < j; i++) {
+                    content += '<td>' + selected_node.data.desc[i].plugin + '</td>';
+                    content += '<td>' + selected_node.data.desc[i].desc + '</td>';
+                }
+                content += '</tr>';
+                content += '</tbody>';
+                content += "</table>";
+
+                // Handle Children
+                if(selected_node.children.length > 0) {
+                    content += '<h3>Detailed Information for Fields of: ' + selected_node.text + '</h3>';
+                    content += '<table class="table table-striped">';
+                    content += '<tbody>';
+                    content += '<tr>';
+                    content += '<th>Field Name</th>';
+                    content += '<th>Logical Type(s)</th>';
+                    content += '<th>Reference To</th>';
+                    content += '<th>Descriptions</th>';
+                    content += '</tr>';
+                    for (i = 0, j = selected_node.children.length; i < j; i++) {
+                        var child = data.instance.get_node(selected_node.children[i]);
+                        content += '<tr>';
+                        if(child.children.length > 0) {
+                            content += '<td>' + child.text + '<br />(Contains <strong>'+child.children.length+'</strong> subfields)</td>';
+                        } else {
+                            content += '<td>' + child.text + '</td>';
+                        }
+                        content += '<td>' + child.data.logical_types.join(", ") + '</td>';
+                        if(child.data.reference_to == null) {
+                            content += '<td></td>';
+                        } else{
+                            content += '<td>' + child.data.reference_to + '</td>';
+                        }
+                        content += '<td>';
+                        content += '<table class="table table-striped">';
+                        content += '<tbody>';
+                        content += '<tr>';
+                        content += '<th>Defined By</th>';
+                        content += '<th>Description</th>';
+                        content += '</tr>';
+                        for (k = 0, l = child.data.desc.length; k < l; k++) {
+                            content += '<tr>';
+                            content += '<td>' + child.data.desc[k].plugin + '</td>';
+                            content += '<td>' + child.data.desc[k].desc + '</td>';
+                            content += '</tr>';
+                        }
+                        content += "</table>";
+                        content += '</td>';
+                        content += '</tr>';
+                        console.log(data.instance.get_node(selected_node.children[i]));
+                    }
+                    content += '</tbody>';
+                    content += "</table>";
+                }
+    $('#detailed_information').html(content);
+  }).jstree({ 'plugins':["wholerow", "sort", "search"], 'core' : {
+                "themes" : {
+      "variant" : "large"
+    },
+    'data' : JSON.parse('{{ data | escapejs }}')
+} });
+
+        var to = false;
+
+  $('#search').keyup(function () {
+    if(to) { clearTimeout(to); }
+    to = setTimeout(function () {
+      var v = $('#search').val();
+      $('#structure').jstree(true).search(v);
+    }, 250);
+  });
+        });
+
+
+
+    </script>
+
+
+
+    <div class="jumbotron">
+        <h1>Documentation</h1>
+        <p>Documentation of the SmartSHARK database.</p>
+    </div>
+    <div>
+        <h2>Plugins</h2>
+        <table class="table table-striped">
+            <tbody>
+            <tr>
+                <th>Plugin Name</th>
+                <th>Version</th>
+                <th>Description</th>
+            </tr>
+            {% for plugin in plugins %}
+                <tr>
+                    <td>{{ plugin.name }}</td>
+                    <td>{{ plugin.version }}</td>
+                    <td>{{ plugin.description }}</td>
+                </tr>
+            {% endfor %}
+
+            </tbody>
+        </table>
+    </div>
+    <div class="container">
+    <div class="row">
+        <h2>Database Design</h2>
+        <img src="{% static "database_design.png" %}" class="img-responsive" \>
+    </div>
+    <div class="row">
+        <h2>Collection and Field Information</h2>
+
+        <div class="col-md-4">
+        <input id="search" value="" class="form-control" type="text">
+
+        </div>
+        <div class="col-md-8"></div>
+
+    </div>
+        <div class="row">
+  <div id="structure" class="col-md-4">
+
+  </div>
+    <div id="detailed_information" class="col-md-8"></div>
+        </div>
+    </div>
+{% endblock %}

@@ -51,3 +51,4 @@ def spark_submit(request):
     return render(request, 'smartshark/frontend/spark/submit.html', {
         'form': form
     })
+

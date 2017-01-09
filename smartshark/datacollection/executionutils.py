@@ -27,9 +27,26 @@ def get_all_revisions(plugin_execution):
     discovered_repo = pygit2.discover_repository(path_to_repo)
     repository = pygit2.Repository(discovered_repo)
 
-    revisions = set()
-    for commit in repository.walk(repository.head.target, pygit2.GIT_SORT_TOPOLOGICAL | pygit2.GIT_SORT_REVERSE):
-        revisions.add(str(commit.id))
+    # Get all references (branches, tags)
+    references = set(repository.listall_references())
+
+    # Get all tags
+    regex = re.compile('^refs/tags')
+    tags = set(filter(lambda r: regex.match(r), repository.listall_references()))
+
+    # Get all branches
+    branches = references - tags
+
+    for branch in branches:
+        commit = repository.lookup_reference(branch).peel()
+        # Walk through every child
+        for child in repository.walk(commit.id, pygit2.GIT_SORT_TIME | pygit2.GIT_SORT_TOPOLOGICAL):
+            revisions.add(str(child.id))
+
+    # Walk through every tag and put the information in the dictionary via the addtag method
+    for tag in tags:
+        tagged_commit = repository.lookup_reference(tag).peel()
+        revisions.add(str(tagged_commit.id))
 
     subprocess.run(['rm', '-rf', path_to_repo])
 
