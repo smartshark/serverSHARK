@@ -21,6 +21,6 @@ from server import settings
 
 urlpatterns = [
     url(r'^admin/', include(admin.site.urls)),
-    url(r'^smartshark/', include('smartshark.urls')),
+    url(r'^', include('smartshark.urls')),
     url(r'^progressbarupload/', include('progressbarupload.urls'))
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
