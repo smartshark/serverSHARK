@@ -57,6 +57,103 @@ class MongoHandler(object):
         self.client.get_database(self.database).get_collection(self.schema_collection)\
             .find_one_and_delete({'plugin': str(plugin)})
 
+    def get_number_of_projects(self):
+        return self.client.get_database(self.database).get_collection('project').count()
+
+    def get_number_of_commits(self, vcs_system_id=None):
+        if vcs_system_id is None:
+            return self.client.get_database(self.database).get_collection('commit').count()
+        else:
+            return self.client.get_database(self.database).get_collection('commit').find(
+                {'vcs_system_id': vcs_system_id}).count()
+
+    def get_number_of_people(self):
+        return self.client.get_database(self.database).get_collection('people').count()
+
+    def get_number_of_mailing_messages(self, mailing_list_id=None):
+        if mailing_list_id is None:
+            return self.client.get_database(self.database).get_collection('message').count()
+        else:
+            return self.client.get_database(self.database).get_collection('message').find(
+                {'mailing_list_id': mailing_list_id}).count()
+
+    def get_number_of_issues(self, issue_system_id=None):
+        if issue_system_id is None:
+            return self.client.get_database(self.database).get_collection('issue').count()
+        else:
+            return self.client.get_database(self.database).get_collection('issue').find(
+                {'issue_system_id': issue_system_id}).count()
+
+    def get_number_of_issue_comments(self, issue_id=None):
+        if issue_id is None:
+            return self.client.get_database(self.database).get_collection('issue_comment').count()
+        else:
+            return self.client.get_database(self.database).get_collection('issue_comment').find(
+                {'issue_id': issue_id}).count()
+
+    def get_number_of_issue_systems(self, project_id=None):
+        if project_id is None:
+            return self.client.get_database(self.database).get_collection('issue_system').count()
+        else:
+            return self.client.get_database(self.database).get_collection('issue_system').find(
+                {'project_id': project_id}).count()
+
+    def get_number_of_vcs_systems(self, project_id=None):
+        if project_id is None:
+            return self.client.get_database(self.database).get_collection('vcs_system').count()
+        else:
+            return self.client.get_database(self.database).get_collection('vcs_system').find(
+                {'project_id': project_id}).count()
+
+    def get_number_of_mailing_lists(self, project_id=None):
+        if project_id is None:
+            return self.client.get_database(self.database).get_collection('mailing_list').count()
+        else:
+            return self.client.get_database(self.database).get_collection('mailing_list').find(
+                {'project_id': project_id}).count()
+
+    def get_number_of_issue_events(self, issue_id=None):
+        if issue_id is None:
+            return self.client.get_database(self.database).get_collection('event').count()
+        else:
+            return self.client.get_database(self.database).get_collection('event').find(
+                {'issue_id': issue_id}).count()
+
+    def get_number_of_clones(self, commit_id=None):
+        if commit_id is None:
+            return self.client.get_database(self.database).get_collection('code_group_state').count()
+        else:
+            return self.client.get_database(self.database).get_collection('code_group_state').find(
+                {'commit_id': commit_id}).count()
+
+    def get_number_of_hunks(self, file_action=None):
+        if file_action is None:
+            return self.client.get_database(self.database).get_collection('hunk').count()
+        else:
+            return self.client.get_database(self.database).get_collection('hunk').find(
+                {'file_action_id': file_action}).count()
+
+    def get_number_of_file_changes(self, commit_id=None):
+        if commit_id is None:
+            return self.client.get_database(self.database).get_collection('file_action').count()
+        else:
+            return self.client.get_database(self.database).get_collection('file_action').find(
+                {'commit_id': commit_id}).count()
+
+    def get_number_of_code_group_states(self, commit_id=None):
+        if commit_id is None:
+            return self.client.get_database(self.database).get_collection('clone_instance').count()
+        else:
+            return self.client.get_database(self.database).get_collection('clone_instance').find(
+                {'commit_id': commit_id}).count()
+
+    def get_number_of_code_entity_states(self, commit_id=None):
+        if commit_id is None:
+            return self.client.get_database(self.database).get_collection('code_entity_state').count()
+        else:
+            return self.client.get_database(self.database).get_collection('code_entity_state').find(
+                {'commit_id': commit_id}).count()
+
     def create_and_shard_collections(self, created_collections):
         for collection in created_collections:
             name = collection['name']

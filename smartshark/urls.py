@@ -2,7 +2,7 @@ from django.conf.urls import url
 from django.core.urlresolvers import reverse_lazy
 from django.contrib.auth.views import login, logout
 
-from smartshark.views import analysis, common, collection
+from smartshark.views import analysis, common, collection, visualizations
 
 urlpatterns = [
     # Frontend
@@ -10,6 +10,7 @@ urlpatterns = [
     url(r'^logout/$', logout, {'next_page': reverse_lazy('index')}, name='mysite_logout'),
     url(r'^$', common.index, name='index'),
     url(r'^documentation/$', common.documentation, name='documentation'),
+    url(r'^visualizations/overview/$', visualizations.overview, name='overview'),
     url(r'^spark/submit/$', analysis.spark_submit, name='spark_submit'),
 
     # Backend

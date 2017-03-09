@@ -1,0 +1,166 @@
+{% extends "smartshark/frontend/base.html" %}
+{% load bootstrap3 %}
+
+
+{% block title %}Data Overview{% endblock %}
+
+{% block content %}
+    <div class="row">
+        <div class="panel panel-info">
+            <div class="panel-heading">
+                <h3 class="panel-title">General Information</h3>
+            </div>
+            <div class="panel-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="panel">
+                            <div class="panel-body">
+                                <i class="fa fa-server fa-4x pull-right"></i><strong>Projects</strong> <br />
+                                {{ projects }}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="panel">
+                            <div class="panel-body">
+                                <i class="fa fa-male fa-4x pull-right"></i><strong>People</strong> <br />
+                                {{ persons }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="panel panel-info">
+            <div class="panel-heading">
+                <h3 class="panel-title">VCS Data ({{ vcs_systems }} System(s))</h3>
+            </div>
+            <div class="panel-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="panel">
+                            <div class="panel-body">
+                                <i class="fa fa-th-list fa-4x pull-right"></i><strong>Commits</strong> <br />
+                                {{ commits }}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="panel">
+                            <div class="panel-body">
+                                <i class="fa fa-edit fa-4x pull-right"></i><strong>File Changes</strong> <br />
+                                {{ file_changes }}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="panel">
+                            <div class="panel-body">
+                                <i class="fa fa-file-text fa-4x pull-right"></i><strong>Hunks</strong> <br />
+                                {{ hunks }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="panel">
+                            <div class="panel-body">
+                                <i class="fa fa-file-code-o fa-4x pull-right"></i><strong>Code Entity States</strong> <br />
+                                {{ code_entity_states }}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="panel">
+                            <div class="panel-body">
+                                <i class="fa fa-code fa-4x pull-right"></i><strong>Code Group States</strong> <br />
+                                {{ code_group_states }}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="panel">
+                            <div class="panel-body">
+                                <i class="fa fa-clone fa-4x pull-right"></i><strong>Clone States</strong> <br />
+                                {{ clones }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="panel panel-info">
+            <div class="panel-heading">
+                <h3 class="panel-title">Issue Data ({{ issue_systems }} System(s))</h3>
+            </div>
+            <div class="panel-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="panel">
+                            <div class="panel-body">
+                                <i class="fa fa-ticket fa-4x pull-right"></i><strong>Issues</strong> <br />
+                                {{ issues }}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="panel">
+                            <div class="panel-body">
+                                <i class="fa fa-comments fa-4x pull-right"></i><strong>Comments</strong> <br />
+                                {{ issue_comments }}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="panel">
+                            <div class="panel-body">
+                                <i class="fa fa-history fa-4x pull-right"></i><strong>Events</strong> <br />
+                                {{ issue_events }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="panel panel-info">
+            <div class="panel-heading">
+                <h3 class="panel-title">Mailing List Data ({{ mailing_lists }} List(s))</h3>
+            </div>
+            <div class="panel-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="panel">
+                            <div class="panel-body">
+                                <i class="fa fa-envelope fa-4x pull-right"></i><strong>Mailing Messages</strong> <br />
+                                {{ mailing_messages }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!--
+
+
+
+    <div class="row">
+
+    </div>-->
+
+{% endblock %}
