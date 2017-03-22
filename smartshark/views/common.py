@@ -72,6 +72,7 @@ def recursion(item, parent, plugin_name, items):
         if 'fields' in field:
             recursion(field, new_field.id, plugin_name, items)
 
+
 def documentation(request):
     items = {}
     data = []
@@ -112,6 +113,7 @@ def plugin_execution_status(request, id):
     if not request.user.is_authenticated() or not request.user.has_perm('smartshark.plugin_execution_status'):
         messages.error(request, 'You are not authorized to perform this action.')
         return HttpResponseRedirect('/admin/smartshark/project')
+
     interface = PluginManagementInterface.find_correct_plugin_manager()
     plugin_execution = get_object_or_404(PluginExecution, pk=id)
 
@@ -143,7 +145,11 @@ def plugin_execution_status(request, id):
         'plugin_execution': plugin_execution,
         'filter': job_filter,
         'jobs': jobs,
-        'overall': len(job_filter.qs)
+        'overall': len(job_filter.qs),
+        'queried_status': job_filter.data['status'],
+        'done_jobs': len(job_filter.qs.filter(status='DONE')),
+        'exit_jobs': len(job_filter.qs.filter(status='EXIT')),
+        'waiting_jobs': len(job_filter.qs.filter(status='WAITING'))
     })
 
 
@@ -166,8 +172,6 @@ def plugin_status(request, id):
         # If page is out of range (e.g. 9999), deliver last page of results.
         executions = paginator.page(paginator.num_pages)
 
-
-
     return render(request, 'smartshark/project/plugin_status.html', {
         'executions': executions,
     })
@@ -179,9 +183,8 @@ def job_output(request, id, type):
         return HttpResponseRedirect('/admin/smartshark/project')
 
     job = get_object_or_404(Job, pk=id)
-
     interface = PluginManagementInterface.find_correct_plugin_manager()
-    print(type)
+
     if type == 'output':
         output = interface.get_output_log(job)
     elif type == 'error':

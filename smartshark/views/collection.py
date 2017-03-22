@@ -1,4 +1,4 @@
-import sys
+import threading
 from django.contrib import messages
 from django.http import HttpResponseRedirect
 from django.shortcuts import render, get_object_or_404
@@ -9,6 +9,18 @@ from smartshark.forms import ProjectForm, get_form, set_argument_values, set_arg
 from smartshark.models import Plugin, Project, PluginExecution, Job
 
 from smartshark.datacollection.pluginmanagementinterface import PluginManagementInterface
+
+
+class JobSubmissionThread(threading.Thread):
+    def __init__(self, project, plugin_executions):
+        threading.Thread.__init__(self)
+        self.project = project
+        self.plugin_executions = plugin_executions
+
+    def run(self):
+        interface = PluginManagementInterface.find_correct_plugin_manager()
+        jobs = create_jobs_for_execution(self.project, self.plugin_executions)
+        interface.execute_plugins(self.project, jobs, self.plugin_executions)
 
 
 def install(request):
@@ -180,7 +192,6 @@ def start_collection(request):
 
             sorted_plugins = order_plugins(plugins)
 
-            interface = PluginManagementInterface.find_correct_plugin_manager()
             for project in projects:
 
                 plugin_executions = []
@@ -203,8 +214,10 @@ def start_collection(request):
 
                 # Set execution history with execution values for the plugin execution
                 set_argument_execution_values(form.cleaned_data, plugin_executions)
-                jobs = create_jobs_for_execution(project, plugin_executions)
-                interface.execute_plugins(project, jobs, plugin_executions)
+
+                # Create jobs and execute them in a separate thread
+                thread = JobSubmissionThread(project, plugin_executions)
+                thread.start()
 
             return HttpResponseRedirect('/admin/smartshark/project')
 
