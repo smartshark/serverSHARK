@@ -146,7 +146,7 @@ def plugin_execution_status(request, id):
         'filter': job_filter,
         'jobs': jobs,
         'overall': len(job_filter.qs),
-        'queried_status': job_filter.data['status'],
+        'queried_status': job_filter.data.get('status', None),
         'done_jobs': len(job_filter.qs.filter(status='DONE')),
         'exit_jobs': len(job_filter.qs.filter(status='EXIT')),
         'waiting_jobs': len(job_filter.qs.filter(status='WAITING'))
