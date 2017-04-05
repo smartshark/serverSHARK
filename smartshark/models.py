@@ -54,7 +54,7 @@ class FileValidator(object):
                 params = {'content_type': content_type}
                 raise ValidationError(self.error_messages['content_type'], 'content_type', params)
 
-            if content_type == 'application/x-tar':
+            if content_type == b'application/x-tar':
                 plugin_handler = PluginInformationHandler(data)
                 plugin_handler.validate_tar()
                 data.seek(0)
@@ -88,7 +88,7 @@ class Plugin(models.Model):
     version = models.DecimalField(max_digits=5, decimal_places=2)
     description = models.CharField(max_length=400)
     plugin_type = models.CharField(max_length=5, choices=TYPE_CHOICES)
-    validate_file = FileValidator(max_size=1024*1024*500, content_types=('application/x-tar', 'application/octet-stream'))
+    validate_file = FileValidator(max_size=1024*1024*500, content_types=(b'application/x-tar', b'application/octet-stream'))
     archive = models.FileField(upload_to="uploads/plugins/", validators=[validate_file])
     requires = models.ManyToManyField("self", blank=True, symmetrical=False)
     linux_libraries = models.CharField(max_length=1000, default=None, blank=True, null=True)
