@@ -47,6 +47,8 @@ def get_all_revisions(plugin_execution):
     for tag in tags:
         tagged_commit = repository.lookup_reference(tag).peel()
         revisions.add(str(tagged_commit.id))
+        for child in repository.walk(tagged_commit.id, pygit2.GIT_SORT_TIME | pygit2.GIT_SORT_TOPOLOGICAL):
+            revisions.add(str(child.id))
 
     subprocess.run(['rm', '-rf', path_to_repo])
 
