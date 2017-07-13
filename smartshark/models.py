@@ -301,7 +301,7 @@ class PluginExecution(models.Model):
             if not execution_history.execution_value.strip():
                 arguments[execution_history.execution_argument.position] = "None"
             else:
-                arguments[execution_history.execution_argument.position] = execution_history.execution_value
+                arguments[execution_history.execution_argument.position] = "'%s'" % execution_history.execution_value
 
         arguments = sorted(arguments.items(), key=lambda t: t[0])
 
