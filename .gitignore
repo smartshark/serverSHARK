@@ -76,3 +76,4 @@ target/
 db-local.json
 
 smartshark/datacollection/temp
+static/
