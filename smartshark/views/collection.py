@@ -1,4 +1,5 @@
 import threading
+import logging
 from django.contrib import messages
 from django.http import HttpResponseRedirect
 from django.shortcuts import render, get_object_or_404
@@ -10,6 +11,7 @@ from smartshark.models import Plugin, Project, PluginExecution, Job
 
 from smartshark.datacollection.pluginmanagementinterface import PluginManagementInterface
 
+logger = logging.getLogger('django')
 
 class JobSubmissionThread(threading.Thread):
     def __init__(self, project, plugin_executions):
@@ -68,6 +70,14 @@ def install(request):
     })
 
 
+def _check_if_at_least_one_execution_was_successful(req_plugin, project):
+    # Go through all plugin executions
+    for plugin_execution in PluginExecution.objects.filter(plugin=req_plugin, project=project).all():
+        if plugin_execution.was_successful():
+            return True
+
+    return False
+
 def choose_plugins(request):
     projects = []
 
@@ -99,6 +109,7 @@ def choose_plugins(request):
                 plugin_ids.append(str(plugin.id))
 
                 # check for each plugin if required plugin is set
+                '''
                 missing_plugins = []
                 for req_plugin in plugin.requires.all():
                     if req_plugin not in form.cleaned_data['plugins']:
@@ -108,12 +119,24 @@ def choose_plugins(request):
                     messages.error(request, 'Not all requirements for plugin %s are met. Plugin(s) %s is/are required!'
                                    % (str(plugin), ', '.join(missing_plugins)))
                     return HttpResponseRedirect(request.get_full_path())
-
+                '''
                 # check if schema problems exist between plugins
                 # TODO
 
                 # if plugin with this project is in plugin execution and has status != finished | error -> problem
                 for project in projects:
+                    for req_plugin in plugin.requires.all():
+                        logger.debug("Looking at required plugin %s" % str(req_plugin))
+
+                        if not _check_if_at_least_one_execution_was_successful(req_plugin, project):
+                            messages.error(request,
+                                           'Not all requirements for plugin %s are met. Plugin %s was not executed '
+                                           'successfully for project %s before!'
+                                           % (str(plugin), str(req_plugin), str(project)))
+                            return HttpResponseRedirect(request.get_full_path())
+
+                        logger.debug("At least one plugin execution for plugin %s was successful." % str(req_plugin))
+
                     # Update job information
                     plugin_executions = PluginExecution.objects.all().filter(plugin=plugin, project=project)
 

@@ -285,6 +285,12 @@ class PluginExecution(models.Model):
     def __str__(self):
         return "Plugin Execution of Plugin %s and Project %s" % (self.plugin, self.project)
 
+    def was_successful(self):
+        for job in self.job_set.all():
+            if job.status != 'DONE':
+                return False
+        return True
+
     def has_unfinished_jobs(self):
         for job in self.job_set.all():
             if job.status not in ['DONE', 'EXIT']:

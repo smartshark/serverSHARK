@@ -20,7 +20,8 @@ def order_plugins(plugins):
                 continue
 
             # If a plugin do not have any required plugins: add it
-            if not plugin.requires.all():
+            # Or if not all required plugins are in the plugin list
+            if not plugin.requires.all() or not all(plugin in plugins for plugin in plugin.requires.all()):
                 sorted_plugins.append(plugin)
             else:
                 # Check if all requirements are met for the plugin. If yes: add it

@@ -154,13 +154,11 @@ class HPCConnector(PluginManagementInterface):
         found_plugin_execution = self.get_plugin_execution_where_repository_url_is_set(plugin_executions)
 
         if found_plugin_execution is not None:
-            # Create project folder if not existent
+            # Create project folder
             git_clone_target = os.path.join(self.project_path, found_plugin_execution.project.name)
-            try:
-                self.execute_command('mkdir %s' % git_clone_target)
-                self.execute_command('git clone %s %s' % (found_plugin_execution.repository_url, git_clone_target))
-            except Exception:
-                self.execute_command('cd %s && git pull > /dev/null 2>&1' % git_clone_target)
+            self.execute_command('rm -rf %s' % git_clone_target, ignore_errors=True)
+            self.execute_command('git clone %s %s ' % (found_plugin_execution.repository_url, git_clone_target),
+                                 ignore_errors=True)
 
     def delete_output_for_plugin_execution(self, plugin_execution):
         self.execute_command('rm -rf %s' % os.path.join(self.log_path, str(plugin_execution.id)))
