@@ -55,7 +55,8 @@ DATABASES = {
         'HOST': 'xx',
         'PORT': 27017,
         'AUTHENTICATION_DB': 'xx',
-        'PLUGIN_SCHEMA_COLLECTION': 'plugin_schema'
+        'PLUGIN_SCHEMA_COLLECTION': 'plugin_schema',
+        'SHARDING': False
     }
 }
 

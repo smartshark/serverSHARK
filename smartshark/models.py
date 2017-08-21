@@ -212,7 +212,9 @@ class Plugin(models.Model):
 
         # Save the schema of the plugin in the mongodb
         handler.add_schema(schema_json, self)
-        handler.create_and_shard_collections(info_json['created_collections'])
+
+        if settings.DATABASES['mongodb']['SHARDING']:
+            handler.create_and_shard_collections(info_json['created_collections'])
 
         # Save plugin, afterwards we can add the dependencies
         try:
