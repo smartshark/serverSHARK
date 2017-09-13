@@ -1,10 +1,15 @@
 import paramiko
 import re
-from sshtunnel import SSHTunnelForwarder
+import time
+
+from paramiko import SSHException
+from sshtunnel import SSHTunnelForwarder, HandlerSSHTunnelForwarderError
+
 
 class ShellHandler:
 
-    def __init__(self, host, user, psw, port, tunnel_host, tunnel_user, tunnel_psw, tunnel_port, use_tunnel):
+    def __init__(self, host, user, psw, port, tunnel_host, tunnel_user, tunnel_psw, tunnel_port, use_tunnel,
+                 bind_port=10020):
         self.host = host
         self.user = user
         self.psw = psw
@@ -16,28 +21,37 @@ class ShellHandler:
         self.use_tunnel = use_tunnel
         self.ssh = None
         self.server = None
+        self.bind_port = bind_port
 
     def __enter__(self):
         if self.use_tunnel:
-            self.server = SSHTunnelForwarder(
-                (self.tunnel_host, self.tunnel_port),
-                ssh_username=self.tunnel_user,
-                ssh_password=self.tunnel_psw,
-                remote_bind_address=(self.host, self.port),
-                local_bind_address=('127.0.0.1', 10023)
-            )
-            self.server.start()
+            timeout = 60
+            timeout_start = time.time()
+            not_connected = True
 
-            self.ssh = paramiko.SSHClient()
-            self.ssh.load_system_host_keys()
-            self.ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            self.ssh.connect('127.0.0.1', 10023, username=self.user, password=self.psw)
+            while time.time() < timeout_start + timeout and not_connected is True:
+                try:
+                    self.server = SSHTunnelForwarder(
+                        (self.tunnel_host, self.tunnel_port),
+                        ssh_username=self.tunnel_user,
+                        ssh_password=self.tunnel_psw,
+                        remote_bind_address=(self.host, self.port),
+                        local_bind_address=('127.0.0.1', self.bind_port)
+                    )
+                    self.server.start()
+
+                    self.ssh = paramiko.SSHClient()
+                    self.ssh.load_system_host_keys()
+                    self.ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+                    self.ssh.connect('127.0.0.1', self.bind_port, username=self.user, password=self.psw)
+                    not_connected = False
+                except (HandlerSSHTunnelForwarderError, SSHException) as e:
+                    self.bind_port = self.bind_port + 1
         else:
             self.ssh = paramiko.SSHClient()
             self.ssh.load_system_host_keys()
             self.ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
             self.ssh.connect(self.host, self.port, username=self.user, password=self.psw)
-
 
         return self
 

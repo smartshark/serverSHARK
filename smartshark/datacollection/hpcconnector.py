@@ -33,7 +33,7 @@ class JobSubmissionThread(threading.Thread):
 
     def run(self):
         with ShellHandler(self.host, self.username, self.password, self.port, self.tunnel_host,
-                          self.tunnel_username, self.tunnel_password, self.tunnel_port, self.use_tunnel) as handler:
+                          self.tunnel_username, self.tunnel_password, self.tunnel_port, self.use_tunnel, 10020) as handler:
             out, err = handler.execute_file(self.remote_file, False)
             logger.debug(out)
             logger.debug(err)
@@ -165,7 +165,7 @@ class HPCConnector(PluginManagementInterface):
 
     def get_output_log(self, job):
         with ShellHandler(self.host, self.username, self.password, self.port, self.tunnel_host,
-                          self.tunnel_username, self.tunnel_password, self.tunnel_port, self.use_tunnel) as handler:
+                          self.tunnel_username, self.tunnel_password, self.tunnel_port, self.use_tunnel, 10021) as handler:
             sftp_client = handler.get_ssh_client().open_sftp()
             plugin_execution_output_path = os.path.join(self.log_path, str(job.plugin_execution.id))
             try:
@@ -184,7 +184,7 @@ class HPCConnector(PluginManagementInterface):
 
     def get_error_log(self, job):
         with ShellHandler(self.host, self.username, self.password, self.port, self.tunnel_host,
-                          self.tunnel_username, self.tunnel_password, self.tunnel_port, self.use_tunnel) as handler:
+                          self.tunnel_username, self.tunnel_password, self.tunnel_port, self.use_tunnel, 10022) as handler:
             sftp_client = handler.get_ssh_client().open_sftp()
             plugin_execution_output_path = os.path.join(self.log_path, str(job.plugin_execution.id))
             try:
@@ -247,7 +247,7 @@ class HPCConnector(PluginManagementInterface):
 
     def copy_plugin(self, plugin):
         with ShellHandler(self.host, self.username, self.password, self.port, self.tunnel_host,
-                          self.tunnel_username, self.tunnel_password, self.tunnel_port, self.use_tunnel) as handler:
+                          self.tunnel_username, self.tunnel_password, self.tunnel_port, self.use_tunnel, 10023) as handler:
             scp = SCPClient(handler.get_ssh_client().get_transport())
 
             # Copy plugin
@@ -302,7 +302,7 @@ class HPCConnector(PluginManagementInterface):
         logger.info('Execute command: %s' % command)
 
         with ShellHandler(self.host, self.username, self.password, self.port, self.tunnel_host,
-                          self.tunnel_username, self.tunnel_password, self.tunnel_port, self.use_tunnel) as handler:
+                          self.tunnel_username, self.tunnel_password, self.tunnel_port, self.use_tunnel, 10024) as handler:
             (stdout, stderr) = handler.execute(command)
 
             logger.debug('Output: %s' % ' '.join(stdout))
@@ -325,7 +325,7 @@ class HPCConnector(PluginManagementInterface):
 
         # Copy Shell file with jobs to execute
         with ShellHandler(self.host, self.username, self.password, self.port, self.tunnel_host,
-                          self.tunnel_username, self.tunnel_password, self.tunnel_port, self.use_tunnel) as handler:
+                          self.tunnel_username, self.tunnel_password, self.tunnel_port, self.use_tunnel, 10025) as handler:
             scp = SCPClient(handler.get_ssh_client().get_transport())
             scp.put(path_to_sh_file, remote_path=b'%s' % str.encode(path_to_remote_sh_file))
 
@@ -339,7 +339,7 @@ class HPCConnector(PluginManagementInterface):
         logger.info("Execute command: %s" % path_to_remote_sh_file)
         if blocking:
             with ShellHandler(self.host, self.username, self.password, self.port, self.tunnel_host,
-                              self.tunnel_username, self.tunnel_password, self.tunnel_port, self.use_tunnel) as handler:
+                              self.tunnel_username, self.tunnel_password, self.tunnel_port, self.use_tunnel, 10026) as handler:
                 out = handler.execute_file(path_to_remote_sh_file, True)
                 logger.debug('Output: %s' % ' '.join(out))
                 return out
