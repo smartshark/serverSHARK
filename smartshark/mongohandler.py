@@ -70,6 +70,9 @@ class MongoHandler(object):
     def get_number_of_people(self):
         return self.client.get_database(self.database).get_collection('people').count()
 
+    def get_number_of_refactorings(self):
+        return self.client.get_database(self.database).get_collection('refactoring').count()
+
     def get_number_of_mailing_messages(self, mailing_list_id=None):
         if mailing_list_id is None:
             return self.client.get_database(self.database).get_collection('message').count()
