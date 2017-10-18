@@ -20,6 +20,7 @@ def overview(request):
     num_code_group_states = handler.get_number_of_code_group_states()
     num_file_changes = handler.get_number_of_file_changes()
     num_hunks = handler.get_number_of_hunks()
+    num_refactorings = handler.get_number_of_refactorings()
 
 
 
@@ -40,5 +41,6 @@ def overview(request):
                       'clones': "{:,}".format(num_clones),
                       'hunks': "{:,}".format(num_hunks),
                       'file_changes': "{:,}".format(num_file_changes),
+                      'refactorings': "{:,}".format(num_refactorings)
                   }
     )
