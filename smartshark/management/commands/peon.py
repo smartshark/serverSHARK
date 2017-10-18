@@ -24,6 +24,8 @@ class Command(BaseCommand):
     def loop(self):
         while True:
             el = self.con.blpop(self.job_queue, timeout=settings.LOCALQUEUE['timeout'])
+            if not el:
+                continue
             data = json.loads(el[1])
             job_id = None
             if 'job_id' in data.keys():
@@ -64,9 +66,9 @@ class Command(BaseCommand):
                     error_file = os.path.join(plugin_execution_output_path, str(job.pk) + '_err.txt')
 
                     with open(output_file, 'w') as f:
-                        f.write(str(res.stdout))
+                        f.write(res.stdout.decode('utf-8'))
                     with open(error_file, 'w') as f:
-                        f.write(str(res.stderr))
+                        f.write(res.stderr.decode('utf-8'))
                 self.stdout.write('{} jobs left in queue'.format(self.con.llen(self.job_queue)))
 
     def handle(self, *args, **options):

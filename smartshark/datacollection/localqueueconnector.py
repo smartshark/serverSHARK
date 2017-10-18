@@ -118,16 +118,16 @@ class LocalQueueConnector(PluginManagementInterface, BaseConnector):
         out = []
         plugin_execution_output_path = os.path.join(self.output_path, str(job.plugin_execution.pk))
         with open(os.path.join(plugin_execution_output_path, str(job.pk) + '_out.txt'), 'r') as f:
-            out.append(f.readline())
-        
+            for line in f.readlines():
+                out.append(line.rstrip())
         return out
 
     def get_error_log(self, job):
         err = []
         plugin_execution_output_path = os.path.join(self.output_path, str(job.plugin_execution.pk))
         with open(os.path.join(plugin_execution_output_path, str(job.pk) + '_err.txt'), 'r') as f:
-            err.append(f.readline())
-
+            for line in f.readlines():
+                err.append(line.rstrip())
         return err
 
     def get_sent_bash_command(self, job):
