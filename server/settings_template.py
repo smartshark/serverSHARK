@@ -22,7 +22,12 @@ HPC = {
     'queue': 'xx',
     'node_properties': [],
     'root_path': 'xxx',
-    'log_path': 'xxx'
+    'log_path': 'xxx',
+    'ssh_tunnel_username': '',
+    'ssh_tunnel_password': '',
+    'ssh_tunnel_host': '',
+    'ssh_tunnel_port': '',
+    'ssh_use_tunnel': '',
 }
 
 AZURE = {
@@ -32,6 +37,15 @@ AZURE = {
 SPARK_MASTER = {
     'host': 'xx',
     'port': 'xx',
+}
+
+LOCALQUEUE = {
+    'root_path': '/tmp/servershark/',
+    'redis_url': 'redis://localhost:6379',
+    'job_queue': 'queue:jobs',
+    'result_queue': 'queue:results',
+    'timeout': 120,
+    'debug': False,   
 }
 
 COLLECTION_CONNECTOR_IDENTIFIER = 'GWDG'
