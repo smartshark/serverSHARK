@@ -114,21 +114,19 @@ class LocalQueueConnector(PluginManagementInterface, BaseConnector):
             stati.append('WAIT')
         return stati
 
-    def get_output_log(self, job):
-        out = []
+    def _get_log_file(self, job, log_type):
+        ret = []
         plugin_execution_output_path = os.path.join(self.output_path, str(job.plugin_execution.pk))
-        with open(os.path.join(plugin_execution_output_path, str(job.pk) + '_out.txt'), 'r') as f:
+        with open(os.path.join(plugin_execution_output_path, str(job.pk) + '_' + log_type + '.txt'), 'r') as f:
             for line in f.readlines():
-                out.append(line.rstrip())
-        return out
+                ret.append(line.rstrip())
+        return ret
+
+    def get_output_log(self, job):
+        return self._get_log_file(job, 'out')
 
     def get_error_log(self, job):
-        err = []
-        plugin_execution_output_path = os.path.join(self.output_path, str(job.plugin_execution.pk))
-        with open(os.path.join(plugin_execution_output_path, str(job.pk) + '_err.txt'), 'r') as f:
-            for line in f.readlines():
-                err.append(line.rstrip())
-        return err
+        return self._get_log_file(job, 'err')#
 
     def get_sent_bash_command(self, job):
         return
@@ -170,4 +168,4 @@ class LocalQueueConnector(PluginManagementInterface, BaseConnector):
 
 
     def delete_output_for_plugin_execution(self, plugin_execution):
-        pass
+        self._execute_command({'shell': 'rm -rf {}'.format(os.path.join(self.output_path, str(plugin_execution.id)))})
