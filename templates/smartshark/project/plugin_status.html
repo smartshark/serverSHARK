@@ -1,6 +1,26 @@
 {% extends "admin/base_site.html" %}
 {% load plugin_exec_extras %}
 
+{% block breadcrumbs %}
+    <ul class="breadcrumb">
+      <li>
+        <a href="/admin/">Home</a>
+        <span class="divider">&raquo;</span>
+      </li>
+      <li>
+        <a href="/admin/smartshark/">SmartSHARK</a>
+        <span class="divider">&raquo;</span>
+      </li>
+      <li>
+          <a href="/admin/smartshark/project/">
+            Projects</a>
+        <span class="divider">&raquo;</span>
+      </li>
+      <li class="active">
+        Plugin executions
+      </li>
+    </ul>
+{% endblock %}
 
 {% block content %}
     <h1>Plugin Status for chosen Projects</h1>

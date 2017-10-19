@@ -93,6 +93,11 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+
+SUIT_CONFIG = {
+    'ADMIN_NAME': 'ServerSHARK',
+}
+
 # Internationalization
 # https://docs.djangoproject.com/en/1.9/topics/i18n/
 

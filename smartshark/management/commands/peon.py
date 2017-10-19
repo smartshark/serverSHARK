@@ -23,6 +23,7 @@ class Command(BaseCommand):
 
     def loop(self):
         while True:
+            # this blocks on empty queue
             el = self.con.blpop(self.job_queue, timeout=settings.LOCALQUEUE['timeout'])
             if not el:
                 continue
@@ -79,7 +80,6 @@ class Command(BaseCommand):
         self.output_path = os.path.join(settings.LOCALQUEUE['root_path'], 'output')
 
         self.stdout.write('listening...')
-        # while con.llen(key) > 0:
         
         try:
             self.loop()
