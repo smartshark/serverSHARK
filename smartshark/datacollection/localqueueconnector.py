@@ -126,7 +126,7 @@ class LocalQueueConnector(PluginManagementInterface, BaseConnector):
         return self._get_log_file(job, 'out')
 
     def get_error_log(self, job):
-        return self._get_log_file(job, 'err')#
+        return self._get_log_file(job, 'err')
 
     def get_sent_bash_command(self, job):
         return

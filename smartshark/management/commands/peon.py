@@ -26,7 +26,7 @@ class Command(BaseCommand):
             el = self.con.blpop(self.job_queue, timeout=settings.LOCALQUEUE['timeout'])
             if not el:
                 continue
-            data = json.loads(el[1])
+            data = json.loads(el[1].decode('utf-8'))
             job_id = None
             if 'job_id' in data.keys():
                 job_id = data['job_id']
@@ -44,7 +44,7 @@ class Command(BaseCommand):
 
                 if res.returncode > 0:
                     self.stdout.write(self.style.ERROR('[ERROR]'))
-                    self.stderr.write(res.stderr)
+                    self.stderr.write(res.stderr.decode('utf-8'))
                 else:
                     self.stdout.write(self.style.SUCCESS('[OK]'))
 
