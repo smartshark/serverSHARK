@@ -57,7 +57,7 @@ class LocalQueueConnector(PluginManagementInterface, BaseConnector):
         self.result_queue = settings.LOCALQUEUE['result_queue']
 
         self.output_path = os.path.join(settings.LOCALQUEUE['root_path'], 'output')
-        self.plugin_path = os.path.join(settings.LOCALQUEUE['root_path'], 'plugins')
+        self.plugin_path = os.path.join(settings.LOCALQUEUE['plugin_path'])
         self.project_path = os.path.join(settings.LOCALQUEUE['root_path'], 'projects')
 
         self._debug = settings.LOCALQUEUE['debug']

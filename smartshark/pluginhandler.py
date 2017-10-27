@@ -183,7 +183,8 @@ class PluginInformationHandler(object):
         for req_plugin in self.info_json['requires']:
             plugins = self.find_required_plugins(req_plugin)
             installed_plugins = [plugin for plugin in plugins if plugin.installed]
-            fitting_plugins.append(max(installed_plugins, key=lambda x:x.version))
+            if installed_plugins:
+                fitting_plugins.append(max(installed_plugins, key=lambda x:x.version))
         return fitting_plugins
 
     def get_arguments(self):
