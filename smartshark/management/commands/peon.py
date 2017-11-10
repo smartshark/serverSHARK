@@ -16,6 +16,11 @@ from django.core.management.base import BaseCommand
 
 
 class Command(BaseCommand):
+    """Worker Process used for localqueueconnector.
+
+    This worker connects to a redis queue to execute jobs for the localqueueconnector.
+    """
+
     help = 'Worker Process'
 
     def add_arguments(self, parser):
@@ -34,12 +39,12 @@ class Command(BaseCommand):
 
             if 'shell' in data.keys():
                 start = timeit.default_timer()
-                
+
                 self.stdout.write('executing: {} ... '.format(data['shell']), ending=b'')
                 sys.stdout.flush()
 
                 res = subprocess.run(data['shell'].split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                
+
                 end = timeit.default_timer() - start
                 self.stdout.write('finished in {:.5f}s '.format(end), ending=b'')
 
@@ -51,7 +56,7 @@ class Command(BaseCommand):
 
                 if 'job_id' in data.keys():
 
-                    # TODO:
+                    # TODO: backchannel for results (for job_id this should be possible, everything else not at the moment)
                     # self.con.rpush(self.result_queue, json.dumps({'job_id': data['job_id'], 'result': 'DONE'}))
                     job = Job.objects.get(pk=data['job_id'])
                     if res.returncode == 0:
@@ -80,7 +85,7 @@ class Command(BaseCommand):
         self.output_path = os.path.join(settings.LOCALQUEUE['root_path'], 'output')
 
         self.stdout.write('listening...')
-        
+
         try:
             self.loop()
         except KeyboardInterrupt as e:

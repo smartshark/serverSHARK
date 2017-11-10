@@ -1,3 +1,14 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""
+This module provides a basic alternative for the execution in the HCP System.
+It currently works with a worker process that must be running which takes its commands from a redis queue.
+The LocalQueueConnector puts the work items into the queue.
+
+This can be used for local debugging for plugin development.
+"""
+
 import logging
 import os
 import string
@@ -12,6 +23,7 @@ from smartshark.datacollection.pluginmanagementinterface import PluginManagement
 
 
 class BaseConnector(object):
+    """Basic connector execution stuff that could be shared between connectors."""
 
     def _add_parameters_to_install_command(self, path_to_script, plugin):
         # we may have additional parameters
@@ -37,20 +49,25 @@ class BaseConnector(object):
 
         # Substitute stuff
         return string.Template(command).safe_substitute({
-                'db_user': settings.DATABASES['mongodb']['USER'],
-                'db_password': settings.DATABASES['mongodb']['PASSWORD'],
-                'db_database': settings.DATABASES['mongodb']['NAME'],
-                'db_hostname': settings.DATABASES['mongodb']['HOST'],
-                'db_port': settings.DATABASES['mongodb']['PORT'],
-                'db_authentication': settings.DATABASES['mongodb']['AUTHENTICATION_DB'],
-                'project_name': plugin_execution.project.name,
-                'plugin_path': os.path.join(plugin_path, str(plugin_execution.plugin))
+            'db_user': settings.DATABASES['mongodb']['USER'],
+            'db_password': settings.DATABASES['mongodb']['PASSWORD'],
+            'db_database': settings.DATABASES['mongodb']['NAME'],
+            'db_hostname': settings.DATABASES['mongodb']['HOST'],
+            'db_port': settings.DATABASES['mongodb']['PORT'],
+            'db_authentication': settings.DATABASES['mongodb']['AUTHENTICATION_DB'],
+            'project_name': plugin_execution.project.name,
+            'plugin_path': os.path.join(plugin_path, str(plugin_execution.plugin))
         })
 
 
 class LocalQueueConnector(PluginManagementInterface, BaseConnector):
-    """Feeds jobs into a local redis queue."""
+    """Feeds jobs into a local redis queue.
+
+    The purpose is mainly for running a local instance of ServerSHARK for debugging purposes.
+    """
+
     def __init__(self):
+        """Set some basic stuff, logging and the paths used for plugin execution."""
         self._log = logging.getLogger('localqueueconnector')
         self.redis_url = settings.LOCALQUEUE['redis_url']
         self.job_queue = settings.LOCALQUEUE['job_queue']
@@ -66,10 +83,14 @@ class LocalQueueConnector(PluginManagementInterface, BaseConnector):
 
     @property
     def identifier(self):
+        """Return uniqe identifier for this connector."""
         return 'LOCALQUEUE'
 
     def execute_plugins(self, project, jobs, plugin_executions):
-        # Prepare project (clone / pull)
+        """Execute plugins.
+
+        We are just pushing the shell commands that would have been run on the HPC System to the redis queue.
+        """
         self._log.info('Preparing project...')
 
         # look for the first plugin execution object where repository url is set
@@ -79,10 +100,11 @@ class LocalQueueConnector(PluginManagementInterface, BaseConnector):
         # prepare project with this information
         # TODO: Fails on multiple repositories for one project in the same plugin_execution list
         git_clone_target = os.path.join(self.project_path, project_name)
+        self._delete_sanity_check(git_clone_target)
+
         self._execute_command({'shell': 'rm -rf {}'.format(git_clone_target)})
         self._execute_command({'shell': 'git clone {} {}'.format(pe.repository_url, git_clone_target)})
 
-        commands = []
         for plugin_execution in plugin_executions:
             plugin_command = self._generate_plugin_execution_command(self.plugin_path, plugin_execution)
 
@@ -95,7 +117,13 @@ class LocalQueueConnector(PluginManagementInterface, BaseConnector):
                     'revision': job.revision_hash
                 })
 
+                # in addition to the shell command we are passing ids so that the worker can write back to the database if the job was successful.
                 self._execute_command({'shell': command, 'job_id': job.pk, 'plugin_execution_id': plugin_execution.pk})
+
+    def _delete_sanity_check(self, path):
+        """At least dont allow rm -rf /."""
+        if path in ['', '/', '.']:
+            raise Exception('trying to rm -rf / this should not happen :-(')
 
     def _execute_command(self, data):
         if self._debug:
@@ -108,7 +136,7 @@ class LocalQueueConnector(PluginManagementInterface, BaseConnector):
             self.con.rpush(self.job_queue, json.dumps(data))
 
     def get_job_stati(self, jobs):
-        """Just return WAIT because then nothing changes for the Job and we can update it from the Peon."""
+        """Just return WAIT because then nothing changes for the Job and we can update it from the worker."""
         stati = []
         for job in jobs:
             stati.append('WAIT')
@@ -123,24 +151,33 @@ class LocalQueueConnector(PluginManagementInterface, BaseConnector):
         return ret
 
     def get_output_log(self, job):
+        """Return the contents of the out log file."""
         return self._get_log_file(job, 'out')
 
     def get_error_log(self, job):
+        """Return the contents of the err log file."""
         return self._get_log_file(job, 'err')
 
     def get_sent_bash_command(self, job):
+        """Not implemented."""
         return
 
     def delete_plugins(self, plugins):
+        """Delete plugin folder."""
         for plugin in plugins:
-            self._execute_command({'shell': 'rm -rf {}/{}'.format(self.plugin_path, str(plugin))})
+            path_to_remove = '{}/{}'.format(self.plugin_path, str(plugin))
+            self._delete_sanity_check(path_to_remove)
+            self._execute_command({'shell': 'rm -rf {}'.format(path_to_remove)})
 
     def install_plugins(self, plugins):
+        """Create folders for plugin, decompress tar and execute install script."""
         installations = []
 
         for plugin in plugins:
             # delete old version first
-            self._execute_command({'shell': 'rm -rf {}/{}'.format(self.plugin_path, str(plugin))})
+            path_to_remove = '{}/{}'.format(self.plugin_path, str(plugin))
+            self._delete_sanity_check(path_to_remove)
+            self._execute_command({'shell': 'rm -rf {}'.format(path_to_remove)})
 
             # Untar plugin
             self._execute_command({'shell': 'mkdir -p {}/{}'.format(self.plugin_path, str(plugin))})
@@ -162,10 +199,14 @@ class LocalQueueConnector(PluginManagementInterface, BaseConnector):
             })
 
             self._execute_command({'shell': cmd})
+
+            # we always return true because we do not have channel back for job execution results
             installations.append((True, None))
 
         return installations
 
-
     def delete_output_for_plugin_execution(self, plugin_execution):
-        self._execute_command({'shell': 'rm -rf {}'.format(os.path.join(self.output_path, str(plugin_execution.id)))})
+        """Delete folder containing output for plugin execution id."""
+        path_to_remove = os.path.join(self.output_path, str(plugin_execution.id))
+        self._delete_sanity_check(path_to_remove)
+        self._execute_command({'shell': 'rm -rf {}'.format(path_to_remove)})

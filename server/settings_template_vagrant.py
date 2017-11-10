@@ -1,7 +1,7 @@
 from .base import *
 
 #  SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = ''
+SECRET_KEY = 'CHANGEME'
 
 
 DEBUG = True
@@ -14,7 +14,7 @@ LOCALQUEUE = {
     'job_queue': 'queue:jobs',
     'result_queue': 'queue:results',
     'timeout': 0,
-    'debug': False,   
+    'debug': False,
 }
 
 HPC = {
@@ -43,15 +43,15 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'servershark',
-        'USER': '',
-        'PASSWORD': '',
+        'USER': 'root',
+        'PASSWORD': 'CHANGEME',
         'HOST': 'localhost'
     },
-    'mongodb' : {
+    'mongodb': {
         'ENGINE': '',
         'NAME': 'smartshark',
-        'USER': '',
-        'PASSWORD': '',
+        'USER': 'root',
+        'PASSWORD': 'CHANGEME',
         'HOST': 'localhost',
         'PORT': 27017,
         'AUTHENTICATION_DB': 'smartshark',
