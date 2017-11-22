@@ -82,7 +82,7 @@ class Command(BaseCommand):
         self.job_queue = settings.LOCALQUEUE['job_queue']
         self.result_queue = settings.LOCALQUEUE['result_queue']
 
-        self.output_path = os.path.join(settings.LOCALQUEUE['root_path'], 'output')
+        self.output_path = settings.LOCALQUEUE['plugin_output']
 
         self.stdout.write('listening...')
 

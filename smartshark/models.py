@@ -180,7 +180,7 @@ class Plugin(models.Model):
                 available_plugins = [avail_plugin for avail_plugin in substitution_plugins if avail_plugin != plugin]
                 if available_plugins:
                     # Find the best plugin
-                    fitting_plugin = max(available_plugins, key=lambda x:x.version)
+                    fitting_plugin = max(available_plugins, key=lambda x: x.version)
 
         return fitting_plugin
 

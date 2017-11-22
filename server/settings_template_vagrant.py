@@ -9,7 +9,8 @@ DEBUG = True
 
 LOCALQUEUE = {
     'root_path': '/tmp/servershark/',
-    'plugin_path': os.path.join(BASE_DIR, 'plugin_installations'),
+    'plugin_installation': os.path.join(BASE_DIR, 'plugin_installations'),
+    'plugin_output': os.path.join(BASE_DIR, 'plugin_output'),
     'redis_url': 'redis://localhost:6379',
     'job_queue': 'queue:jobs',
     'result_queue': 'queue:results',

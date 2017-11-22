@@ -42,10 +42,12 @@ SPARK_MASTER = {
 LOCALQUEUE = {
     'root_path': '/tmp/servershark/',
     'redis_url': 'redis://localhost:6379',
+    'plugin_installation': os.path.join(BASE_DIR, 'plugin_installations'),
+    'plugin_output': os.path.join(BASE_DIR, 'plugin_output'),
     'job_queue': 'queue:jobs',
     'result_queue': 'queue:results',
     'timeout': 120,
-    'debug': False,   
+    'debug': False,
 }
 
 COLLECTION_CONNECTOR_IDENTIFIER = 'GWDG'
