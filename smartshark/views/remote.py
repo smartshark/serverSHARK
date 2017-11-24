@@ -9,6 +9,7 @@ import logging
 
 from django.conf import settings
 from django.http import HttpResponse, JsonResponse
+from django.views.decorators.csrf import csrf_exempt
 
 from smartshark.common import order_plugins
 from smartshark.datacollection.executionutils import create_jobs_for_execution
@@ -67,6 +68,7 @@ def list_plugins(request):
     return JsonResponse(dat)
 
 
+@csrf_exempt
 def start_collection(request):
     ak = request.POST.get('ak', None)
     if not ak:
