@@ -13,7 +13,7 @@ from django.http import HttpResponse, JsonResponse
 from smartshark.common import order_plugins
 from smartshark.datacollection.executionutils import create_jobs_for_execution
 from smartshark.forms import get_form, set_argument_execution_values
-from smartshark.models import Plugin, Project, PluginExecution, Job
+from smartshark.models import Plugin, Project, PluginExecution, Job, Argument
 
 from smartshark.datacollection.pluginmanagementinterface import PluginManagementInterface
 
@@ -30,6 +30,27 @@ class JobSubmissionThread(threading.Thread):
         interface = PluginManagementInterface.find_correct_plugin_manager()
         jobs = create_jobs_for_execution(self.project, self.plugin_executions)
         interface.execute_plugins(self.project, jobs, self.plugin_executions)
+
+
+def list_arguments(request):
+    ak = request.GET.get('ak', None)
+    plugin_ids = request.GET.get('plugin_ids', None)
+
+    if not ak:
+        return HttpResponse('Unauthorized', status=401)
+    if ak != settings.API_KEY:
+        return HttpResponse('Unauthorized', status=401)
+
+    if not plugin_ids:
+        return HttpResponse('Missing plugin id', status=400)
+
+    dat = {}
+    for plugin_id in plugin_ids.split(','):
+        dat[plugin_id] = []
+        for arg in Argument.objects.filter(plugin=Plugin.objects.get(id=plugin_id)):
+            dat[plugin_id].append({'name': arg.name, 'description': arg.description, 'position': arg.position, 'required': arg.required})
+
+    return JsonResponse(dat)
 
 
 def list_plugins(request):

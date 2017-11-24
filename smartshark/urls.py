@@ -22,6 +22,7 @@ urlpatterns = [
     url(r'^smartshark/plugin/install/$', collection.install, name='install'),
 
     # remote additions
-    url(r'^remote/plugins/$', remote.list_plugins, name='remote_list_plugins'),
+    url(r'^remote/plugin/$', remote.list_plugins, name='remote_list_plugins'),
+    url(r'^remote/argument/$', remote.list_arguments, name='remote_list_plugin_arguments'),
     url(r'^remote/collect/$', remote.start_collection, name='remote_start_collection')
 ]
