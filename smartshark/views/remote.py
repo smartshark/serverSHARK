@@ -48,7 +48,7 @@ def list_arguments(request):
     for plugin_id in plugin_ids.split(','):
         dat[plugin_id] = []
         for arg in Argument.objects.filter(plugin=Plugin.objects.get(id=plugin_id)):
-            dat[plugin_id].append({'name': arg.name, 'description': arg.description, 'position': arg.position, 'required': arg.required})
+            dat[plugin_id].append({'id': arg.id, 'name': arg.name, 'description': arg.description, 'position': arg.position, 'required': arg.required})
 
     return JsonResponse(dat)
 
