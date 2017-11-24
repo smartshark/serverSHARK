@@ -2,7 +2,7 @@ from django.conf.urls import url
 from django.core.urlresolvers import reverse_lazy
 from django.contrib.auth.views import login, logout
 
-from smartshark.views import analysis, common, collection, visualizations
+from smartshark.views import analysis, common, collection, visualizations, remote
 
 urlpatterns = [
     # Frontend
@@ -20,4 +20,8 @@ urlpatterns = [
     url(r'^smartshark/project/plugin_execution/(?P<id>[0-9]+)/$', common.plugin_execution_status, name='plugin_execution_status'),
     url(r'^smartshark/project/job/(?P<id>[0-9]+)/(?P<type>[a-z]+)$', common.job_output, name='job_output'),
     url(r'^smartshark/plugin/install/$', collection.install, name='install')
+
+    # remote additions
+    url(r'^remote/plugins/$', remote.list_plugins, name='remote_list_plugins')
+    url(r'^remote/collect/$', remote.start_collection, name='remote_start_collection')
 ]
