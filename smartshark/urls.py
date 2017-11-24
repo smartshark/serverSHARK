@@ -19,9 +19,9 @@ urlpatterns = [
     url(r'^smartshark/project/plugin_status/(?P<id>[0-9]+)$', common.plugin_status, name='plugin_status'),
     url(r'^smartshark/project/plugin_execution/(?P<id>[0-9]+)/$', common.plugin_execution_status, name='plugin_execution_status'),
     url(r'^smartshark/project/job/(?P<id>[0-9]+)/(?P<type>[a-z]+)$', common.job_output, name='job_output'),
-    url(r'^smartshark/plugin/install/$', collection.install, name='install')
+    url(r'^smartshark/plugin/install/$', collection.install, name='install'),
 
     # remote additions
-    url(r'^remote/plugins/$', remote.list_plugins, name='remote_list_plugins')
+    url(r'^remote/plugins/$', remote.list_plugins, name='remote_list_plugins'),
     url(r'^remote/collect/$', remote.start_collection, name='remote_start_collection')
 ]
