@@ -90,14 +90,15 @@ def start_collection(request):
     plugins = []
     projects = []
 
+    for mongo_id in project_mongo_ids.split(','):
+        project = Project.objects.get(mongo_id=mongo_id)
+        projects.append(project)
+
     for plugin_id in plugin_ids.split(','):
         plugin = Plugin.objects.get(pk=plugin_id, active=True, installed=True)
         plugins.append(plugin)
 
-        for mongo_id in project_mongo_ids.split(','):
-            project = Project.objects.get(mongo_id=mongo_id)
-            projects.append(project)
-
+        for project in projects:
             # check plugin requirements
             for req_plugin in plugin.requires.all():
                 if not _check_if_at_least_one_execution_was_successful(req_plugin, project):
@@ -160,6 +161,9 @@ def start_collection(request):
             thread = JobSubmissionThread(project, plugin_executions)
             thread.start()
         return HttpResponse(status=202)
+    else:
+        print(form.errors)
+        return HttpResponse('Form Invalid', status=400)
 
 
 def _check_if_at_least_one_execution_was_successful(req_plugin, project):
