@@ -14,6 +14,9 @@ ALLOWED_HOSTS = []
 #  SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'xxxx'
 
+# Token for (limited) remote access
+API_KEY =None
+
 HPC = {
     'username': 'xxx',
     'password': 'xxx',
