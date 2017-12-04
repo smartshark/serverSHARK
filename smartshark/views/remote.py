@@ -33,6 +33,22 @@ class JobSubmissionThread(threading.Thread):
         interface.execute_plugins(self.project, jobs, self.plugin_executions)
 
 
+def test_connection(request):
+    ak = request.GET.get('ak', None)
+    ping = request.GET.get('ping', None)
+
+    if not ak:
+        return HttpResponse('Unauthorized', status=401)
+    if ak != settings.API_KEY:
+        return HttpResponse('Unauthorized', status=401)
+
+    if not ping:
+        return HttpResponse('Missing ping', status=400)
+
+    dat = {'pong': ping}
+    return JsonResponse(dat)
+
+
 def list_arguments(request):
     ak = request.GET.get('ak', None)
     plugin_ids = request.GET.get('plugin_ids', None)
@@ -126,7 +142,7 @@ def start_collection(request):
                     has_unfinished_jobs = True
 
             if has_unfinished_jobs:
-                return HttpResponse('Plugin {} has unfinished jobs in project {}'.format(plugin, project))
+                return HttpResponse('Plugin {} has unfinished jobs in project {}'.format(plugin, project), status=500)
 
     form = get_form(plugins, request.POST, 'execute')
 
