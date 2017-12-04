@@ -1,5 +1,30 @@
 {% extends "admin/base_site.html" %}
 
+{% block breadcrumbs %}
+    <ul class="breadcrumb">
+      <li>
+        <a href="/admin/">Home</a>
+        <span class="divider">&raquo;</span>
+      </li>
+      <li>
+        <a href="/admin/smartshark/">SmartSHARK</a>
+        <span class="divider">&raquo;</span>
+      </li>
+      <li>
+          <a href="{% url 'plugin_status' job.plugin_execution.project.pk %}">
+            Project ({{job.plugin_execution.project.name}})</a>
+        <span class="divider">&raquo;</span>
+      </li>
+      <li>
+        <a href="/admin/smartshark/project/plugin_execution/{{job.plugin_execution.pk}}">Plugin Execution ({{job.plugin_execution.pk}})</a>
+        <span class="divider">&raquo;</span>
+      </li>
+      <li class="active">
+        Job ({{job.job_id}})
+      </li>
+    </ul>
+{% endblock %}
+
 {% block content %}
     <h1>Output for Job {{ job.job_id }}</h1>
     <textarea readonly style="width: 100%; height: 600px">

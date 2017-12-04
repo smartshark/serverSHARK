@@ -32,3 +32,7 @@ cd /srv/www/serverSHARK/
 source bin/activate
 python manage.py peon
 ```
+
+After everything is running point your browser to http://127.0.0.1:8001/admin
+You can then login with user admin and your confiugred adminpass from the Vagrantfile.
+The smartSHARK MongoDB is exposed with port 27018 (as can be seen in the Vagrantfile).

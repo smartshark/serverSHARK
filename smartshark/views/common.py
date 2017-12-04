@@ -174,6 +174,7 @@ def plugin_status(request, id):
 
     return render(request, 'smartshark/project/plugin_status.html', {
         'executions': executions,
+        'project': project
     })
 
 

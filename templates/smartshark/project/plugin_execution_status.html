@@ -1,6 +1,30 @@
 {% extends "admin/base_site.html" %}
 {% load plugin_exec_extras %}
 
+{% block breadcrumbs %}
+    <ul class="breadcrumb">
+      <li>
+        <a href="/admin/">Home</a>
+        <span class="divider">&raquo;</span>
+      </li>
+      <li>
+        <a href="/admin/smartshark/">SmartSHARK</a>
+        <span class="divider">&raquo;</span>
+      </li>
+      <li>
+          <a href="{% url 'plugin_status' plugin_execution.project.pk %}">
+            Project ({{plugin_execution.project.name}})</a>
+        <span class="divider">&raquo;</span>
+      </li>
+      <li>
+        <a href="/admin/smartshark/project/plugin_execution/{{plugin_execution.pk}}">Plugin Execution ({{plugin_execution.pk}})</a>
+        <span class="divider">&raquo;</span>
+      </li>
+      <li class="active">
+        Jobs
+      </li>
+    </ul>
+{% endblock %}
 
 {% block content %}
     <h1>Plugin Status for Project {{ plugin_execution.project.name }} and Plugin {{ plugin_execution.plugin.name }}</h1>
