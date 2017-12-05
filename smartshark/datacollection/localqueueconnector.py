@@ -93,17 +93,23 @@ class LocalQueueConnector(PluginManagementInterface, BaseConnector):
         """
         self._log.info('Preparing project...')
 
-        # look for the first plugin execution object where repository url is set
-        pe = list(filter(lambda x: x.repository_url, plugin_executions))[0]
-        project_name = pe.project.name
+        # this try/catch is used to catch other executions which do not have a project
+        all_projects = False
+        try:
+            # look for the first plugin execution object where repository url is set
+            pe = list(filter(lambda x: x.repository_url, plugin_executions))[0]
+            project_name = pe.project.name
+        except IndexError:
+            project_name = 'all'
+            all_projects = True
 
         # prepare project with this information
-        # TODO: Fails on multiple repositories for one project in the same plugin_execution list
-        git_clone_target = os.path.join(self.project_path, project_name)
-        self._delete_sanity_check(git_clone_target)
-
-        self._execute_command({'shell': 'rm -rf {}'.format(git_clone_target)})
-        self._execute_command({'shell': 'git clone {} {}'.format(pe.repository_url, git_clone_target)})
+        # TODO: Fails on multiple repositories for one project in the same plugin_execution list        
+        if not all_projects:
+            git_clone_target = os.path.join(self.project_path, project_name)
+            self._delete_sanity_check(git_clone_target)
+            self._execute_command({'shell': 'rm -rf {}'.format(git_clone_target)})
+            self._execute_command({'shell': 'git clone {} {}'.format(pe.repository_url, git_clone_target)})
 
         for plugin_execution in plugin_executions:
             plugin_command = self._generate_plugin_execution_command(self.plugin_path, plugin_execution)
