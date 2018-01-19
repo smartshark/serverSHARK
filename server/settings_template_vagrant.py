@@ -60,3 +60,6 @@ DATABASES = {
         'SHARDING': False,
     }
 }
+
+# API Key for visualSHARK
+API_KEY = None

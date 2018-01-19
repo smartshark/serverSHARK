@@ -75,6 +75,8 @@ Vagrant.configure("2") do |config|
     # no tls for now
     # sed -i 's/\#sslOnNormalPorts = true/sslOnNormalPorts = true/g' /etc/mongodb.conf
     # sed -i 's/\#sslPEMKeyFile = \/etc\/ssl\/mongodb.pem/sslPEMKeyFile = \/etc\/ssl\/mongodb.pem/g' /etc/mongodb.conf
+    # access used by visualSHARK
+    sed -i 's/bind_ip = 127\.0\.0\.1/bind_ip = 0\.0\.0\.0/g' /etc/mongodb.conf
 
     service mongodb start
     mongo admin --eval "db.getSiblingDB('smartshark').addUser('root', '#{mongopass}')"
