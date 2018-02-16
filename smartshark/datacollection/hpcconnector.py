@@ -64,6 +64,7 @@ class HPCConnector(PluginManagementInterface):
         self.tunnel_host = HPC['ssh_tunnel_host']
         self.tunnel_port = HPC['ssh_tunnel_port']
         self.use_tunnel = HPC['ssh_use_tunnel']
+        self.cores_per_job = HPC['cores_per_job']
 
     @property
     def identifier(self):
@@ -91,7 +92,7 @@ class HPCConnector(PluginManagementInterface):
         output_path = os.path.join(plugin_execution_output_path, str(job.id)+'_out.txt')
         error_path = os.path.join(plugin_execution_output_path, str(job.id)+'_err.txt')
 
-        bsub_command = 'bsub -W 48:00 -q %s -o %s -e %s -J "%s" ' % (
+        bsub_command = 'bsub -n '+str(self.cores_per_job)+' -W 48:00 -q %s -o %s -e %s -J "%s" ' % (
             self.queue, output_path, error_path, str(job.id)
         )
 

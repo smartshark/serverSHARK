@@ -31,6 +31,7 @@ HPC = {
     'ssh_tunnel_host': '',
     'ssh_tunnel_port': '',
     'ssh_use_tunnel': '',
+    'cores_per_job': 1
 }
 
 AZURE = {
