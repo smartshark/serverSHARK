@@ -65,7 +65,7 @@ Vagrant.configure("2") do |config|
 
     apt-get update
     apt-get install -y git python3-venv python3-pip python3-cffi libgit2-24 libgit2-dev libmysqlclient-dev
-    apt-get install -y build-essential libtool pkg-config autoconf python3-dev libffi-dev
+    apt-get install -y build-essential libtool pkg-config autoconf python3-dev libffi-dev cmake
     apt-get install -y redis-server
 
     # install java8 for mecoSHARK
