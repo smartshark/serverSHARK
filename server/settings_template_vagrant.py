@@ -3,9 +3,7 @@ from .base import *
 #  SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'CHANGEME'
 
-
 DEBUG = True
-
 
 LOCALQUEUE = {
     'root_path': '/tmp/servershark/',
@@ -32,6 +30,7 @@ HPC = {
     'ssh_tunnel_host': '',
     'ssh_tunnel_port': '',
     'ssh_use_tunnel': '',
+    'cores_per_job': 1
 }
 
 
@@ -61,5 +60,5 @@ DATABASES = {
     }
 }
 
-# API Key for visualSHARK
+# API Key for visualSHARK if used
 API_KEY = None
