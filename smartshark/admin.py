@@ -11,10 +11,18 @@ from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.safestring import mark_safe
 
-from .models import MongoRole, SmartsharkUser, Plugin, Argument, Project
+from .models import MongoRole, SmartsharkUser, Plugin, Argument, Project, Job, PluginExecution
 # Register your models here.
 
 admin.site.unregister(User)
+
+
+class JobAdmin(admin.ModelAdmin):
+    list_display = ('job_id', 'plugin_execution', 'status', 'revision_hash', 'requires')
+
+
+class PluginExecutionAdmin(admin.ModelAdmin):
+    list_display = ('plugin', 'project', 'repository_url', 'execution_type', 'submitted_at')
 
 
 class MyUserAdmin(UserAdmin):
@@ -41,6 +49,7 @@ class ArgumentAdmin(admin.ModelAdmin):
     def get_model_perms(self, request):
         return {}
 
+
 class ArgumentInline(admin.TabularInline):
     model = Argument
     extra = 0
@@ -59,10 +68,9 @@ class ArgumentInline(admin.TabularInline):
         return qs.filter(type='install')
 
 
-
 class PluginAdmin(admin.ModelAdmin):
     list_display = ('name', 'version', 'description', 'plugin_type', 'active', 'installed')
-    actions = ('delete_model', 'install_plugin' )
+    actions = ('delete_model', 'install_plugin')
     inlines = (ArgumentInline, )
 
     def get_formsets_with_inlines(self, request, obj=None):
@@ -217,3 +225,5 @@ admin.site.register(MongoRole, MongoModelAdmin)
 admin.site.register(Plugin, PluginAdmin)
 admin.site.register(Argument, ArgumentAdmin)
 admin.site.register(Project, ProjectAdmin)
+admin.site.register(Job, JobAdmin)
+admin.site.register(PluginExecution, PluginExecutionAdmin)

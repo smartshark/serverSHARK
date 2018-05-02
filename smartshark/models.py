@@ -103,7 +103,7 @@ class Plugin(models.Model):
         )
 
     def __str__(self):
-        return self.name+"_"+str(self.version)
+        return self.name + "_" + str(self.version)
 
     def __eq__(self, other):
         if other and self.name == other.name and self.version == other.version:
