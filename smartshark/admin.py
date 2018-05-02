@@ -18,7 +18,7 @@ admin.site.unregister(User)
 
 
 class JobAdmin(admin.ModelAdmin):
-    list_display = ('job_id', 'plugin_execution', 'status', 'revision_hash', 'requires')
+    list_display = ('job_id', 'plugin_execution', 'status', 'requires')
 
 
 class PluginExecutionAdmin(admin.ModelAdmin):
