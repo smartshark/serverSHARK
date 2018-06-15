@@ -2,16 +2,17 @@ from django.contrib import admin
 from django.contrib.auth.models import User
 from django.contrib.auth.admin import UserAdmin
 
-
 from django.contrib.messages import get_messages
+from django.contrib import messages
+
 from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
 from django.http import HttpResponseRedirect
-from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.safestring import mark_safe
 
-from .models import MongoRole, SmartsharkUser, Plugin, Argument, Project, Job, PluginExecution
+from .views.collection import JobSubmissionThread
+from .models import MongoRole, SmartsharkUser, Plugin, Argument, Project, Job, PluginExecution, ExecutionHistory
 # Register your models here.
 
 admin.site.unregister(User)
@@ -19,6 +20,38 @@ admin.site.unregister(User)
 
 class JobAdmin(admin.ModelAdmin):
     list_display = ('job_id', 'plugin_execution', 'status', 'revision_hash')
+
+    actions = ['rerun_admin_action', 'set_exit_action']
+
+    def set_exit_action(self, request, queryset):
+        for job in queryset:
+            job.status = 'EXIT'
+            job.save()
+        messages.info(request, 'Jobs set to EXIT.')
+
+    def rerun_admin_action(self, request, queryset):
+        for job in queryset:
+            # create new plugin_execution with same values
+            plugin_execution = PluginExecution.objects.get(pk=job.plugin_execution.pk)
+            plugin_execution.pk = None
+            plugin_execution.save()
+
+            # rewrite execution history for arguments and new plugin_execution
+            for eh in ExecutionHistory.objects.filter(plugin_execution=job.plugin_execution):
+                ehn = ExecutionHistory.objects.get(pk=eh.pk)
+                ehn.pk = None
+                ehn.plugin_execution = plugin_execution
+                ehn.save()
+
+            project = plugin_execution.project
+            plugin_executions = [plugin_execution, ]
+
+            thread = JobSubmissionThread(project, plugin_executions)
+            thread.start()
+
+        return
+
+    rerun_admin_action.short_description = 'Rerun this job'
 
 
 class PluginExecutionAdmin(admin.ModelAdmin):

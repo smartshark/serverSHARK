@@ -72,11 +72,15 @@ def install(request):
 
 def _check_if_at_least_one_execution_was_successful(req_plugin, project):
     # Go through all plugin executions
-    for plugin_execution in PluginExecution.objects.filter(plugin=req_plugin, project=project).all():
+
+    tmp = req_plugin.split('_')  # one version of a plugin is enough for now
+    # todo: check if version of plugin is higher than our required
+    for plugin_execution in PluginExecution.objects.filter(plugin__startswith=tmp[0], project=project).all():
         if plugin_execution.was_successful():
             return True
 
     return False
+
 
 def choose_plugins(request):
     projects = []
@@ -128,12 +132,14 @@ def choose_plugins(request):
                     for req_plugin in plugin.requires.all():
                         logger.debug("Looking at required plugin %s" % str(req_plugin))
 
-                        if not _check_if_at_least_one_execution_was_successful(req_plugin, project):
-                            messages.error(request,
-                                           'Not all requirements for plugin %s are met. Plugin %s was not executed '
-                                           'successfully for project %s before!'
-                                           % (str(plugin), str(req_plugin), str(project)))
-                            return HttpResponseRedirect(request.get_full_path())
+                        # todo: implement check for plugins taking into account the plugin version e.g., if vcsshark-0.10 is required
+                        # also allow vcsshark-0.11 or newer (if info.json allows that (>=))
+                        #if not _check_if_at_least_one_execution_was_successful(req_plugin, project):
+                        #    messages.error(request,
+                        #                   'Not all requirements for plugin %s are met. Plugin %s was not executed '
+                        #                   'successfully for project %s before!'
+                        #                   % (str(plugin), str(req_plugin), str(project)))
+                        #    return HttpResponseRedirect(request.get_full_path())
 
                         logger.debug("At least one plugin execution for plugin %s was successful." % str(req_plugin))
 
