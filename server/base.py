@@ -93,9 +93,9 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-
+SERVERSHARK_VERSION = '0.1.0'
 SUIT_CONFIG = {
-    'ADMIN_NAME': 'ServerSHARK',
+    'ADMIN_NAME': 'ServerSHARK ' + SERVERSHARK_VERSION,
 }
 
 # Internationalization

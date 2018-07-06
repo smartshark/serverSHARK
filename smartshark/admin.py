@@ -20,16 +20,24 @@ admin.site.unregister(User)
 
 class JobAdmin(admin.ModelAdmin):
     list_display = ('job_id', 'plugin_execution', 'status', 'revision_hash')
+    list_filter = ('plugin_execution__project', 'plugin_execution__plugin')
+    search_fields = ('revision_hash',)
 
-    actions = ['rerun_admin_action', 'set_exit_action']
+    actions = ['restart_job', 'set_exit', 'set_done']
 
-    def set_exit_action(self, request, queryset):
+    def set_exit(self, request, queryset):
         for job in queryset:
             job.status = 'EXIT'
             job.save()
         messages.info(request, 'Jobs set to EXIT.')
 
-    def rerun_admin_action(self, request, queryset):
+    def set_done(self, request, queryset):
+        for job in queryset:
+            job.status = 'DONE'
+            job.save()
+        messages.info(request, 'Jobs set to DONE.')
+
+    def restart_job(self, request, queryset):
         for job in queryset:
             # create new plugin_execution with same values
             plugin_execution = PluginExecution.objects.get(pk=job.plugin_execution.pk)
@@ -48,10 +56,9 @@ class JobAdmin(admin.ModelAdmin):
 
             thread = JobSubmissionThread(project, plugin_executions)
             thread.start()
+        messages.info(request, 'Jobs restarted.')
 
-        return
-
-    rerun_admin_action.short_description = 'Rerun this job'
+    restart_job.short_description = 'Restart this job'
 
 
 class PluginExecutionAdmin(admin.ModelAdmin):

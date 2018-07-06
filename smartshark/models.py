@@ -296,7 +296,7 @@ class PluginExecution(models.Model):
     def has_unfinished_jobs(self):
         for job in self.job_set.all():
             if job.status not in ['DONE', 'EXIT']:
-                print(job.id)
+                # print(job.id)
                 return True
 
         return False
