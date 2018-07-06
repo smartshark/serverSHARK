@@ -19,8 +19,8 @@ admin.site.unregister(User)
 
 
 class JobAdmin(admin.ModelAdmin):
-    list_display = ('job_id', 'plugin_execution', 'status', 'revision_hash')
-    list_filter = ('plugin_execution__project', 'plugin_execution__plugin')
+    list_display = ('job_id', 'plugin_execution', 'status', 'revision_hash', 'plugin_execution__submitted_at')
+    list_filter = ('plugin_execution__project', 'plugin_execution__plugin', 'status', 'plugin_execution__execution_type')
     search_fields = ('revision_hash',)
 
     actions = ['restart_job', 'set_exit', 'set_done']
