@@ -11,6 +11,8 @@ from django.http import HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.safestring import mark_safe
 
+from smartshark.datacollection.pluginmanagementinterface import PluginManagementInterface
+
 from .views.collection import JobSubmissionThread
 from .models import MongoRole, SmartsharkUser, Plugin, Argument, Project, Job, PluginExecution, ExecutionHistory
 # Register your models here.
@@ -23,7 +25,17 @@ class JobAdmin(admin.ModelAdmin):
     list_filter = ('plugin_execution__project', 'plugin_execution__plugin', 'status', 'plugin_execution__execution_type')
     search_fields = ('revision_hash',)
 
-    actions = ['restart_job', 'set_exit', 'set_done']
+    actions = ['restart_job', 'set_exit', 'set_done', 'set_job_stati']
+
+    def set_job_stati(self, request, queryset):
+        interface = PluginManagementInterface.find_correct_plugin_manager()
+        job_stati = interface.get_job_stati(queryset)
+        i = 0
+        for job in queryset:
+            job.status = job_stati[i]
+            job.save()
+            i += 1
+        messages.info(request, 'Job stati set from backend.')
 
     def set_exit(self, request, queryset):
         for job in queryset:
@@ -59,6 +71,7 @@ class JobAdmin(admin.ModelAdmin):
         messages.info(request, 'Jobs restarted.')
 
     restart_job.short_description = 'Restart this job'
+    set_job_stati.short_description = 'Set job status from backend'
 
 
 class PluginExecutionAdmin(admin.ModelAdmin):

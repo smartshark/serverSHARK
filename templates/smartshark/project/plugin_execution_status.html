@@ -12,6 +12,10 @@
         <span class="divider">&raquo;</span>
       </li>
       <li>
+        <a href="/admin/smartshark/project">Projects</a>
+        <span class="divider">&raquo;</span>
+      </li>
+      <li>
           <a href="{% url 'plugin_status' plugin_execution.project.pk %}">
             Project ({{plugin_execution.project.name}})</a>
         <span class="divider">&raquo;</span>
@@ -95,11 +99,11 @@
     <div class="pagination">
         <span class="step-links">
             {% if jobs.has_previous %}
-                <a href="?page={{ jobs.previous_page_number }}" class="btn btn-info">previous</a>
+                <a href="?status={{ queried_status }}&page={{ jobs.previous_page_number }}" class="btn btn-info">previous</a>
             {% endif %}
 
             {% if jobs.has_next %}
-                <a href="?page={{ jobs.next_page_number }}" class="btn btn-info">next</a>
+                <a href="?status={{ queried_status }}&page={{ jobs.next_page_number }}" class="btn btn-info">next</a>
             {% endif %}
         </span>
     </div>
