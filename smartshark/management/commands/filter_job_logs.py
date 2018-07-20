@@ -50,11 +50,15 @@ class Command(BaseCommand):
         if options['execute']:
             found = 0
             for job in jobs:
-                output = ''
+                output = []
                 if options['filter_log_type'] == 'error':
                     output = interface.get_error_log(job)
                 if options['filter_log_type'] == 'output':
                     output = interface.get_output_log(job)
+
+                if output:
+                    output = '\n'.join(output)
+
                 if options['filter_string'] in output:
                     found += 1
 
