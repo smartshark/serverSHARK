@@ -90,6 +90,8 @@ class JobAdmin(admin.ModelAdmin):
 class PluginExecutionAdmin(admin.ModelAdmin):
     list_display = ('plugin', 'project', 'repository_url', 'execution_type', 'submitted_at')
 
+    actions = ['restart_plugin_execution']
+
     def restart_plugin_execution(self, request, queryset):
         for pe in queryset:
             # create new plugin_execution with same values
