@@ -13,15 +13,19 @@ from smartshark.datacollection.pluginmanagementinterface import PluginManagement
 
 logger = logging.getLogger('django')
 
+
 class JobSubmissionThread(threading.Thread):
-    def __init__(self, project, plugin_executions):
+    def __init__(self, project, plugin_executions, create_jobs=True):
         threading.Thread.__init__(self)
         self.project = project
         self.plugin_executions = plugin_executions
+        self.create_jobs = create_jobs
 
     def run(self):
         interface = PluginManagementInterface.find_correct_plugin_manager()
-        jobs = create_jobs_for_execution(self.project, self.plugin_executions)
+        jobs = []
+        if self.create_jobs:
+            jobs = create_jobs_for_execution(self.project, self.plugin_executions)
         interface.execute_plugins(self.project, jobs, self.plugin_executions)
 
 

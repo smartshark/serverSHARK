@@ -15,7 +15,7 @@ from smartshark.datacollection.pluginmanagementinterface import PluginManagement
 
 from .views.collection import JobSubmissionThread
 from .models import MongoRole, SmartsharkUser, Plugin, Argument, Project, Job, PluginExecution, ExecutionHistory
-# Register your models here.
+
 
 admin.site.unregister(User)
 
@@ -50,32 +50,65 @@ class JobAdmin(admin.ModelAdmin):
         messages.info(request, 'Jobs set to DONE.')
 
     def restart_job(self, request, queryset):
+        repeated_plugin_executions = {}
+
+        # add jobs to list for each separate plugin_execution
         for job in queryset:
-            # create new plugin_execution with same values
-            plugin_execution = PluginExecution.objects.get(pk=job.plugin_execution.pk)
-            plugin_execution.pk = None
-            plugin_execution.save()
+            if job.plugin_execution.pk not in repeated_plugin_executions.keys():
+                repeated_plugin_executions[job.plugin_execution.pk] = []
 
-            # rewrite execution history for arguments and new plugin_execution
-            for eh in ExecutionHistory.objects.filter(plugin_execution=job.plugin_execution):
-                ehn = ExecutionHistory.objects.get(pk=eh.pk)
-                ehn.pk = None
-                ehn.plugin_execution = plugin_execution
-                ehn.save()
+            repeated_plugin_executions[job.plugin_execution.pk].append(job)
 
-            project = plugin_execution.project
-            plugin_executions = [plugin_execution, ]
+        for old_pk, jobs in repeated_plugin_executions.items():
 
-            thread = JobSubmissionThread(project, plugin_executions)
+            # generate new plugin_execution objects
+            new_plugin_execution = PluginExecution.objects.get(pk=old_pk)
+            new_plugin_execution.pk = None
+            new_plugin_execution.save()
+
+            # create new execution history objects based on the old
+            for eh in ExecutionHistory.objects.filter(plugin_execution__pk=old_pk):
+                new_eh = ExecutionHistory.objects.get(pk=eh.pk)
+                new_eh.pk = None
+                new_eh.plugin_execution = new_plugin_execution
+                new_eh.save()
+
+            for old_job in jobs:
+                new_job = Job.objects.get(pk=old_job.pk)
+                new_job.pk = None
+                new_job.plugin_execution = new_plugin_execution
+                new_job.status = 'WAIT'
+                new_job.save()
+
+            thread = JobSubmissionThread(new_plugin_execution.project, [new_plugin_execution], create_jobs=False)
             thread.start()
-        messages.info(request, 'Jobs restarted.')
 
-    restart_job.short_description = 'Restart this job'
+    restart_job.short_description = 'Restart jobs'
     set_job_stati.short_description = 'Set job status from backend'
 
 
 class PluginExecutionAdmin(admin.ModelAdmin):
     list_display = ('plugin', 'project', 'repository_url', 'execution_type', 'submitted_at')
+
+    def restart_plugin_execution(self, request, queryset):
+        for pe in queryset:
+            # create new plugin_execution with same values
+            plugin_execution = PluginExecution.objects.get(pk=pe.pk)
+            plugin_execution.pk = None
+            plugin_execution.save()
+
+            # rewrite execution history for arguments and new plugin_execution
+            for eh in ExecutionHistory.objects.filter(plugin_execution=pe):
+                ehn = ExecutionHistory.objects.get(pk=eh.pk)
+                ehn.pk = None
+                ehn.plugin_execution = plugin_execution
+                ehn.save()
+
+            thread = JobSubmissionThread(plugin_execution.project, [plugin_execution])
+            thread.start()
+        messages.info(request, 'Plugin execution restarted.')
+
+    restart_plugin_execution.short_description = 'Restart plugin execution'
 
 
 class MyUserAdmin(UserAdmin):
