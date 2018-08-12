@@ -16,6 +16,7 @@ urlpatterns = [
     # Backend
     url(r'^smartshark/project/collection/choose/$', collection.choose_plugins, name='choose_plugins'),
     url(r'^smartshark/project/collection/start/$', collection.start_collection, name='collection_start'),
+    url(r'^smartshark/project/delete/$', collection.delete_project_data, name='project_delete_data'),
     url(r'^admin/smartshark/project/plugin_status/(?P<id>[0-9]+)$', common.plugin_status, name='plugin_status'),
     url(r'^admin/smartshark/project/plugin_execution/(?P<id>[0-9]+)$', common.plugin_execution_status, name='plugin_execution_status'),
     url(r'^admin/smartshark/project/job/(?P<id>[0-9]+)/(?P<type>[a-z]+)$', common.job_output, name='job_output'),

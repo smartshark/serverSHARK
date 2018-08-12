@@ -1,0 +1,15 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+    <h1>The following data will be deleted of the {{ project.name }}</h1>
+
+     <ul>
+     {% for dependency in dependencys %}
+            <li>{{ dependency.collection_name }}</li>
+            {% with dict=dependency.dependencys template="smartshark/project/tree.html" %}
+                {% include template %}
+            {% endwith %}
+     {% endfor %}
+     </ul>
+
+{% endblock %}

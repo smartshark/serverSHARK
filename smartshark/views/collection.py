@@ -1,8 +1,12 @@
 import threading
+import os
 import logging
+import json
+
 from django.contrib import messages
 from django.http import HttpResponseRedirect
 from django.shortcuts import render, get_object_or_404
+from django.conf import settings
 
 from smartshark.common import create_substitutions_for_display, order_plugins, append_success_messages_to_req
 from smartshark.datacollection.executionutils import create_jobs_for_execution
@@ -266,4 +270,75 @@ def start_collection(request):
     })
 
 
+def delete_project_data(request):
+    if not request.user.is_authenticated() or not request.user.has_perm('smartshark.plugin_execution_status'):
+        messages.error(request, 'You are not authorized to perform this action.')
+        return HttpResponseRedirect('/admin/smartshark/project')
 
+    projects = []
+
+    if request.GET.get('ids'):
+        for project_id in request.GET.get('ids', '').split(','):
+            projects.append(get_object_or_404(Project, pk=project_id))
+    else:
+        messages.error(request, 'No project ids were given.')
+        return HttpResponseRedirect('/admin/smartshark/project')
+
+    if(len(projects) != 1):
+        messages.error(request, 'Deletion progress is only supported for one project at the same time.')
+        return HttpResponseRedirect('/admin/smartshark/project')
+
+    project = projects[0]
+    # Start of the deletion process
+    plugin_path = settings.LOCALQUEUE['plugin_installation']
+
+    # Collect all schemas
+    schemas = []
+    for root, dirs, files in os.walk(plugin_path):
+        for name in files:
+            if name == 'schema.json':
+                filepath = os.path.join(root, name)
+                json1_file = open(filepath).read()
+                json_data = json.loads(json1_file)
+                schemas.append(json_data)
+
+    # Analyze the schema
+    deb = []
+    x = findDependencyOfSchema('project', schemas)
+
+    schemaProject = SchemaReference('project', 'none', x)
+    deb.append(schemaProject)
+
+    # Create a preview, count collections the schema
+
+    return render(request, 'smartshark/project/action_deletion.html', {
+        'project': project,
+        'dependencys': deb
+    })
+
+
+def findDependencyOfSchema(name, schemas,ground_dependencys=[]):
+    dependencys = []
+    for schema in schemas:
+        for collection in schema['collections']:
+            # For each field in the collection check if the field is a reference
+            if(collection['collection_name'] not in ground_dependencys):
+                for field in collection['fields']:
+                    if('reference_to' in field and field['reference_to'] == name):
+                        ground_dependencys.append(collection['collection_name'])
+                        dependencys.append(SchemaReference(collection['collection_name'],field, findDependencyOfSchema(collection['collection_name'],schemas, ground_dependencys)))
+
+    return dependencys
+
+class SchemaReference:
+
+    def __init__(self, collection_name, field, deb):
+        self.collection_name = collection_name
+        self.field = field
+        self.dependencys = deb
+
+    def __repr__(self):
+        return str(self.collection_name) + " --> " + str(self.field) + " Dependencys:" + str(self.dependencys)
+
+    def __str__(self):
+        return str(self.collection_name) + " --> " + str(self.field) + " Dependencys:" + str(self.dependencys)
