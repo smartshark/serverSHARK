@@ -7,12 +7,14 @@ from django.contrib import messages
 from django.http import HttpResponseRedirect
 from django.shortcuts import render, get_object_or_404
 from django.conf import settings
+from bson.objectid import ObjectId
 
 from smartshark.common import create_substitutions_for_display, order_plugins, append_success_messages_to_req
 from smartshark.datacollection.executionutils import create_jobs_for_execution
 from smartshark.forms import ProjectForm, get_form, set_argument_values, set_argument_execution_values
 from smartshark.models import Plugin, Project, PluginExecution, Job
 
+from smartshark.mongohandler import handler
 from smartshark.datacollection.pluginmanagementinterface import PluginManagementInterface
 
 logger = logging.getLogger('django')
@@ -271,6 +273,10 @@ def start_collection(request):
 
 
 def delete_project_data(request):
+    if request.method == 'POST':
+        if 'cancel' in request.POST:
+            return HttpResponseRedirect('/admin/smartshark/project')
+
     if not request.user.is_authenticated() or not request.user.has_perm('smartshark.plugin_execution_status'):
         messages.error(request, 'You are not authorized to perform this action.')
         return HttpResponseRedirect('/admin/smartshark/project')
@@ -304,16 +310,24 @@ def delete_project_data(request):
 
     # Analyze the schema
     deb = []
-    x = findDependencyOfSchema('project', schemas)
-
-    schemaProject = SchemaReference('project', 'none', x)
+    x = findDependencyOfSchema('project', schemas,[])
+    schemaProject = SchemaReference('project', '_id', x)
     deb.append(schemaProject)
 
     # Create a preview, count collections the schema
+    if request.method == 'POST':
+        if 'start' in request.POST:
+            deleteOnDependencyTree(schemaProject,ObjectId(project.mongo_id))
+            return render(request, 'smartshark/project/action_deletion_finish.html', {
+                'project': project
+            })
+    else:
+        countOnDependencyTree(schemaProject,ObjectId(project.mongo_id))
 
     return render(request, 'smartshark/project/action_deletion.html', {
         'project': project,
         'dependencys': deb
+
     })
 
 
@@ -326,9 +340,36 @@ def findDependencyOfSchema(name, schemas,ground_dependencys=[]):
                 for field in collection['fields']:
                     if('reference_to' in field and field['reference_to'] == name):
                         ground_dependencys.append(collection['collection_name'])
-                        dependencys.append(SchemaReference(collection['collection_name'],field, findDependencyOfSchema(collection['collection_name'],schemas, ground_dependencys)))
+                        dependencys.append(SchemaReference(collection['collection_name'],field['field_name'], findDependencyOfSchema(collection['collection_name'],schemas, ground_dependencys)))
 
     return dependencys
+
+def countOnDependencyTree(tree, parent_id):
+    #print(tree)
+    query = handler.client.get_database(handler.database).get_collection(tree.collection_name).find({tree.field: parent_id})
+    count = query.count()
+    # print(tree.collection_name)
+    tree.count = tree.count + count
+    for object in query:
+        #print(object)
+        #print(object.get('_id'))
+        for deb in tree.dependencys:
+            countOnDependencyTree(deb,object.get('_id'))
+
+def deleteOnDependencyTree(tree, parent_id):
+    #print(tree)
+    query = handler.client.get_database(handler.database).get_collection(tree.collection_name).find({tree.field: parent_id})
+    count = query.count()
+    # print(tree.collection_name)
+    tree.count = tree.count + count
+    for object in query:
+        #print(object)
+        #print(object.get('_id'))
+        for deb in tree.dependencys:
+            deleteOnDependencyTree(deb,object.get('_id'))
+    # Delete finally
+    if(tree.collection_name != 'project'):
+        handler.client.get_database(handler.database).get_collection(tree.collection_name).delete_many({tree.field: parent_id})
 
 class SchemaReference:
 
@@ -336,6 +377,7 @@ class SchemaReference:
         self.collection_name = collection_name
         self.field = field
         self.dependencys = deb
+        self.count = 0
 
     def __repr__(self):
         return str(self.collection_name) + " --> " + str(self.field) + " Dependencys:" + str(self.dependencys)
