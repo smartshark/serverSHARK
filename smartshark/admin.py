@@ -12,9 +12,10 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.safestring import mark_safe
 
 from smartshark.datacollection.pluginmanagementinterface import PluginManagementInterface
+from smartshark.mongohandler import handler
 
 from .views.collection import JobSubmissionThread
-from .models import MongoRole, SmartsharkUser, Plugin, Argument, Project, Job, PluginExecution, ExecutionHistory
+from .models import MongoRole, SmartsharkUser, Plugin, Argument, Project, Job, PluginExecution, ExecutionHistory, ProjectMongo
 
 
 admin.site.unregister(User)
@@ -307,6 +308,24 @@ class ProjectAdmin(admin.ModelAdmin):
     start_collection.short_description = 'Start Collection for selected Projects'
 
 
+class ProjectMongoAdmin(ProjectAdmin):
+    list_display = ('name', 'executions')
+    actions = ['update_executions']
+    def update_executions(self, request, queryset):
+        mongoclient = handler.client
+        mongodb = mongoclient.smartshark
+        plugins = Plugin.objects.all()
+
+        for proj in queryset:
+            for pl in plugins:
+                schema = mongodb.plugin_schema.find_one({"plugin": pl})
+
+        return
+
+    update_executions.short_description = 'Check MongoDB for new Pluginexecutions'
+
+
+admin.site.register(ProjectMongo, ProjectMongoAdmin)
 admin.site.register(User, MyUserAdmin)
 admin.site.register(SmartsharkUser, SmartsharkUserAdmin)
 admin.site.register(MongoRole, MongoModelAdmin)

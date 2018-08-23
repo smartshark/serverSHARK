@@ -66,6 +66,7 @@ class FileValidator(object):
 class Project(models.Model):
     name = models.CharField(max_length=100, unique=True)
     mongo_id = models.CharField(max_length=50, blank=True)
+    executions = []
 
     class Meta:
         permissions = (
@@ -405,3 +406,9 @@ class SmartsharkUser(models.Model):
             handler.update_user(username=user.username, password=password, roles=[])
 
 
+class ProjectMongo(Project):
+    class Meta:
+        proxy = True
+
+    def __str__(self):
+        return "On the Plugin %s this Plugins have been executed: %s" % (self.project, self.Executions)
