@@ -314,11 +314,61 @@ class ProjectMongoAdmin(ProjectAdmin):
     def update_executions(self, request, queryset):
         mongoclient = handler.client
         mongodb = mongoclient.smartshark
-        plugins = Plugin.objects.all()
+        #plugins = Plugin.objects.all()
 
         for proj in queryset:
-            for pl in plugins:
-                schema = mongodb.plugin_schema.find_one({"plugin": pl})
+            #modified = False
+            exelist = []
+
+            #for pl in plugins:
+                # schema = mongodb.plugin_schema.find_one({"plugin": pl})
+
+# find project in mongodb
+            try:
+                mongoproj = mongodb.project.find_one({"name": proj.name})
+                projid = mongoproj["_id"]
+            except TypeError:
+                continue
+# find the vcs_system for the project
+            try:
+                mongovcs = mongodb.vcs_system.find_one({"project_id": projid})
+                if(mongovcs["project_id"]==projid):
+                    if('vcsSHARK' not in exelist):
+                        exelist.append("vcsSHARK")
+                        #modified = True
+            except TypeError:
+                pass
+
+# find the commit from coastshark
+            try:
+                mongovcs = mongodb.vcs_system.find_one({"project_id": projid})
+                vcsid = mongovcs["_id"]
+                mongocommit = mongodb.commit.find_one({"vcs_system_id": vcsid})
+                if (mongocommit["vcs_system_id"]==vcsid):
+                    mongocommitid = mongocommit["_id"]
+                    mongoces = mongodb.code_entity_state.find_one({"commit_id":mongocommitid})
+                    if(mongoces["_id"]==mongocommitid):
+                        if('coastSHARK' not in exelist):
+                            exelist.append("coastSHARK")
+                            #modified = True
+            except TypeError:
+                pass
+
+            if(len(exelist)>0):
+                proj.executions = " ".join(exelist)
+                proj.save()
+
+            else:
+                proj.executions = "None"
+                proj.save
+
+            #if('Keine' in exelist and len(exelist)>1):
+            #    exelist.remove('Keine')
+            #    modified = True
+
+            #if modified:
+            #    proj.executions = " ".join(exelist)
+            #    proj.save()
 
         return
 

@@ -66,7 +66,7 @@ class FileValidator(object):
 class Project(models.Model):
     name = models.CharField(max_length=100, unique=True)
     mongo_id = models.CharField(max_length=50, blank=True)
-    executions = []
+    executions = models.TextField(default='None', editable=False)
 
     class Meta:
         permissions = (
@@ -411,4 +411,4 @@ class ProjectMongo(Project):
         proxy = True
 
     def __str__(self):
-        return "On the Plugin %s this Plugins have been executed: %s" % (self.project, self.Executions)
+        return "On the Plugin %s this Plugins have been executed: %s" % (self.name, self.executions)
