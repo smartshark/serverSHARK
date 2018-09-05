@@ -1,7 +1,5 @@
 import threading
-import os
 import logging
-import json
 
 from django.contrib import messages
 from django.http import HttpResponseRedirect
@@ -299,18 +297,11 @@ def delete_project_data(request):
     plugin_path = settings.LOCALQUEUE['plugin_installation']
 
     # Collect all schemas
-    schemas = []
-    for root, dirs, files in os.walk(plugin_path):
-        for name in files:
-            if name == 'schema.json':
-                filepath = os.path.join(root, name)
-                json1_file = open(filepath).read()
-                json_data = json.loads(json1_file)
-                schemas.append(json_data)
+    schemas = getPlugins()
 
     # Analyze the schema
     deb = []
-    x = findDependencyOfSchema('project', schemas,[])
+    x = findDependencyOfSchema('project', schemas.values(),[])
     schemaProject = SchemaReference('project', '_id', x)
     deb.append(schemaProject)
 
@@ -330,6 +321,32 @@ def delete_project_data(request):
 
     })
 
+def getPlugins():
+    # Load the tables directly from the MongoDB
+    schemas = {}
+    query = handler.client.get_database(handler.database).get_collection('plugin_schema').find()
+
+    plugins = {}
+    for schema in query:
+        name, version = schema["plugin"].split('_')
+        version = version.split('.')  # Split into tuple
+        if name in plugins:
+            if version > plugins[name]:
+                schemas[name] = schema
+
+        else:
+            schemas[name] = schema
+            plugins[name] = version
+
+    # Alternativ way to get the schema via the files of the plugin installations
+    # for root, dirs, files in os.walk(plugin_path):
+    #    for name in files:
+    #        if name == 'schema.json':
+    #            filepath = os.path.join(root, name)
+    #            json1_file = open(filepath).read()
+    #            json_data = json.loads(json1_file)
+    #            schemas.append(json_data)
+    return schemas
 
 def findDependencyOfSchema(name, schemas,ground_dependencys=[]):
     dependencys = []
@@ -345,7 +362,7 @@ def findDependencyOfSchema(name, schemas,ground_dependencys=[]):
     return dependencys
 
 def countOnDependencyTree(tree, parent_id):
-    #print(tree)
+    #print(handler.database)
     query = handler.client.get_database(handler.database).get_collection(tree.collection_name).find({tree.field: parent_id})
     count = query.count()
     # print(tree.collection_name)
@@ -357,7 +374,6 @@ def countOnDependencyTree(tree, parent_id):
             countOnDependencyTree(deb,object.get('_id'))
 
 def deleteOnDependencyTree(tree, parent_id):
-    #print(tree)
     query = handler.client.get_database(handler.database).get_collection(tree.collection_name).find({tree.field: parent_id})
     count = query.count()
     # print(tree.collection_name)
@@ -368,8 +384,8 @@ def deleteOnDependencyTree(tree, parent_id):
         for deb in tree.dependencys:
             deleteOnDependencyTree(deb,object.get('_id'))
     # Delete finally
-    if(tree.collection_name != 'project'):
-        handler.client.get_database(handler.database).get_collection(tree.collection_name).delete_many({tree.field: parent_id})
+    #if(tree.collection_name != 'project'):
+    handler.client.get_database(handler.database).get_collection(tree.collection_name).delete_many({tree.field: parent_id})
 
 class SchemaReference:
 

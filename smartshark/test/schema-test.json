@@ -1,0 +1,129 @@
+{
+"collections":[  
+      {  
+         "fields":[  
+            {  
+               "type":"ObjectIdType",
+               "logical_type":"OID",
+               "field_name":"_id",
+               "desc": "Identifier of the document"
+            },
+            {  
+               "type":"ObjectIdType",
+               "logical_type":"RID",
+               "reference_to": "project",
+               "field_name":"vcs_system_id",
+               "desc": "ObjectID of the vcs_system to which this commits link"
+            }
+         ],
+         "desc": "Information about the different commits of a project are stored in this collection",
+         "collection_name":"test"
+      },
+      {  
+         "fields":[  
+            {  
+               "type":"ObjectIdType",
+               "logical_type":"OID",
+               "field_name":"_id",
+               "desc": "Identifier of the document"
+            },
+            {  
+               "type":"ObjectIdType",
+               "logical_type":"RID",
+               "reference_to": "test",
+               "field_name":"vcs_system_id",
+               "desc": "ObjectID of the vcs_system to which this file belongs"
+            }
+         ],
+         "desc": "Information about the files within an VCS system is stored in this collection",
+         "collection_name":"file"
+      },
+      {  
+         "fields":[  
+            {  
+               "type":"ObjectIdType",
+               "logical_type":"OID",
+               "field_name":"_id",
+               "desc": "Identifier of the document"
+            },
+            {  
+               "type":"ObjectIdType",
+               "logical_type":"RID",
+               "reference_to": "test",
+               "field_name":"commit_id",
+               "desc": "ObjectID that links to the commit, to which this action belongs"
+            }
+         ],
+         "collection_name":"file_action",
+         "desc": "This collection includes all information about the different actions that were done on the files in the repository"
+      },
+      {  
+         "fields":[  
+            {  
+               "type":"ObjectIdType",
+               "logical_type":"OID",
+               "field_name":"_id",
+               "desc": "Identifier of the document"
+            },
+            {
+               "type": "ObjectIdType",
+               "logical_type": "RID",
+               "reference_to": "file_action",
+               "field_name": "file_action_id",
+               "desc": "ObjectID that links to the corresponding file action"
+            }
+         ],
+         "desc": "This collection contains all hunks that were created during the changing of files in the repository. All hunks follow the unified diff format (see: https://www.gnu.org/software/diffutils/manual/html_node/Detailed-Unified.html#Detailed-Unified)",
+         "collection_name":"hunk"
+      },
+      {  
+         "fields":[ 
+            {  
+               "type":"ObjectIdType",
+               "logical_type":"OID",
+               "field_name":"_id",
+               "desc": "Identifier of the document"
+            }, 
+            {  
+               "type":"StringType",
+               "logical_type":"Other",
+               "field_name":"email",
+               "desc": "Email address of the person"
+            },
+            {  
+               "type":"StringType",
+               "logical_type":"Name",
+               "field_name":"name",
+               "desc": "Name of the person"
+            }
+         ],
+         "desc": "This collection contains all persons that worked within the project (e.g., contributing a commit)",
+         "collection_name":"people"
+      },
+    {
+         "fields":[
+            {
+               "type":"ObjectIdType",
+               "logical_type":"OID",
+               "field_name":"_id",
+               "desc": "Identifier of the document"
+            },
+            {
+               "type":"StringType",
+               "logical_type":"Other",
+               "reference_to": "project",
+               "field_name":"email",
+               "desc": "Email address of the person"
+            },
+            {
+               "type":"StringType",
+               "logical_type":"Name",
+               "field_name":"name",
+               "desc": "Name of the person"
+            }
+         ],
+         "desc": "This collection contains all persons that worked within the project (e.g., contributing a commit)",
+         "collection_name":"testtest"
+      }
+   ]
+}
