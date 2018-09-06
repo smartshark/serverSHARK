@@ -1,0 +1,24 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+    <h1>The following data will be deleted of the {{ project.name }}</h1>
+    <form action="" method="post">
+        {% csrf_token %}
+     <ul>
+     {% for dependency in dependencys %}
+            <li>{{ dependency.collection_name }} ( {{ dependency.count }} )</li>
+            {% with dict=dependency.dependencys template="smartshark/project/tree.html" %}
+                {% include template %}
+            {% endwith %}
+     {% endfor %}
+     </ul>
+
+      <div>
+            <p>
+            <input type="submit" value="cancel" name="cancel" />
+            <input type="submit" value="Delete all data" name="start" />
+            </p>
+      </div>
+    </form>
+
+{% endblock %}

@@ -1,0 +1,12 @@
+<ul>
+{% for dependency in dict %}
+ {% if dependency.dependencys %}
+  <li>{{ dependency.collection_name }} ( {{ dependency.count }} )</li>
+  {%with dict=dependency.dependencys template="smartshark/project/tree.html" %}
+   {%include template%}
+  {%endwith%}
+ {% else %}
+  <li>{{ dependency.collection_name }} ( {{ dependency.count }} )</li>
+ {% endif %}
+{% endfor %}
+</ul>

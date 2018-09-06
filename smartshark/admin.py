@@ -286,7 +286,7 @@ class ProjectAdmin(admin.ModelAdmin):
     fields = ('name', 'mongo_id')
     list_display = ('name', 'mongo_id', 'plugin_executions')
     readonly_fields = ('mongo_id', )
-    actions = ['start_collection', 'show_executions']
+    actions = ['start_collection', 'show_executions', 'delete_data']
 
     def get_readonly_fields(self, request, obj=None):
         """
@@ -305,6 +305,12 @@ class ProjectAdmin(admin.ModelAdmin):
         return HttpResponseRedirect("/smartshark/project/collection/choose/?ids=%s" % (",".join(selected)))
 
     start_collection.short_description = 'Start Collection for selected Projects'
+
+    def delete_data(self, request, queryset):
+        selected = request.POST.getlist(admin.ACTION_CHECKBOX_NAME)
+        return HttpResponseRedirect("/smartshark/project/delete/?ids=%s" % (",".join(selected)))
+
+    delete_data.short_description = 'Delete all data for selected Projects'
 
 
 admin.site.register(User, MyUserAdmin)
