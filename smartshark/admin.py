@@ -310,7 +310,59 @@ class ProjectAdmin(admin.ModelAdmin):
 
 class ProjectMongoAdmin(ProjectAdmin):
     list_display = ('name', 'executions')
-    actions = ['update_executions']
+    actions = ['update_executions', 'crawler']
+
+    def crawler(self, request, queryset):
+        print("starting crawler")
+        mongoclient =handler.client
+        db = mongoclient.smartshark
+        plugin_schema = db.plugin_schema
+
+        # Liste offen = [Startknoten]
+        project = db.project
+        open_collections = []
+        open_collections.append(project)
+        visited_collections = []
+
+        # Ist Liste offen leer? Ja -> Abbruch Nein -> Loop again
+        while (len(open_collections) != 0):
+
+            # pop erster Knoten aus Liste offen - dies ist nun Aktueller Knoten
+            current_collection = open_collections.pop()
+            print("current collection: " + current_collection.name)
+            # Aktueller Knoten wird erweitert / Suche in plugin_schema nach collections die collectionname + "_id" verwenden
+            print("loop")
+            for doc in plugin_schema.find():
+                print("opening plugin_schema")
+                for subdoc in doc["collections"]:
+                    print("reading " + subdoc["collection_name"])
+                    for subsubdoc in subdoc["fields"]:
+                        if "reference_to" in subsubdoc:
+                            if (subsubdoc["reference_to"] == current_collection.name):
+                                found_collection = db[subdoc["collection_name"]]
+                                print("found " + found_collection.name)
+                                if not (found_collection in open_collections):
+                                    if not (found_collection in visited_collections):
+                                        open_collections.append(found_collection)
+                                        print("adding " + found_collection.name)
+
+            # Aktueller Knoten wird zu besucht hinzugefügt
+            visited_collections.append(current_collection)
+            print("collections found:")
+            for col in visited_collections:
+                print(col.name)
+        # for some reason issue collection appears twice so I put up another filter
+        final_collections = []
+        for col in visited_collections:
+                if col not in final_collections:
+                    final_collections.append(col)
+
+        print("final collections found:")
+        for col in final_collections:
+            print(col.name)
+
+
+
     def update_executions(self, request, queryset):
         mongoclient = handler.client
         mongodb = mongoclient.smartshark

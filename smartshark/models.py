@@ -410,5 +410,7 @@ class ProjectMongo(Project):
     class Meta:
         proxy = True
 
+
+
     def __str__(self):
         return "On the Plugin %s this Plugins have been executed: %s" % (self.name, self.executions)
