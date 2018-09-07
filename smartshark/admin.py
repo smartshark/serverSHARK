@@ -313,7 +313,7 @@ class ProjectMongoAdmin(ProjectAdmin):
     actions = ['update_executions', 'crawler']
 
     def crawler(self, request, queryset):
-        print("starting crawler")
+        # print("starting crawler")
         mongoclient =handler.client
         db = mongoclient.smartshark
         plugin_schema = db.plugin_schema
@@ -323,43 +323,110 @@ class ProjectMongoAdmin(ProjectAdmin):
         open_collections = []
         open_collections.append(project)
         visited_collections = []
+        # keymap saves the collections that can be reached from the key as values
+        keymap = dict()
 
         # Ist Liste offen leer? Ja -> Abbruch Nein -> Loop again
         while (len(open_collections) != 0):
 
             # pop erster Knoten aus Liste offen - dies ist nun Aktueller Knoten
             current_collection = open_collections.pop()
-            print("current collection: " + current_collection.name)
+            # print("current collection: " + current_collection.name)
             # Aktueller Knoten wird erweitert / Suche in plugin_schema nach collections die collectionname + "_id" verwenden
-            print("loop")
+            # print("loop")
             for doc in plugin_schema.find():
-                print("opening plugin_schema")
+                # print("opening plugin_schema")
                 for subdoc in doc["collections"]:
-                    print("reading " + subdoc["collection_name"])
+                    # print("reading " + subdoc["collection_name"])
                     for subsubdoc in subdoc["fields"]:
                         if "reference_to" in subsubdoc:
                             if (subsubdoc["reference_to"] == current_collection.name):
                                 found_collection = db[subdoc["collection_name"]]
-                                print("found " + found_collection.name)
+                                # print("found " + found_collection.name)
                                 if not (found_collection in open_collections):
                                     if not (found_collection in visited_collections):
                                         open_collections.append(found_collection)
-                                        print("adding " + found_collection.name)
+                                        if current_collection.name in keymap:
+                                            keymap[current_collection.name].append(found_collection.name)
+                                        else:
+                                            keymap[current_collection.name] = [found_collection.name]
+                                        # print("adding " + found_collection.name)
 
             # Aktueller Knoten wird zu besucht hinzugefügt
             visited_collections.append(current_collection)
-            print("collections found:")
-            for col in visited_collections:
-                print(col.name)
+            # print("collections found:")
+            #for col in visited_collections:
+                #print(col.name)
         # for some reason issue collection appears twice so I put up another filter
         final_collections = []
         for col in visited_collections:
                 if col not in final_collections:
                     final_collections.append(col)
 
-        print("final collections found:")
+        #print("final collections found:")
+        #for col in final_collections:
+        #    print(col.name)
+
         for col in final_collections:
-            print(col.name)
+            if col.name not in keymap:
+                keymap[col.name] = []
+
+        print("collections in keymap:")
+        for key in keymap:
+            print(key, ':', keymap[key])
+
+        for proj in queryset:
+
+            projectmap = dict()
+
+            if(project.find({"name": proj.name}).count()>0):
+                print("found " + proj.name + " in project collection")
+
+                open_collections = []
+                open_collections.append(project)
+                projdoc = project.find_one({"name" : proj.name})
+                projectmap["project"] = [projdoc["_id"]]
+                visited_collections = []
+
+                while(len(open_collections)!=0):
+                    current_collection = open_collections.pop()
+
+                    for collection_name in keymap[current_collection.name]:
+                        found_collection = db[collection_name]
+                        if not (found_collection in open_collections):
+                            if not (found_collection in visited_collections):
+                                open_collections.append(found_collection)
+
+                                if current_collection.name in projectmap:
+
+                                    for id in projectmap[current_collection.name]:
+                                        #print("searching for data in " + found_collection.name)
+                                        #print(current_collection.name + "_id" + " : " + id)
+                                        #The if below doesn't trigger even if data is available
+                                        #if (found_collection.find({current_collection.name + "_id": id}).count()>0):
+                                        if (found_collection.find().count()>0):
+                                            #print("found data for " + proj.name + " in " + found_collection.name)
+                                            #for doc in found_collection.find({current_collection.name + "_id": id}):
+                                            for doc in found_collection.find():
+                                                if doc[current_collection.name + "_id"] == id:
+
+                                                    if found_collection.name in projectmap:
+                                                        projectmap[found_collection.name].append(doc["_id"])
+                                                    else:
+                                                        projectmap[found_collection.name] = [doc["_id"]]
+                                                    print("found for " + proj.name + " in " + found_collection.name + " total: ", len(projectmap[found_collection.name]))
+                                else:
+                                    print("No Data for " + proj.name + " in " + current_collection.name)
+
+
+                    visited_collections.append(current_collection)
+
+            else:
+                print(proj.name + " not found in project collection")
+
+            print("for Project " + proj.name + " was found:")
+            for key in projectmap:
+                print(key + " count:", len(projectmap[key]))
 
 
 
