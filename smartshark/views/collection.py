@@ -1,14 +1,18 @@
 import threading
 import logging
+
 from django.contrib import messages
 from django.http import HttpResponseRedirect
 from django.shortcuts import render, get_object_or_404
+from django.conf import settings
+from bson.objectid import ObjectId
 
 from smartshark.common import create_substitutions_for_display, order_plugins, append_success_messages_to_req
 from smartshark.datacollection.executionutils import create_jobs_for_execution
 from smartshark.forms import ProjectForm, get_form, set_argument_values, set_argument_execution_values
 from smartshark.models import Plugin, Project, PluginExecution, Job
 
+from smartshark.mongohandler import handler
 from smartshark.datacollection.pluginmanagementinterface import PluginManagementInterface
 
 logger = logging.getLogger('django')
@@ -266,4 +270,133 @@ def start_collection(request):
     })
 
 
+def delete_project_data(request):
+    if request.method == 'POST':
+        if 'cancel' in request.POST:
+            return HttpResponseRedirect('/admin/smartshark/project')
 
+    if not request.user.is_authenticated() or not request.user.has_perm('smartshark.plugin_execution_status'):
+        messages.error(request, 'You are not authorized to perform this action.')
+        return HttpResponseRedirect('/admin/smartshark/project')
+
+    projects = []
+
+    if request.GET.get('ids'):
+        for project_id in request.GET.get('ids', '').split(','):
+            projects.append(get_object_or_404(Project, pk=project_id))
+    else:
+        messages.error(request, 'No project ids were given.')
+        return HttpResponseRedirect('/admin/smartshark/project')
+
+    if(len(projects) != 1):
+        messages.error(request, 'Deletion progress is only supported for one project at the same time.')
+        return HttpResponseRedirect('/admin/smartshark/project')
+
+    project = projects[0]
+    # Start of the deletion process
+    plugin_path = settings.LOCALQUEUE['plugin_installation']
+
+    # Collect all schemas
+    schemas = getPlugins()
+
+    # Analyze the schema
+    deb = []
+    x = findDependencyOfSchema('project', schemas.values(),[])
+    schemaProject = SchemaReference('project', '_id', x)
+    deb.append(schemaProject)
+
+    # Create a preview, count collections the schema
+    if request.method == 'POST':
+        if 'start' in request.POST:
+            deleteOnDependencyTree(schemaProject,ObjectId(project.mongo_id))
+            return render(request, 'smartshark/project/action_deletion_finish.html', {
+                'project': project
+            })
+    else:
+        countOnDependencyTree(schemaProject,ObjectId(project.mongo_id))
+
+    return render(request, 'smartshark/project/action_deletion.html', {
+        'project': project,
+        'dependencys': deb
+
+    })
+
+def getPlugins():
+    # Load the tables directly from the MongoDB
+    schemas = {}
+    query = handler.client.get_database(handler.database).get_collection('plugin_schema').find()
+
+    plugins = {}
+    for schema in query:
+        name, version = schema["plugin"].split('_')
+        version = version.split('.')  # Split into tuple
+        if name in plugins:
+            if version > plugins[name]:
+                schemas[name] = schema
+
+        else:
+            schemas[name] = schema
+            plugins[name] = version
+
+    # Alternativ way to get the schema via the files of the plugin installations
+    # for root, dirs, files in os.walk(plugin_path):
+    #    for name in files:
+    #        if name == 'schema.json':
+    #            filepath = os.path.join(root, name)
+    #            json1_file = open(filepath).read()
+    #            json_data = json.loads(json1_file)
+    #            schemas.append(json_data)
+    return schemas
+
+def findDependencyOfSchema(name, schemas,ground_dependencys=[]):
+    dependencys = []
+    for schema in schemas:
+        for collection in schema['collections']:
+            # For each field in the collection check if the field is a reference
+            if(collection['collection_name'] not in ground_dependencys):
+                for field in collection['fields']:
+                    if('reference_to' in field and field['reference_to'] == name):
+                        ground_dependencys.append(collection['collection_name'])
+                        dependencys.append(SchemaReference(collection['collection_name'],field['field_name'], findDependencyOfSchema(collection['collection_name'],schemas, ground_dependencys)))
+
+    return dependencys
+
+def countOnDependencyTree(tree, parent_id):
+    #print(handler.database)
+    query = handler.client.get_database(handler.database).get_collection(tree.collection_name).find({tree.field: parent_id})
+    count = query.count()
+    # print(tree.collection_name)
+    tree.count = tree.count + count
+    for object in query:
+        #print(object)
+        #print(object.get('_id'))
+        for deb in tree.dependencys:
+            countOnDependencyTree(deb,object.get('_id'))
+
+def deleteOnDependencyTree(tree, parent_id):
+    query = handler.client.get_database(handler.database).get_collection(tree.collection_name).find({tree.field: parent_id})
+    count = query.count()
+    # print(tree.collection_name)
+    tree.count = tree.count + count
+    for object in query:
+        #print(object)
+        #print(object.get('_id'))
+        for deb in tree.dependencys:
+            deleteOnDependencyTree(deb,object.get('_id'))
+    # Delete finally
+    #if(tree.collection_name != 'project'):
+    handler.client.get_database(handler.database).get_collection(tree.collection_name).delete_many({tree.field: parent_id})
+
+class SchemaReference:
+
+    def __init__(self, collection_name, field, deb):
+        self.collection_name = collection_name
+        self.field = field
+        self.dependencys = deb
+        self.count = 0
+
+    def __repr__(self):
+        return str(self.collection_name) + " --> " + str(self.field) + " Dependencys:" + str(self.dependencys)
+
+    def __str__(self):
+        return str(self.collection_name) + " --> " + str(self.field) + " Dependencys:" + str(self.dependencys)

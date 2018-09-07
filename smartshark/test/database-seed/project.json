@@ -1,0 +1,5 @@
+[
+{ "_id" : { "$oid" : "5b67572c5f627d61f17aea2d" }, "name" : "velocity" },
+{ "_id" : { "$oid" : "5b7d491b5f627d65cf76930e" }, "name" : "velocity-3" },
+{ "_id" : { "$oid" : "5b904bc85f627d81fbfc89ca" }, "name" : "zookeeper-testdelete" }
+]

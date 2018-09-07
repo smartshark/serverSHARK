@@ -1,0 +1,5 @@
+[
+{ "_id" : { "$oid" : "5b7d33f55f627d5a0fc8cb11" }, "project_id" : { "$oid" : "5b67572c5f627d61f17aea2d" }, "url" : "https://issues.apache.org/jira/projects/VELOCITY", "last_updated" : { "$date" : "2018-08-22T11:59:17.355+0000" } },
+{ "_id" : { "$oid" : "5b7d4f335f627d6b05868016" }, "project_id" : { "$oid" : "5b7d491b5f627d65cf76930e" }, "url" : "https://issues.apache.org/jira/rest/api/2/search?jql=project=ZOOKEEPER", "last_updated" : { "$date" : "2018-09-05T23:34:55.268+0000" } },
+{ "_id" : { "$oid" : "5b904cf35f627d84c8d6a9fb" }, "project_id" : { "$oid" : "5b904bc85f627d81fbfc89ca" }, "url" : "https://issues.apache.org/jira/rest/api/2/search?jql=project=VELOCITY", "last_updated" : { "$date" : "2018-09-05T23:38:59.868+0000" } }
+]
