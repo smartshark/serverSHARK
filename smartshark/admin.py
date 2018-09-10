@@ -309,16 +309,14 @@ class ProjectAdmin(admin.ModelAdmin):
 
 
 class ProjectMongoAdmin(ProjectAdmin):
-    list_display = ('name', 'executions')
+    list_display = ('name', 'executions', 'datacounts')
     actions = ['update_executions', 'crawler']
 
     def crawler(self, request, queryset):
-        # print("starting crawler")
         mongoclient =handler.client
         db = mongoclient.smartshark
         plugin_schema = db.plugin_schema
 
-        # Liste offen = [Startknoten]
         project = db.project
         open_collections = []
         open_collections.append(project)
@@ -326,23 +324,19 @@ class ProjectMongoAdmin(ProjectAdmin):
         # keymap saves the collections that can be reached from the key as values
         keymap = dict()
 
-        # Ist Liste offen leer? Ja -> Abbruch Nein -> Loop again
+        # builds the keymap for the mongodb
         while (len(open_collections) != 0):
 
-            # pop erster Knoten aus Liste offen - dies ist nun Aktueller Knoten
             current_collection = open_collections.pop()
-            # print("current collection: " + current_collection.name)
-            # Aktueller Knoten wird erweitert / Suche in plugin_schema nach collections die collectionname + "_id" verwenden
-            # print("loop")
             for doc in plugin_schema.find():
-                # print("opening plugin_schema")
                 for subdoc in doc["collections"]:
-                    # print("reading " + subdoc["collection_name"])
                     for subsubdoc in subdoc["fields"]:
                         if "reference_to" in subsubdoc:
+                        #print(current_collection.name + "_id")
+                        #if current_collection.name + "_id" in subsubdoc:
                             if (subsubdoc["reference_to"] == current_collection.name):
+                            #if (subsubdoc[current_collection.name + "_id"] == current_collection.name + "_id"):
                                 found_collection = db[subdoc["collection_name"]]
-                                # print("found " + found_collection.name)
                                 if not (found_collection in open_collections):
                                     if not (found_collection in visited_collections):
                                         open_collections.append(found_collection)
@@ -350,22 +344,15 @@ class ProjectMongoAdmin(ProjectAdmin):
                                             keymap[current_collection.name].append(found_collection.name)
                                         else:
                                             keymap[current_collection.name] = [found_collection.name]
-                                        # print("adding " + found_collection.name)
 
-            # Aktueller Knoten wird zu besucht hinzugefügt
             visited_collections.append(current_collection)
-            # print("collections found:")
-            #for col in visited_collections:
-                #print(col.name)
+
         # for some reason issue collection appears twice so I put up another filter
         final_collections = []
         for col in visited_collections:
                 if col not in final_collections:
                     final_collections.append(col)
 
-        #print("final collections found:")
-        #for col in final_collections:
-        #    print(col.name)
 
         for col in final_collections:
             if col.name not in keymap:
@@ -400,21 +387,13 @@ class ProjectMongoAdmin(ProjectAdmin):
                                 if current_collection.name in projectmap:
 
                                     for id in projectmap[current_collection.name]:
-                                        #print("searching for data in " + found_collection.name)
-                                        #print(current_collection.name + "_id" + " : " + id)
-                                        #The if below doesn't trigger even if data is available
-                                        #if (found_collection.find({current_collection.name + "_id": id}).count()>0):
                                         if (found_collection.find().count()>0):
-                                            #print("found data for " + proj.name + " in " + found_collection.name)
-                                            #for doc in found_collection.find({current_collection.name + "_id": id}):
-                                            for doc in found_collection.find():
-                                                if doc[current_collection.name + "_id"] == id:
-
-                                                    if found_collection.name in projectmap:
-                                                        projectmap[found_collection.name].append(doc["_id"])
-                                                    else:
-                                                        projectmap[found_collection.name] = [doc["_id"]]
-                                                    print("found for " + proj.name + " in " + found_collection.name + " total: ", len(projectmap[found_collection.name]))
+                                            for doc in found_collection.find({current_collection.name + "_id": id}):
+                                                if found_collection.name in projectmap:
+                                                    projectmap[found_collection.name].append(doc["_id"])
+                                                else:
+                                                    projectmap[found_collection.name] = [doc["_id"]]
+                                                #print("found for " + proj.name + " in " + found_collection.name + " total: ", len(projectmap[found_collection.name]))
                                 else:
                                     print("No Data for " + proj.name + " in " + current_collection.name)
 
@@ -424,9 +403,18 @@ class ProjectMongoAdmin(ProjectAdmin):
             else:
                 print(proj.name + " not found in project collection")
 
+            new_datacounts = ""
             print("for Project " + proj.name + " was found:")
             for key in projectmap:
                 print(key + " count:", len(projectmap[key]))
+
+            for key in projectmap:
+                count = len(projectmap[key])
+                new_datacounts += key + " count: " + str(count) + "\n"
+
+            proj.datacounts = new_datacounts
+            proj.projectmap = str(projectmap)
+            proj.save()
 
 
 
