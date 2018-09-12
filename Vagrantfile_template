@@ -64,7 +64,7 @@ Vagrant.configure("2") do |config|
     add-apt-repository ppa:webupd8team/java
 
     apt-get update
-    apt-get install -y git python3-venv python-pip python3-cffi libgit2-26 libgit2-dev libmysqlclient-dev libssl-dev
+    apt-get install -y git python3-venv python-pip python3-cffi libgit2-26 libgit2-dev libmysqlclient-dev libssl-dev python3-setuptools rpm
     apt-get install -y build-essential libtool pkg-config autoconf python3-dev libffi-dev cmake
     apt-get install -y redis-server
 
@@ -89,9 +89,10 @@ Vagrant.configure("2") do |config|
 
     service mongodb start
     #mongo admin --eval "db.getSiblingDB('smartshark').addUser('root', '#{mongopass}')"
-	mongo admin --eval "db.getSiblingDB('smartshark').createUser({user:'root', pwd:'#{mongopass}',roles:[{role:'dbOwner', db:'smartshark'}]})"
+    mongo admin --eval "db.getSiblingDB('smartshark').createUser({user:'root', pwd:'#{mongopass}',roles:[{role:'dbOwner', db:'smartshark'}]})"
 
-	pip install --upgrade pip
+    ln -s /usr/bin/python3.6 /usr/bin/python3.5
+    pip install --upgrade pip
 	
     rm -rf /srv/www/serverSHARK/
     mkdir -p /srv/www/
