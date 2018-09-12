@@ -35,7 +35,7 @@ adminpass = "CHANGEME"
 
 Vagrant.configure("2") do |config|
 
-  config.vm.box = "ubuntu/xenial64"
+  config.vm.box = "ubuntu/bionic64"
 
   # this sets the vagrant name
   config.vm.define :ServerSHARK do |t|
@@ -64,7 +64,7 @@ Vagrant.configure("2") do |config|
     add-apt-repository ppa:webupd8team/java
 
     apt-get update
-    apt-get install -y git python3-venv python3-pip python3-cffi libgit2-24 libgit2-dev libmysqlclient-dev libssl-dev
+    apt-get install -y git python3-venv python-pip python3-cffi libgit2-26 libgit2-dev libmysqlclient-dev libssl-dev
     apt-get install -y build-essential libtool pkg-config autoconf python3-dev libffi-dev cmake
     apt-get install -y redis-server
 
@@ -88,8 +88,11 @@ Vagrant.configure("2") do |config|
     sed -i 's/bind_ip = 127\.0\.0\.1/bind_ip = 0\.0\.0\.0/g' /etc/mongodb.conf
 
     service mongodb start
-    mongo admin --eval "db.getSiblingDB('smartshark').addUser('root', '#{mongopass}')"
+    #mongo admin --eval "db.getSiblingDB('smartshark').addUser('root', '#{mongopass}')"
+	mongo admin --eval "db.getSiblingDB('smartshark').createUser({user:'root', pwd:'#{mongopass}',roles:[{role:'dbOwner', db:'smartshark'}]})"
 
+	pip install --upgrade pip
+	
     rm -rf /srv/www/serverSHARK/
     mkdir -p /srv/www/
     cd /srv/www
