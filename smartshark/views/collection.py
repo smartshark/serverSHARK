@@ -348,7 +348,7 @@ def getPlugins():
     #            schemas.append(json_data)
     return schemas
 
-def findDependencyOfSchema(name, schemas,ground_dependencys=[]):
+def findDependencyOfSchema(name, schemas, ground_dependencys=[]):
     dependencys = []
     for schema in schemas:
         for collection in schema['collections']:

@@ -35,7 +35,8 @@ class Command(BaseCommand):
 
         project = Project.objects.get(name__icontains=options['project_name'])
 
-        pe = PluginExecution.objects.get(plugin=plugin, project=project)
+        pe = PluginExecution.objects.filter(plugin=plugin, project=project).order_by('submitted_at')[0]
+        self.stdout.write('looking in pluginexecution from: {}'.format(pe.submitted_at))
 
         jobs = Job.objects.filter(plugin_execution=pe, status=options['filter_state'].upper())
 
