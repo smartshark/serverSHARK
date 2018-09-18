@@ -67,8 +67,8 @@ class Project(models.Model):
     name = models.CharField(max_length=100, unique=True)
     mongo_id = models.CharField(max_length=50, blank=True)
     executions = models.TextField(default='None', editable=False)
-    projectmap = models.TextField(default='None', editable=False)
-    datacounts = models.TextField(default='None', editable=False)
+    #projectmap = models.TextField(default='None', editable=False)
+    #datacounts = models.TextField(default='None', editable=False)
 
     class Meta:
         permissions = (

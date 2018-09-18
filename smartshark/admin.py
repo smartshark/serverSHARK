@@ -309,7 +309,7 @@ class ProjectAdmin(admin.ModelAdmin):
 
 
 class ProjectMongoAdmin(ProjectAdmin):
-    list_display = ('name', 'executions', 'datacounts')
+    list_display = ('name', 'executions')
     actions = ['update_executions', 'crawler']
 
     def crawler(self, request, queryset):
@@ -362,6 +362,46 @@ class ProjectMongoAdmin(ProjectAdmin):
         for key in keymap:
             print(key, ':', keymap[key])
 
+        commitmap = dict()
+
+        if "commit" in keymap:
+
+            for proj in queryset:
+
+                projectmap = dict()
+                commitcount = 0
+                last_updated = []
+
+                if (project.find({"name": proj.name}).count() > 0):
+                    print("found " + proj.name + " in project collection")
+                    projdoc = project.find_one({"name": proj.name})
+                    projectmap["project"] = [projdoc["_id"]]
+
+                    projectmap["vcs_system"] = []
+
+                    for doc in db.vcs_system.find():
+                        if doc["project_id"] in projectmap["project"]:
+                            projectmap["vcs_system"].append(doc["_id"])
+                            last_updated.append(doc["last_updated"])
+
+                    for vcs_id in projectmap["vcs_system"]:
+                        commitcount+= db.commit.find({"vcs_system_id": vcs_id}).count()
+
+
+                        #for doc in db["commit"]:
+                           # if doc["vcs_system_id"] in projectmap["vcs_system"]:
+                    new_executions = ""
+                    new_executions = "Found commits: " + str(commitcount)
+                    new_executions+= " last updates: "
+                    for date in last_updated:
+                        new_executions+= date.strftime("%B %d, %Y")
+                        new_executions+= " "
+
+                    proj.executions = new_executions
+                    proj.save()
+
+
+        """
         for proj in queryset:
 
             projectmap = dict()
@@ -410,12 +450,12 @@ class ProjectMongoAdmin(ProjectAdmin):
 
             for key in projectmap:
                 count = len(projectmap[key])
-                new_datacounts += key + " count: " + str(count) + "\n"
+                new_datacounts += key + " : " + str(count) + "\n"
 
             proj.datacounts = new_datacounts
             proj.projectmap = str(projectmap)
             proj.save()
-
+        """
 
 
     def update_executions(self, request, queryset):
