@@ -16,7 +16,7 @@ from smartshark.mongohandler import handler
 
 from .views.collection import JobSubmissionThread
 from .models import MongoRole, SmartsharkUser, Plugin, Argument, Project, Job, PluginExecution, ExecutionHistory, ProjectMongo
-
+import requests, datetime
 
 admin.site.unregister(User)
 
@@ -362,7 +362,6 @@ class ProjectMongoAdmin(ProjectAdmin):
         for key in keymap:
             print(key, ':', keymap[key])
 
-        commitmap = dict()
 
         if "commit" in keymap:
 
@@ -371,6 +370,7 @@ class ProjectMongoAdmin(ProjectAdmin):
                 projectmap = dict()
                 commitcount = 0
                 last_updated = []
+                ces_missing = -1
 
                 if (project.find({"name": proj.name}).count() > 0):
                     print("found " + proj.name + " in project collection")
@@ -378,24 +378,85 @@ class ProjectMongoAdmin(ProjectAdmin):
                     projectmap["project"] = [projdoc["_id"]]
 
                     projectmap["vcs_system"] = []
+                    git_url = ""
 
                     for doc in db.vcs_system.find():
                         if doc["project_id"] in projectmap["project"]:
                             projectmap["vcs_system"].append(doc["_id"])
                             last_updated.append(doc["last_updated"])
+                            url = doc["url"]
+
+                    if "code_entity_state" in keymap:
+
+                        ces_missing = 0
+                        node_count_missing = 0
+
+                        for vcs_id in projectmap["vcs_system"]:
+
+                            for commit in db.commit.find({"vcs_system_id": vcs_id}):
+                                ces_count = 0
+                                ces_count = db.code_entity_state.find({"commit_id": commit["_id"]}).count()
+                                #for ces in db.code_entity_state.find({"commit_id": commit["_id"]}):
+                                if ces_count == 0:
+                                    ces_missing+= 1
+                                for ces in db.code_entity_state.find({"commit_id": commit["_id"]}):
+                                    if not ces["metrics"]["node_count"]>0:
+                                        node_count_missing+= 1
+
 
                     for vcs_id in projectmap["vcs_system"]:
                         commitcount+= db.commit.find({"vcs_system_id": vcs_id}).count()
+
+
+                    # TODO: add try except and dynamic url generation from mongodb
+                    github_baseurl = "https://api.github.com/repos/"
+                    repo = url[19:]
+
+                    contributors_url = github_baseurl + repo + "/contributors"
+                    commit_head_url = github_baseurl + repo + "/git/refs/heads/master"
+                    commit_url = github_baseurl + repo + "/commits/"
+
+                    #'https://api.github.com/repos/openintents/safe/contributors'
+                    req = requests.get(contributors_url)
+                    data = req.json()
+                    online_commitcount = 0
+                    for contributor in data:
+                        online_commitcount+= contributor['contributions']
+                        online_commitcount+= 1
+
+                    #'https://api.github.com/repos/openintents/safe/git/refs/heads/master'
+                    req = requests.get(commit_head_url)
+                    data = req.json()
+                    #print(data)
+                    sha = data["object"]["sha"]
+                    #for ref in data:
+                    #        sha = ref["object"]["sha"]
+
+                    req = requests.get((commit_url + sha))
+                    data = req.json()
+                    newest_update = data['commit']['author']['date']
+                    newest_update_format = datetime.datetime.strptime(newest_update, "%Y-%m-%dT%H:%M:%SZ")
+
+                    #req = requests.post('https://api.github.com/repos/openintents/safe/contributors', json={'query' : query})
 
 
                         #for doc in db["commit"]:
                            # if doc["vcs_system_id"] in projectmap["vcs_system"]:
                     new_executions = ""
                     new_executions = "Found commits: " + str(commitcount)
+                    new_executions+= "/" + str(online_commitcount)
                     new_executions+= " last updates: "
                     for date in last_updated:
                         new_executions+= date.strftime("%B %d, %Y")
                         new_executions+= " "
+                    new_executions+= "newest release: "
+                    new_executions+= newest_update_format.strftime("%B %d, %Y")
+
+                    if ces_missing>= 0:
+                        new_executions+=  " commits without any code_entity_states: " + str(ces_missing)
+
+                    if node_count_missing>=0:
+                        new_executions+= " code_entity_states without node_count: " + str(node_count_missing)
 
                     proj.executions = new_executions
                     proj.save()
