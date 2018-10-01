@@ -132,6 +132,13 @@ class HPCConnector(PluginManagementInterface):
         commands = []
         for plugin_execution in plugin_executions:
             plugin_command = self.generate_plugin_execution_command(plugin_execution)
+
+            # Replace the job queue if the parameter is found
+            self.queue = plugin_execution.get_sorted_argument_with_name().get("queue",HPC['queue'])
+            if (self.queue == '$queue' or self.queue == 'None'):
+                self.queue = HPC['queue']
+
+            
             jobs = Job.objects.filter(plugin_execution=plugin_execution).all()
             plugin_execution_output_path = os.path.join(self.log_path, str(plugin_execution.id))
             self.execute_command('mkdir %s' % plugin_execution_output_path, ignore_errors=True)

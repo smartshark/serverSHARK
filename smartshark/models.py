@@ -301,7 +301,19 @@ class PluginExecution(models.Model):
 
         return False
 
-    def get_sorted_argument_values(self):
+    def get_sorted_argument_with_name(self):
+        arguments = OrderedDict()
+
+        for execution_history in ExecutionHistory.objects.filter(plugin_execution__pk=self.id):
+            # Add none if the value is not set, this needs to be catched in the execute.sh of the plugin
+            if not execution_history.execution_value.strip():
+                arguments[execution_history.execution_argument.name] = "None"
+            else:
+                arguments[execution_history.execution_argument.name] = execution_history.execution_value
+
+        return arguments
+
+    def get_sorted_argument(self):
         arguments = OrderedDict()
 
         for execution_history in ExecutionHistory.objects.filter(plugin_execution__pk=self.id):
@@ -311,13 +323,17 @@ class PluginExecution(models.Model):
             else:
                 arguments[execution_history.execution_argument.position] = execution_history.execution_value
 
+        return arguments
+
+
+    def get_sorted_argument_values(self):
+        arguments = self.get_sorted_argument()
         arguments = sorted(arguments.items(), key=lambda t: t[0])
 
         sorted_values = ''
         for key, value in arguments:
             sorted_values += value + ' '
         return sorted_values
-
 
 class ExecutionHistory(models.Model):
     execution_argument = models.ForeignKey(Argument, on_delete=models.CASCADE)
