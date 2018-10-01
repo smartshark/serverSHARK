@@ -138,7 +138,10 @@ class HPCConnector(PluginManagementInterface):
             if (self.queue == '$queue' or self.queue == 'None'):
                 self.queue = HPC['queue']
 
-            
+            self.cores_per_job = plugin_execution.get_sorted_argument_with_name().get("cores_per_job", HPC['cores_per_job'])
+            if (self.cores_per_job == '$cores_per_job' or self.cores_per_job == 'None'):
+                self.cores_per_job = HPC['cores_per_job']
+
             jobs = Job.objects.filter(plugin_execution=plugin_execution).all()
             plugin_execution_output_path = os.path.join(self.log_path, str(plugin_execution.id))
             self.execute_command('mkdir %s' % plugin_execution_output_path, ignore_errors=True)
