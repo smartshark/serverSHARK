@@ -16,7 +16,7 @@ from smartshark.mongohandler import handler
 
 from .views.collection import JobSubmissionThread
 from .models import MongoRole, SmartsharkUser, Plugin, Argument, Project, Job, PluginExecution, ExecutionHistory, ProjectMongo
-import requests, datetime
+import pygit2, os, shutil
 
 admin.site.unregister(User)
 
@@ -185,7 +185,6 @@ class PluginAdmin(admin.ModelAdmin):
     def change_view(self, request, object_id, form_url='', extra_context=None):
         """
         If plugin is changed, we need to check if the required plugins that may be added/changed are still valid
-
         :param request: django request
         :param object_id: id of the plugin that is to be changed
         :param form_url: url of the form that is used
@@ -233,8 +232,6 @@ class PluginAdmin(admin.ModelAdmin):
         """
         We need to overwrite this method, as for a change: we just save the model, but if the plugin is first
         added, it must be loaded from the json file in the archive.
-
-
         :param request:
         :param obj:
         :param form:
@@ -362,7 +359,43 @@ class ProjectMongoAdmin(ProjectAdmin):
         for key in keymap:
             print(key, ':', keymap[key])
 
+        for proj in queryset:
 
+            if (project.find({"name": proj.name}).count() > 0):
+
+                projdoc = project.find_one({"name": proj.name})
+
+                if "vcs_system" in keymap:
+
+                    if (db.vcs_system.find({"project_id": projdoc["_id"]}).count() > 0):
+
+                        vcsdoc = db.vcs_system.find_one({"project_id": projdoc["_id"]})
+
+                        url = vcsdoc["url"]
+
+                        repourl = "git" + url[5:]
+
+                        path = "../tmp-repo"
+                        if os.path.isdir(path):
+                            shutil.rmtree(path)
+
+                        repo = pygit2.clone_repository(repourl,path)
+
+                        if not repo.is_empty:
+
+                            print(proj.name + " is not empty")
+
+                            for commit in repo.walk(repo.head.target, pygit2.GIT_SORT_TIME):
+                                print(commit.message)
+
+                        if os.path.isdir(path):
+                            shutil.rmtree(path)
+                            print(proj.name + " clone deleted")
+
+            else:
+                print(proj.name + " not found in database")
+
+    """
         if "commit" in keymap:
 
             for proj in queryset:
@@ -460,33 +493,26 @@ class ProjectMongoAdmin(ProjectAdmin):
 
                     proj.executions = new_executions
                     proj.save()
+    """
 
-
-        """
+    """
         for proj in queryset:
-
             projectmap = dict()
-
             if(project.find({"name": proj.name}).count()>0):
                 print("found " + proj.name + " in project collection")
-
                 open_collections = []
                 open_collections.append(project)
                 projdoc = project.find_one({"name" : proj.name})
                 projectmap["project"] = [projdoc["_id"]]
                 visited_collections = []
-
                 while(len(open_collections)!=0):
                     current_collection = open_collections.pop()
-
                     for collection_name in keymap[current_collection.name]:
                         found_collection = db[collection_name]
                         if not (found_collection in open_collections):
                             if not (found_collection in visited_collections):
                                 open_collections.append(found_collection)
-
                                 if current_collection.name in projectmap:
-
                                     for id in projectmap[current_collection.name]:
                                         if (found_collection.find().count()>0):
                                             for doc in found_collection.find({current_collection.name + "_id": id}):
@@ -497,22 +523,16 @@ class ProjectMongoAdmin(ProjectAdmin):
                                                 #print("found for " + proj.name + " in " + found_collection.name + " total: ", len(projectmap[found_collection.name]))
                                 else:
                                     print("No Data for " + proj.name + " in " + current_collection.name)
-
-
                     visited_collections.append(current_collection)
-
             else:
                 print(proj.name + " not found in project collection")
-
             new_datacounts = ""
             print("for Project " + proj.name + " was found:")
             for key in projectmap:
                 print(key + " count:", len(projectmap[key]))
-
             for key in projectmap:
                 count = len(projectmap[key])
                 new_datacounts += key + " : " + str(count) + "\n"
-
             proj.datacounts = new_datacounts
             proj.projectmap = str(projectmap)
             proj.save()
