@@ -372,6 +372,7 @@ class ProjectMongoAdmin(ProjectAdmin):
                         vcsdoc = db.vcs_system.find_one({"project_id": projdoc["_id"]})
 
                         url = vcsdoc["url"]
+                        vcsid = vcsdoc["_id"]
 
                         repourl = "git" + url[5:]
 
@@ -385,8 +386,29 @@ class ProjectMongoAdmin(ProjectAdmin):
 
                             print(proj.name + " is not empty")
 
+                            db_commit_hexs = []
+                            for db_commit in db.commit.find({"vcs_system_id": vcsid}):
+                                db_commit_hexs.append(db_commit["revision_hash"])
+
+                            db_commit_count = len(db_commit_hexs)
+                            commit_count = 0
+
                             for commit in repo.walk(repo.head.target, pygit2.GIT_SORT_TIME):
-                                print(commit.message)
+                                # print(commit.message)
+                                commit_count+=1
+                                if commit.hex in db_commit_hexs:
+                                    db_commit_hexs.remove(commit.hex)
+                                    # print("removed " + commit.hex)
+
+                            if(len(db_commit_hexs)>0):
+                                print(str(len(db_commit_hexs)) + " unmatched commits in db. " + str(db_commit_count) + " commits matched.")
+
+                            if(len(db_commit_hexs)==0):
+                                print("All " + str(db_commit_count) + " commits in db matched")
+
+                            if(commit_count>db_commit_count):
+                                print(str(commit_count-db_commit_count) + " commits not in db")
+
 
                         if os.path.isdir(path):
                             shutil.rmtree(path)
