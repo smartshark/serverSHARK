@@ -5,7 +5,7 @@ from django.contrib.auth.admin import UserAdmin
 from django.contrib.messages import get_messages
 from django.contrib import messages
 
-from django.core.exceptions import ValidationError
+from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.core.urlresolvers import reverse
 from django.http import HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect, render
@@ -16,7 +16,7 @@ from smartshark.mongohandler import handler
 
 from .views.collection import JobSubmissionThread
 from .models import MongoRole, SmartsharkUser, Plugin, Argument, Project, Job, PluginExecution, ExecutionHistory, ProjectMongo
-import pygit2, os, shutil
+import pygit2, os, shutil, re
 
 admin.site.unregister(User)
 
@@ -284,7 +284,7 @@ class ProjectAdmin(admin.ModelAdmin):
     fields = ('name', 'mongo_id')
     list_display = ('name', 'mongo_id', 'plugin_executions')
     readonly_fields = ('mongo_id', )
-    actions = ['start_collection', 'show_executions']
+    actions = ['start_collection', 'show_executions', 'register_ProjectMongo']
 
     def get_readonly_fields(self, request, obj=None):
         """
@@ -304,19 +304,27 @@ class ProjectAdmin(admin.ModelAdmin):
 
     start_collection.short_description = 'Start Collection for selected Projects'
 
+    def register_ProjectMongo(self, request, queryset):
+        for proj in queryset:
+            try:
+                proj.projectmongo
+            except ObjectDoesNotExist:
+                ProjectMongo.objects.create(project=proj)
+                print("Added ProjectMongo for " + proj.name)
 
-class ProjectMongoAdmin(ProjectAdmin):
-    list_display = ('name', 'executions')
-    actions = ['update_executions', 'crawler']
+
+class ProjectMongoAdmin(admin.ModelAdmin):
+    list_display = ('project', 'validation')
+    actions = ['crawler']
 
     def crawler(self, request, queryset):
-        mongoclient =handler.client
+        mongoclient = handler.client
         db = mongoclient.smartshark
         plugin_schema = db.plugin_schema
 
-        project = db.project
+        project_db = db.project
         open_collections = []
-        open_collections.append(project)
+        open_collections.append(project_db)
         visited_collections = []
         # keymap saves the collections that can be reached from the key as values
         keymap = dict()
@@ -359,11 +367,12 @@ class ProjectMongoAdmin(ProjectAdmin):
         for key in keymap:
             print(key, ':', keymap[key])
 
-        for proj in queryset:
+        for projmongo in queryset:
+            proj = projmongo.project
 
-            if (project.find({"name": proj.name}).count() > 0):
+            if (project_db.find({"name": proj.name}).count() > 0):
 
-                projdoc = project.find_one({"name": proj.name})
+                projdoc = project_db.find_one({"name": proj.name})
 
                 if "vcs_system" in keymap:
 
@@ -389,26 +398,58 @@ class ProjectMongoAdmin(ProjectAdmin):
                             db_commit_hexs = []
                             for db_commit in db.commit.find({"vcs_system_id": vcsid}):
                                 db_commit_hexs.append(db_commit["revision_hash"])
+                            total_commit_hexs = db_commit_hexs.copy()
 
                             db_commit_count = len(db_commit_hexs)
                             commit_count = 0
 
                             for commit in repo.walk(repo.head.target, pygit2.GIT_SORT_TIME):
                                 # print(commit.message)
-                                commit_count+=1
-                                if commit.hex in db_commit_hexs:
-                                    db_commit_hexs.remove(commit.hex)
+                                #if commit.hex in db_commit_hexs:
+                                #    db_commit_hexs.remove(commit.hex)
                                     # print("removed " + commit.hex)
+                                if not commit.hex in total_commit_hexs:
+                                    total_commit_hexs.append(commit.hex)
+                                    commit_count+=1
+
+                            # inspired by vcsshark gitparser.py
+                            references = set(repo.listall_references())
+
+                            regex = re.compile('^refs/tags')
+                            tags = set(filter(lambda r: regex.match(r), repo.listall_references()))
+
+                            branches = references - tags
+
+                            for branch in branches:
+                                commit = repo.lookup_reference(branch).peel()
+                                # Walk through every child
+                                for child in repo.walk(commit.id,
+                                                                  pygit2.GIT_SORT_TIME | pygit2.GIT_SORT_TOPOLOGICAL):
+                                    #if child.hex in db_commit_hexs:
+                                    #    db_commit_hexs.remove(child.hex)
+                                    if not child.hex in total_commit_hexs:
+                                        total_commit_hexs.append(child.hex)
+                                        commit_count += 1
+
+                            for hex in total_commit_hexs:
+                                if hex in db_commit_hexs:
+                                    db_commit_hexs.remove(hex)
+
+                            print("commits in db: " + str(db_commit_count) + " unmatched commits: " + str(len(db_commit_hexs)) + " commits found online: " + str(len(total_commit_hexs)) + " commits missing in db: " + str(commit_count))
+
+                            projmongo.validation = ("commits in db: " + str(db_commit_count) + " unmatched commits: " + str(len(db_commit_hexs)) + " commits found online: " + str(len(total_commit_hexs)) + " commits missing in db: " + str(commit_count))
+                            projmongo.save()
 
                             if(len(db_commit_hexs)>0):
                                 print(str(len(db_commit_hexs)) + " unmatched commits in db. " + str(db_commit_count) + " commits matched.")
+                                for hex in db_commit_hexs:
+                                    print(hex)
 
                             if(len(db_commit_hexs)==0):
                                 print("All " + str(db_commit_count) + " commits in db matched")
 
                             if(commit_count>db_commit_count):
                                 print(str(commit_count-db_commit_count) + " commits not in db")
-
 
                         if os.path.isdir(path):
                             shutil.rmtree(path)
@@ -560,7 +601,7 @@ class ProjectMongoAdmin(ProjectAdmin):
             proj.save()
         """
 
-
+    """
     def update_executions(self, request, queryset):
         mongoclient = handler.client
         mongodb = mongoclient.smartshark
@@ -623,6 +664,8 @@ class ProjectMongoAdmin(ProjectAdmin):
         return
 
     update_executions.short_description = 'Check MongoDB for new Pluginexecutions'
+    
+    """
 
 
 admin.site.register(ProjectMongo, ProjectMongoAdmin)

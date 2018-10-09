@@ -66,7 +66,7 @@ class FileValidator(object):
 class Project(models.Model):
     name = models.CharField(max_length=100, unique=True)
     mongo_id = models.CharField(max_length=50, blank=True)
-    executions = models.TextField(default='None', editable=False)
+    #executions = models.TextField(default='None', editable=False)
     #projectmap = models.TextField(default='None', editable=False)
     #datacounts = models.TextField(default='None', editable=False)
 
@@ -408,11 +408,18 @@ class SmartsharkUser(models.Model):
             handler.update_user(username=user.username, password=password, roles=[])
 
 
-class ProjectMongo(Project):
-    class Meta:
-        proxy = True
-
-
+class ProjectMongo(models.Model):
+    project = models.OneToOneField(Project)
+    executed_plugins = models.ManyToManyField(Plugin, blank=True, editable=False)
+    vcs_id = models.CharField(max_length=50, default=None, null=True, blank=True)
+    issue_id = models.CharField(max_length=50, default=None,  null=True, blank=True)
+    mailing_id = models.CharField(max_length=50, default=None, null=True, blank=True)
+    validation = models.TextField(max_length=500, default=None, null=True, blank= True)
 
     def __str__(self):
-        return "On the Plugin %s this Plugins have been executed: %s" % (self.name, self.executions)
+        return self.project.name
+
+    @receiver(post_save, sender=Project)
+    def create_ProjectMongo(sender, created, instance, **kwargs):
+        if created:
+            ProjectMongo.objects.create(project= instance)
