@@ -451,6 +451,217 @@ class ProjectMongoAdmin(admin.ModelAdmin):
                             if(commit_count>db_commit_count):
                                 print(str(commit_count-db_commit_count) + " commits not in db")
 
+
+                            #validate fileactions
+
+                            if "file_action" in keymap:
+
+                                counter = 0
+                                validated_file_actions = 0
+
+                                unvalidated_file_actions_ids = []
+
+                                for db_commit in db.commit.find({"vcs_system_id": vcsid}):
+                                    for db_file_action in db.file_action.find(
+                                            {"commit_id": db_commit["_id"]}):
+                                        if not db_file_action["_id"] in unvalidated_file_actions_ids:
+                                            unvalidated_file_actions_ids.append(db_file_action["_id"])
+
+                                for db_commit in db.commit.find({"vcs_system_id": vcsid}):
+
+                                    hex = db_commit["revision_hash"]
+
+                                    online_commit = repo.revparse_single(hex)
+
+                                    SIMILARITY_THRESHOLD = 50
+
+                                    filepath = ''
+                                    filesize = 0
+                                    linesadded = 0
+                                    linesremoved = 0
+                                    fileisbinary = None
+                                    filemode = ''
+
+                                    if online_commit.parents:
+                                        for parent in online_commit.parents:
+                                            diff = repo.diff(parent, online_commit, context_lines=0,
+                                                                        interhunk_lines=1)
+
+                                            opts = pygit2.GIT_DIFF_FIND_RENAMES | pygit2.GIT_DIFF_FIND_COPIES
+                                            diff.find_similar(opts, SIMILARITY_THRESHOLD,
+                                                              SIMILARITY_THRESHOLD)
+
+                                            already_checked_file_paths = set()
+                                            for patch in diff:
+
+                                                # Only if the filepath was not processed before, add new file
+                                                if patch.delta.new_file.path in already_checked_file_paths:
+                                                    continue
+
+                                                # Check change mode
+                                                mode = 'X'
+                                                if patch.delta.status == 1:
+                                                    mode = 'A'
+                                                elif patch.delta.status == 2:
+                                                    mode = 'D'
+                                                elif patch.delta.status == 3:
+                                                    mode = 'M'
+                                                elif patch.delta.status == 4:
+                                                    mode = 'R'
+                                                elif patch.delta.status == 5:
+                                                    mode = 'C'
+                                                elif patch.delta.status == 6:
+                                                    mode = 'I'
+                                                elif patch.delta.status == 7:
+                                                    mode = 'U'
+                                                elif patch.delta.status == 8:
+                                                    mode = 'T'
+
+                                                #changed_file = FileModel(patch.delta.new_file.path,
+                                                #                         patch.delta.new_file.size,
+                                                #                         patch.line_stats[1], patch.line_stats[2],
+                                                #                         patch.delta.is_binary, mode,
+                                                #                         self.create_hunks(patch.hunks))
+                                                filepath = patch.delta.new_file.path
+                                                filesize = patch.delta.new_file.size
+                                                linesadded = patch.line_stats[1]
+                                                linesremoved = patch.line_stats[2]
+                                                fileisbinary = patch.delta.is_binary
+                                                filemode = mode
+
+                                                #print("path: " + filepath + " size: " + str(
+                                                #    filesize) + " added: " + str(
+                                                #    linesadded) + " removed: " + str(
+                                                #    linesremoved) + " binary: " + str(
+                                                #    fileisbinary) + " mode: " + filemode)
+
+                                                counter+= 1
+
+                                                # only add oldpath if file was copied/renamed
+                                                #if mode in ['C', 'R']:
+                                                #    changed_file.oldPath = patch.delta.old_file.path
+
+                                                already_checked_file_paths.add(patch.delta.new_file.path)
+                                                #changed_files.append(changed_file)
+
+                                                for db_file_action in db.file_action.find(
+                                                        {"commit_id": db_commit["_id"]}):
+
+                                                    db_file = db.file.find_one({"_id": db_file_action["file_id"]})
+
+                                                    identical = True
+
+                                                    if not filepath == db_file["path"]:
+                                                        #if identical:
+                                                        #    print("1 " + filepath + " " + db_file["path"])
+                                                        identical = False
+                                                    if not filesize == db_file_action["size_at_commit"]:
+                                                        #if identical:
+                                                        #    print("2 " + str(filesize) + " " + str(
+                                                        #        db_file_action["size_at_commit"]))
+                                                        identical = False
+                                                    if not linesadded == db_file_action["lines_added"]:
+                                                        #if identical:
+                                                        #    print("3 " + str(linesadded) + " " + str(
+                                                        #        db_file_action["lines_added"]))
+                                                        identical = False
+                                                    if not linesremoved == db_file_action["lines_deleted"]:
+                                                        #if identical:
+                                                        #    print("4 " + str(linesremoved) + " " + str(
+                                                        #       db_file_action["lines_deleted"]))
+                                                        identical = False
+                                                    if not fileisbinary == db_file_action["is_binary"]:
+                                                        #if identical:
+                                                        #    print("5 " + str(fileisbinary) + " " + str(
+                                                        #        db_file_action["is_binary"]))
+                                                        identical = False
+                                                    if not filemode == db_file_action["mode"]:
+                                                        #if identical:
+                                                        #    print("6 " + filemode + " " + db_file_action["mode"])
+                                                        identical = False
+
+                                                    if identical:
+                                                        validated_file_actions += 1
+                                                        unvalidated_file_actions_ids.remove(db_file_action["_id"])
+
+                                    else:
+                                        diff = online_commit.tree.diff_to_tree(context_lines=0, interhunk_lines=1)
+
+                                        for patch in diff:
+                                            #changed_file = FileModel(patch.delta.old_file.path,
+                                            #                         patch.delta.old_file.size,
+                                            #                         patch.line_stats[2], patch.line_stats[1],
+                                            #                         patch.delta.is_binary, 'A',
+                                            #                         self.create_hunks(patch.hunks, True))
+                                            #changed_files.append(changed_file)
+
+                                            filepath = patch.delta.new_file.path
+                                            filesize = patch.delta.new_file.size
+                                            linesadded = patch.line_stats[1]
+                                            linesremoved = patch.line_stats[2]
+                                            fileisbinary = patch.delta.is_binary
+                                            filemode = 'A'
+
+                                            #print("path: " + filepath + " size: " + str(
+                                            #    filesize) + " added: " + str(
+                                            #    linesadded) + " removed: " + str(
+                                            #    linesremoved) + " binary: " + str(
+                                            #    fileisbinary) + " mode: " + filemode)
+
+                                            counter+= 1
+
+                                            for db_file_action in db.file_action.find({"commit_id": db_commit["_id"]}):
+
+                                                db_file = db.file.find_one({"_id": db_file_action["file_id"]})
+
+                                                identical = True
+
+                                                #for initial commit filesize and linesadded never match but checking filepath should be enough
+                                                if not filepath == db_file["path"]:
+                                                    #if identical:
+                                                    #    print("1 " + filepath + " " + db_file["path"])
+                                                    identical = False
+                                                #if not filesize == db_file_action["size_at_commit"]:
+                                                #    if identical:
+                                                #        print("2 " + str(filesize) + " " + str(
+                                                #            db_file_action["size_at_commit"]))
+                                                #    identical = False
+                                                #if not linesadded == db_file_action["lines_added"]:
+                                                #    if identical:
+                                                #        print("3 " + str(linesadded) + " " + str(
+                                                #            db_file_action["lines_added"]))
+                                                #    identical = False
+                                                #if not linesremoved == db_file_action["lines_deleted"]:
+                                                #    if identical:
+                                                #        print("4 " + str(linesremoved) + " " + str(
+                                                #            db_file_action["lines_deleted"]))
+                                                #    identical = False
+                                                if not fileisbinary == db_file_action["is_binary"]:
+                                                    if identical:
+                                                        print("5 " + str(fileisbinary) + " " + str(
+                                                            db_file_action["is_binary"]))
+                                                    identical = False
+                                                if not filemode == db_file_action["mode"]:
+                                                    if identical:
+                                                        print("6 " + filemode + " " + db_file_action["mode"])
+                                                    identical = False
+
+                                                if identical:
+                                                    validated_file_actions += 1
+                                                    unvalidated_file_actions_ids.remove(db_file_action["_id"])
+
+                            print("fileactions found: " + str(counter)
+                                  + " validated_file_actions: " + str(validated_file_actions))
+                            for id in unvalidated_file_actions_ids:
+                                db_file_action = db.file_action.find_one({"_id":id})
+                                db_file = db.file.find_one({"_id": db_file_action["file_id"]})
+                                commit_id = db_file_action["commit_id"]
+                                db_commit = db.commit.find_one({"_id":commit_id})
+                                #print("unvalidated: " + db_file["path"] + " " +str(db_file_action["size_at_commit"]))
+                                print("unvalidated for commit: " + db_commit["message"])
+
+
+
                         if os.path.isdir(path):
                             shutil.rmtree(path)
                             print(proj.name + " clone deleted")
