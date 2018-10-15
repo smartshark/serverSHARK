@@ -294,7 +294,6 @@ def delete_project_data(request):
 
     project = projects[0]
     # Start of the deletion process
-    plugin_path = settings.LOCALQUEUE['plugin_installation']
 
     # Collect all schemas
     schemas = getPlugins()
