@@ -410,7 +410,7 @@ class SmartsharkUser(models.Model):
 
 class ProjectMongo(models.Model):
     project = models.OneToOneField(Project)
-    executed_plugins = models.ManyToManyField(Plugin, blank=True, editable=False)
+    executed_plugins = models.TextField(max_length=500, default=None, null=True, blank= True)
     vcs_id = models.CharField(max_length=50, default=None, null=True, blank=True)
     issue_id = models.CharField(max_length=50, default=None,  null=True, blank=True)
     mailing_id = models.CharField(max_length=50, default=None, null=True, blank=True)

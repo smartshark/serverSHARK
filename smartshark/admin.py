@@ -314,7 +314,7 @@ class ProjectAdmin(admin.ModelAdmin):
 
 
 class ProjectMongoAdmin(admin.ModelAdmin):
-    list_display = ('project', 'validation')
+    list_display = ('project', 'executed_plugins','validation')
     actions = ['crawler']
 
     def crawler(self, request, queryset):
@@ -337,10 +337,7 @@ class ProjectMongoAdmin(admin.ModelAdmin):
                 for subdoc in doc["collections"]:
                     for subsubdoc in subdoc["fields"]:
                         if "reference_to" in subsubdoc:
-                        #print(current_collection.name + "_id")
-                        #if current_collection.name + "_id" in subsubdoc:
                             if (subsubdoc["reference_to"] == current_collection.name):
-                            #if (subsubdoc[current_collection.name + "_id"] == current_collection.name + "_id"):
                                 found_collection = db[subdoc["collection_name"]]
                                 if not (found_collection in open_collections):
                                     if not (found_collection in visited_collections):
@@ -363,9 +360,10 @@ class ProjectMongoAdmin(admin.ModelAdmin):
             if col.name not in keymap:
                 keymap[col.name] = []
 
-        print("collections in keymap:")
-        for key in keymap:
-            print(key, ':', keymap[key])
+        # print out the detected database structure
+        # print("collections in keymap:")
+        # for key in keymap:
+        #     print(key, ':', keymap[key])
 
         for projmongo in queryset:
             proj = projmongo.project
@@ -382,6 +380,9 @@ class ProjectMongoAdmin(admin.ModelAdmin):
 
                         url = vcsdoc["url"]
                         vcsid = vcsdoc["_id"]
+                        projmongo.vcs_id = vcsid
+                        projmongo.executed_plugins = "vcsSHARK"
+                        projmongo.save()
 
                         repourl = "git" + url[5:]
 
@@ -393,8 +394,6 @@ class ProjectMongoAdmin(admin.ModelAdmin):
 
                         if not repo.is_empty:
 
-                            print(proj.name + " is not empty")
-
                             db_commit_hexs = []
                             for db_commit in db.commit.find({"vcs_system_id": vcsid}):
                                 db_commit_hexs.append(db_commit["revision_hash"])
@@ -404,10 +403,6 @@ class ProjectMongoAdmin(admin.ModelAdmin):
                             commit_count = 0
 
                             for commit in repo.walk(repo.head.target, pygit2.GIT_SORT_TIME):
-                                # print(commit.message)
-                                #if commit.hex in db_commit_hexs:
-                                #    db_commit_hexs.remove(commit.hex)
-                                    # print("removed " + commit.hex)
                                 if not commit.hex in total_commit_hexs:
                                     total_commit_hexs.append(commit.hex)
                                     commit_count+=1
@@ -425,8 +420,6 @@ class ProjectMongoAdmin(admin.ModelAdmin):
                                 # Walk through every child
                                 for child in repo.walk(commit.id,
                                                                   pygit2.GIT_SORT_TIME | pygit2.GIT_SORT_TOPOLOGICAL):
-                                    #if child.hex in db_commit_hexs:
-                                    #    db_commit_hexs.remove(child.hex)
                                     if not child.hex in total_commit_hexs:
                                         total_commit_hexs.append(child.hex)
                                         commit_count += 1
@@ -435,25 +428,10 @@ class ProjectMongoAdmin(admin.ModelAdmin):
                                 if hex in db_commit_hexs:
                                     db_commit_hexs.remove(hex)
 
-                            print("commits in db: " + str(db_commit_count) + " unmatched commits: " + str(len(db_commit_hexs)) + " commits found online: " + str(len(total_commit_hexs)) + " commits missing in db: " + str(commit_count))
-
                             projmongo.validation = ("commits in db: " + str(db_commit_count) + " unmatched commits: " + str(len(db_commit_hexs)) + " commits found online: " + str(len(total_commit_hexs)) + " commits missing in db: " + str(commit_count))
                             projmongo.save()
 
-                            if(len(db_commit_hexs)>0):
-                                print(str(len(db_commit_hexs)) + " unmatched commits in db. " + str(db_commit_count) + " commits matched.")
-                                for hex in db_commit_hexs:
-                                    print(hex)
-
-                            if(len(db_commit_hexs)==0):
-                                print("All " + str(db_commit_count) + " commits in db matched")
-
-                            if(commit_count>db_commit_count):
-                                print(str(commit_count-db_commit_count) + " commits not in db")
-
-
-                            #validate fileactions
-
+                            # validate fileactions
                             if "file_action" in keymap:
 
                                 counter = 0
@@ -517,11 +495,6 @@ class ProjectMongoAdmin(admin.ModelAdmin):
                                                 elif patch.delta.status == 8:
                                                     mode = 'T'
 
-                                                #changed_file = FileModel(patch.delta.new_file.path,
-                                                #                         patch.delta.new_file.size,
-                                                #                         patch.line_stats[1], patch.line_stats[2],
-                                                #                         patch.delta.is_binary, mode,
-                                                #                         self.create_hunks(patch.hunks))
                                                 filepath = patch.delta.new_file.path
                                                 filesize = patch.delta.new_file.size
                                                 linesadded = patch.line_stats[1]
@@ -529,20 +502,9 @@ class ProjectMongoAdmin(admin.ModelAdmin):
                                                 fileisbinary = patch.delta.is_binary
                                                 filemode = mode
 
-                                                #print("path: " + filepath + " size: " + str(
-                                                #    filesize) + " added: " + str(
-                                                #    linesadded) + " removed: " + str(
-                                                #    linesremoved) + " binary: " + str(
-                                                #    fileisbinary) + " mode: " + filemode)
-
                                                 counter+= 1
 
-                                                # only add oldpath if file was copied/renamed
-                                                #if mode in ['C', 'R']:
-                                                #    changed_file.oldPath = patch.delta.old_file.path
-
                                                 already_checked_file_paths.add(patch.delta.new_file.path)
-                                                #changed_files.append(changed_file)
 
                                                 for db_file_action in db.file_action.find(
                                                         {"commit_id": db_commit["_id"]}):
@@ -552,32 +514,16 @@ class ProjectMongoAdmin(admin.ModelAdmin):
                                                     identical = True
 
                                                     if not filepath == db_file["path"]:
-                                                        #if identical:
-                                                        #    print("1 " + filepath + " " + db_file["path"])
                                                         identical = False
                                                     if not filesize == db_file_action["size_at_commit"]:
-                                                        #if identical:
-                                                        #    print("2 " + str(filesize) + " " + str(
-                                                        #        db_file_action["size_at_commit"]))
                                                         identical = False
                                                     if not linesadded == db_file_action["lines_added"]:
-                                                        #if identical:
-                                                        #    print("3 " + str(linesadded) + " " + str(
-                                                        #        db_file_action["lines_added"]))
                                                         identical = False
                                                     if not linesremoved == db_file_action["lines_deleted"]:
-                                                        #if identical:
-                                                        #    print("4 " + str(linesremoved) + " " + str(
-                                                        #       db_file_action["lines_deleted"]))
                                                         identical = False
                                                     if not fileisbinary == db_file_action["is_binary"]:
-                                                        #if identical:
-                                                        #    print("5 " + str(fileisbinary) + " " + str(
-                                                        #        db_file_action["is_binary"]))
                                                         identical = False
                                                     if not filemode == db_file_action["mode"]:
-                                                        #if identical:
-                                                        #    print("6 " + filemode + " " + db_file_action["mode"])
                                                         identical = False
 
                                                     if identical:
@@ -588,12 +534,6 @@ class ProjectMongoAdmin(admin.ModelAdmin):
                                         diff = online_commit.tree.diff_to_tree(context_lines=0, interhunk_lines=1)
 
                                         for patch in diff:
-                                            #changed_file = FileModel(patch.delta.old_file.path,
-                                            #                         patch.delta.old_file.size,
-                                            #                         patch.line_stats[2], patch.line_stats[1],
-                                            #                         patch.delta.is_binary, 'A',
-                                            #                         self.create_hunks(patch.hunks, True))
-                                            #changed_files.append(changed_file)
 
                                             filepath = patch.delta.new_file.path
                                             filesize = patch.delta.new_file.size
@@ -601,12 +541,6 @@ class ProjectMongoAdmin(admin.ModelAdmin):
                                             linesremoved = patch.line_stats[2]
                                             fileisbinary = patch.delta.is_binary
                                             filemode = 'A'
-
-                                            #print("path: " + filepath + " size: " + str(
-                                            #    filesize) + " added: " + str(
-                                            #    linesadded) + " removed: " + str(
-                                            #    linesremoved) + " binary: " + str(
-                                            #    fileisbinary) + " mode: " + filemode)
 
                                             counter+= 1
 
@@ -618,265 +552,26 @@ class ProjectMongoAdmin(admin.ModelAdmin):
 
                                                 #for initial commit filesize and linesadded never match but checking filepath should be enough
                                                 if not filepath == db_file["path"]:
-                                                    #if identical:
-                                                    #    print("1 " + filepath + " " + db_file["path"])
                                                     identical = False
-                                                #if not filesize == db_file_action["size_at_commit"]:
-                                                #    if identical:
-                                                #        print("2 " + str(filesize) + " " + str(
-                                                #            db_file_action["size_at_commit"]))
+                                                #if not fileisbinary == db_file_action["is_binary"]:
                                                 #    identical = False
-                                                #if not linesadded == db_file_action["lines_added"]:
-                                                #    if identical:
-                                                #        print("3 " + str(linesadded) + " " + str(
-                                                #            db_file_action["lines_added"]))
-                                                #    identical = False
-                                                #if not linesremoved == db_file_action["lines_deleted"]:
-                                                #    if identical:
-                                                #        print("4 " + str(linesremoved) + " " + str(
-                                                #            db_file_action["lines_deleted"]))
-                                                #    identical = False
-                                                if not fileisbinary == db_file_action["is_binary"]:
-                                                    if identical:
-                                                        print("5 " + str(fileisbinary) + " " + str(
-                                                            db_file_action["is_binary"]))
-                                                    identical = False
                                                 if not filemode == db_file_action["mode"]:
-                                                    if identical:
-                                                        print("6 " + filemode + " " + db_file_action["mode"])
                                                     identical = False
 
                                                 if identical:
                                                     validated_file_actions += 1
                                                     unvalidated_file_actions_ids.remove(db_file_action["_id"])
 
-                            print("fileactions found: " + str(counter)
-                                  + " validated_file_actions: " + str(validated_file_actions))
-                            for id in unvalidated_file_actions_ids:
-                                db_file_action = db.file_action.find_one({"_id":id})
-                                db_file = db.file.find_one({"_id": db_file_action["file_id"]})
-                                commit_id = db_file_action["commit_id"]
-                                db_commit = db.commit.find_one({"_id":commit_id})
-                                #print("unvalidated: " + db_file["path"] + " " +str(db_file_action["size_at_commit"]))
-                                print("unvalidated for commit: " + db_commit["message"])
-
-
+                                projmongo.validation+=(" file_actions found: " + str(counter) + " unvalidated file_actions: " + str(len(unvalidated_file_actions_ids)))
+                                projmongo.save()
 
                         if os.path.isdir(path):
                             shutil.rmtree(path)
-                            print(proj.name + " clone deleted")
 
             else:
                 print(proj.name + " not found in database")
 
-    """
-        if "commit" in keymap:
-
-            for proj in queryset:
-
-                projectmap = dict()
-                commitcount = 0
-                last_updated = []
-                ces_missing = -1
-
-                if (project.find({"name": proj.name}).count() > 0):
-                    print("found " + proj.name + " in project collection")
-                    projdoc = project.find_one({"name": proj.name})
-                    projectmap["project"] = [projdoc["_id"]]
-
-                    projectmap["vcs_system"] = []
-                    git_url = ""
-
-                    for doc in db.vcs_system.find():
-                        if doc["project_id"] in projectmap["project"]:
-                            projectmap["vcs_system"].append(doc["_id"])
-                            last_updated.append(doc["last_updated"])
-                            url = doc["url"]
-
-                    if "code_entity_state" in keymap:
-
-                        ces_missing = 0
-                        node_count_missing = 0
-
-                        for vcs_id in projectmap["vcs_system"]:
-
-                            for commit in db.commit.find({"vcs_system_id": vcs_id}):
-                                ces_count = 0
-                                ces_count = db.code_entity_state.find({"commit_id": commit["_id"]}).count()
-                                #for ces in db.code_entity_state.find({"commit_id": commit["_id"]}):
-                                if ces_count == 0:
-                                    ces_missing+= 1
-                                for ces in db.code_entity_state.find({"commit_id": commit["_id"]}):
-                                    if not ces["metrics"]["node_count"]>0:
-                                        node_count_missing+= 1
-
-
-                    for vcs_id in projectmap["vcs_system"]:
-                        commitcount+= db.commit.find({"vcs_system_id": vcs_id}).count()
-
-
-                    # TODO: add try except and dynamic url generation from mongodb
-                    github_baseurl = "https://api.github.com/repos/"
-                    repo = url[19:]
-
-                    contributors_url = github_baseurl + repo + "/contributors"
-                    commit_head_url = github_baseurl + repo + "/git/refs/heads/master"
-                    commit_url = github_baseurl + repo + "/commits/"
-
-                    #'https://api.github.com/repos/openintents/safe/contributors'
-                    req = requests.get(contributors_url)
-                    data = req.json()
-                    online_commitcount = 0
-                    for contributor in data:
-                        online_commitcount+= contributor['contributions']
-                        online_commitcount+= 1
-
-                    #'https://api.github.com/repos/openintents/safe/git/refs/heads/master'
-                    req = requests.get(commit_head_url)
-                    data = req.json()
-                    #print(data)
-                    sha = data["object"]["sha"]
-                    #for ref in data:
-                    #        sha = ref["object"]["sha"]
-
-                    req = requests.get((commit_url + sha))
-                    data = req.json()
-                    newest_update = data['commit']['author']['date']
-                    newest_update_format = datetime.datetime.strptime(newest_update, "%Y-%m-%dT%H:%M:%SZ")
-
-                    #req = requests.post('https://api.github.com/repos/openintents/safe/contributors', json={'query' : query})
-
-
-                        #for doc in db["commit"]:
-                           # if doc["vcs_system_id"] in projectmap["vcs_system"]:
-                    new_executions = ""
-                    new_executions = "Found commits: " + str(commitcount)
-                    new_executions+= "/" + str(online_commitcount)
-                    new_executions+= " last updates: "
-                    for date in last_updated:
-                        new_executions+= date.strftime("%B %d, %Y")
-                        new_executions+= " "
-                    new_executions+= "newest release: "
-                    new_executions+= newest_update_format.strftime("%B %d, %Y")
-
-                    if ces_missing>= 0:
-                        new_executions+=  " commits without any code_entity_states: " + str(ces_missing)
-
-                    if node_count_missing>=0:
-                        new_executions+= " code_entity_states without node_count: " + str(node_count_missing)
-
-                    proj.executions = new_executions
-                    proj.save()
-    """
-
-    """
-        for proj in queryset:
-            projectmap = dict()
-            if(project.find({"name": proj.name}).count()>0):
-                print("found " + proj.name + " in project collection")
-                open_collections = []
-                open_collections.append(project)
-                projdoc = project.find_one({"name" : proj.name})
-                projectmap["project"] = [projdoc["_id"]]
-                visited_collections = []
-                while(len(open_collections)!=0):
-                    current_collection = open_collections.pop()
-                    for collection_name in keymap[current_collection.name]:
-                        found_collection = db[collection_name]
-                        if not (found_collection in open_collections):
-                            if not (found_collection in visited_collections):
-                                open_collections.append(found_collection)
-                                if current_collection.name in projectmap:
-                                    for id in projectmap[current_collection.name]:
-                                        if (found_collection.find().count()>0):
-                                            for doc in found_collection.find({current_collection.name + "_id": id}):
-                                                if found_collection.name in projectmap:
-                                                    projectmap[found_collection.name].append(doc["_id"])
-                                                else:
-                                                    projectmap[found_collection.name] = [doc["_id"]]
-                                                #print("found for " + proj.name + " in " + found_collection.name + " total: ", len(projectmap[found_collection.name]))
-                                else:
-                                    print("No Data for " + proj.name + " in " + current_collection.name)
-                    visited_collections.append(current_collection)
-            else:
-                print(proj.name + " not found in project collection")
-            new_datacounts = ""
-            print("for Project " + proj.name + " was found:")
-            for key in projectmap:
-                print(key + " count:", len(projectmap[key]))
-            for key in projectmap:
-                count = len(projectmap[key])
-                new_datacounts += key + " : " + str(count) + "\n"
-            proj.datacounts = new_datacounts
-            proj.projectmap = str(projectmap)
-            proj.save()
-        """
-
-    """
-    def update_executions(self, request, queryset):
-        mongoclient = handler.client
-        mongodb = mongoclient.smartshark
-        #plugins = Plugin.objects.all()
-
-        for proj in queryset:
-            #modified = False
-            exelist = []
-
-            #for pl in plugins:
-                # schema = mongodb.plugin_schema.find_one({"plugin": pl})
-
-# find project in mongodb
-            try:
-                mongoproj = mongodb.project.find_one({"name": proj.name})
-                projid = mongoproj["_id"]
-            except TypeError:
-                continue
-# find the vcs_system for the project
-            try:
-                mongovcs = mongodb.vcs_system.find_one({"project_id": projid})
-                if(mongovcs["project_id"]==projid):
-                    if('vcsSHARK' not in exelist):
-                        exelist.append("vcsSHARK")
-                        #modified = True
-            except TypeError:
-                pass
-
-# find the commit from coastshark
-            try:
-                mongovcs = mongodb.vcs_system.find_one({"project_id": projid})
-                vcsid = mongovcs["_id"]
-                mongocommit = mongodb.commit.find_one({"vcs_system_id": vcsid})
-                if (mongocommit["vcs_system_id"]==vcsid):
-                    mongocommitid = mongocommit["_id"]
-                    mongoces = mongodb.code_entity_state.find_one({"commit_id":mongocommitid})
-                    if(mongoces["_id"]==mongocommitid):
-                        if('coastSHARK' not in exelist):
-                            exelist.append("coastSHARK")
-                            #modified = True
-            except TypeError:
-                pass
-
-            if(len(exelist)>0):
-                proj.executions = " ".join(exelist)
-                proj.save()
-
-            else:
-                proj.executions = "None"
-                proj.save
-
-            #if('Keine' in exelist and len(exelist)>1):
-            #    exelist.remove('Keine')
-            #    modified = True
-
-            #if modified:
-            #    proj.executions = " ".join(exelist)
-            #    proj.save()
-
-        return
-
-    update_executions.short_description = 'Check MongoDB for new Pluginexecutions'
-    
-    """
+    crawler.short_description = 'Validate vcsSHARK'
 
 
 admin.site.register(ProjectMongo, ProjectMongoAdmin)
