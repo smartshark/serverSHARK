@@ -1,42 +1,40 @@
 from django.core.management.base import BaseCommand
 from smartshark.models import Project
-from smartshark.views import collection
+from smartshark.utils import projectUtils
 from bson.objectid import ObjectId
 import sys
 
 class Command(BaseCommand):
-    help = 'Closes the specified poll for voting'
+    help = 'Deletes all data of a project'
 
 
     def handle(self, *args, **options):
         for p in Project.objects.all():
             print(p.name)
-        print("Which project should be deleted?")
         try:
-           l = sys.stdin.readline()
-           project = Project.objects.all().get(name=l.strip())
+           l = input("Which project should be deleted?")
+           project = Project.objects.all().get(name=l)
            print("Calculate data tree for ",project.name)
         except Project.DoesNotExist or Project.MultipleObjectsReturned:
            self.stdout.write(self.style.ERROR('Project not found'))
            sys.exit(-1)
 
-        schemas = collection.getPlugins()
+        schemas = projectUtils.getPlugins()
 
         # Analyze the schema
         deb = []
-        x = collection.findDependencyOfSchema('project', schemas.values(), [])
-        schemaProject = collection.SchemaReference('project', '_id', x)
+        x = projectUtils.findDependencyOfSchema('project', schemas.values(), [])
+        schemaProject = projectUtils.SchemaReference('project', '_id', x)
         deb.append(schemaProject)
 
-        collection.countOnDependencyTree(schemaProject,ObjectId(project.mongo_id))
+        projectUtils.countOnDependencyTree(schemaProject,ObjectId(project.mongo_id))
 
         self.printDependencyTree(deb, project)
 
-        print("Continue with data deletion? (y/n)")
-        l = sys.stdin.readline()
-        if(l.strip() == "yes" or l.strip() == "y"):
+        l = input("Continue with data deletion? (y/n)")
+        if(l == "yes" or l == "y"):
 
-            collection.deleteOnDependencyTree(schemaProject,ObjectId(project.mongo_id))
+            projectUtils.deleteOnDependencyTree(schemaProject,ObjectId(project.mongo_id))
             self.stdout.write(self.style.SUCCESS('Successfully deleted project data'))
         else:
             self.stdout.write(self.style.ERROR('No data deleted'))
