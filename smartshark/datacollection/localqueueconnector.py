@@ -115,11 +115,10 @@ class LocalQueueConnector(PluginManagementInterface, BaseConnector):
         for plugin_execution in plugin_executions:
             plugin_command = self._generate_plugin_execution_command(self.plugin_path, plugin_execution)
 
-            # Replace the job queue if the parameter is found
-            self.job_queue = plugin_execution.get_sorted_argument_with_name().get("queue",settings.LOCALQUEUE['job_queue'] )
-            if(self.job_queue == '$queue' or self.job_queue == 'None'):
+            if plugin_execution.job_queue != None:
+                self.job_queue = plugin_execution.job_queue
+            else:
                 self.job_queue = settings.LOCALQUEUE['job_queue']
-
 
             plugin_execution_output_path = os.path.join(self.output_path, str(plugin_execution.pk))
             self._execute_command({'shell': 'mkdir -p {}'.format(plugin_execution_output_path)})

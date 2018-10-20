@@ -33,7 +33,6 @@ class Command(BaseCommand):
 
         l = input("Continue with data deletion? (y/n)")
         if(l == "yes" or l == "y"):
-
             projectUtils.deleteOnDependencyTree(schemaProject,ObjectId(project.mongo_id))
             self.stdout.write(self.style.SUCCESS('Successfully deleted project data'))
         else:

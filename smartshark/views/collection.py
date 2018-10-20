@@ -226,6 +226,8 @@ def start_collection(request):
             execution_type = form.cleaned_data.get('execution', None)
             revisions = form.cleaned_data.get('revisions', None)
             repository_url = form.cleaned_data.get('repository_url', None)
+            job_queue = form.cleaned_data.get("queue", None)
+            cores_per_job = form.cleaned_data.get("cores_per_job", None)
 
             sorted_plugins = order_plugins(plugins)
 
@@ -242,6 +244,10 @@ def start_collection(request):
                     if plugin.plugin_type == 'rev':
                         plugin_execution.execution_type = execution_type
                         plugin_execution.revisions = revisions
+
+                    # Set the job queue and cores_per_job
+                    plugin_execution.job_queue = job_queue
+                    plugin_execution.cores_per_job = cores_per_job
 
                     plugin_execution.save()
                     plugin_executions.append(plugin_execution)

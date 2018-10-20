@@ -56,8 +56,8 @@ def get_form(plugins, post, type):
         EXEC_OPTIONS = (('all', 'Execute on all revisions'), ('error', 'Execute on all revisions with errors'),
                         ('new', 'Execute on new revisions'), ('rev', 'Execute on following revisions:'))
 
+        added_fields = []
         if type == 'execute':
-            added_fields = []
             # Add fields if there are plugins that work on revision level
             rev_plugins = [plugin for plugin in plugins if plugin.plugin_type == 'rev']
             if len(rev_plugins) > 0:
@@ -72,8 +72,14 @@ def get_form(plugins, post, type):
                 plugin_fields['repository_url'] = forms.CharField(label='Repository URL', required=True)
                 added_fields.append('repository_url')
 
-                created_fieldsets.append(['Basis Configuration', {'fields': added_fields}])
 
+        plugin_fields['queue'] = forms.CharField(label='Default job queue', required=False)
+        added_fields.append('queue')
+
+        plugin_fields['cores_per_job'] = forms.CharField(label='Cores per job (HPC only)', required=False)
+        added_fields.append('cores_per_job')
+
+        created_fieldsets.append(['Basis Configuration', {'fields': added_fields}])
         # Create lists for the fieldsets and a list for the fields of the form
         for plugin in plugins:
             arguments=[]
