@@ -1,6 +1,7 @@
 # 0.1.3
 - refactored localqueue and hpc connector common methods to new util module connector
 - include deletion of projects via command
+- fetch commits from mongodb instead of git clone
 
 # 0.1.2
 - updated vagrantfile template to ubuntu 18.04

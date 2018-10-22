@@ -174,5 +174,9 @@ class MongoHandler(object):
             except:
                 pass
 
+    def get_revisions_for_url(self, vcs_system_url):
+        vs = self.client.get_database(self.database).get_collection('vcs_system').find_one({'url': vcs_system_url})
+        return self.client.get_database(self.database).get_collection('commit').find({'vcs_system_id': vs._id}, {'revision_hash': 1})
+
 
 handler = MongoHandler()
