@@ -31,7 +31,7 @@ class Command(BaseCommand):
 
         self._print_dependency_tree(deb, project)
 
-        l = input("Continue with data deletion? (y/n)")
+        l = input("Continue with data deletion? (y/n) ")
         if(l == "yes" or l == "y"):
             projectUtils.deleteOnDependencyTree(project_schema, ObjectId(project.mongo_id))
             self.stdout.write(self.style.SUCCESS('Successfully deleted project data'))
