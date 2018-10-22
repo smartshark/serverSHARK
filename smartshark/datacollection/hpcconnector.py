@@ -7,7 +7,7 @@ import logging
 
 from server.settings import HPC
 
-from smartshark.util.connector import BaseConnector
+from smartshark.utils.connector import BaseConnector
 from smartshark.datacollection.pluginmanagementinterface import PluginManagementInterface
 from smartshark.models import Job
 from smartshark.scp import SCPClient

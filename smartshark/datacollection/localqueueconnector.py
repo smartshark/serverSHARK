@@ -18,7 +18,7 @@ import redis
 
 from django.conf import settings
 
-from smartshark.util.connector import BaseConnector
+from smartshark.utils.connector import BaseConnector
 from smartshark.models import Job
 from smartshark.datacollection.pluginmanagementinterface import PluginManagementInterface
 
