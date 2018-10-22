@@ -1,12 +1,10 @@
-import string
 import os
 import subprocess
-from collections import OrderedDict, defaultdict
+from collections import defaultdict
 
 import pygit2
 import re
 
-from server.settings import DATABASES
 from smartshark.models import Job
 from smartshark.mongohandler import handler
 
@@ -89,6 +87,7 @@ def create_job(plugin_execution, req_jobs, revision_hash=None):
     job.save()
 
     return job
+
 
 def create_jobs_for_execution(project, plugin_executions):
     jobs_temp = defaultdict(list)

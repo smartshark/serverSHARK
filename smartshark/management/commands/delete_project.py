@@ -14,9 +14,9 @@ class Command(BaseCommand):
         try:
             l = input("Which project should be deleted?")
             project = Project.objects.all().get(name__iexact=l)
-            self.stdout.write("Calculate data tree for ", project.name)
+            self.stdout.write("Calculate data tree for {}".format(project.name))
         except (Project.DoesNotExist, Project.MultipleObjectsReturned) as e:
-            self.stdout.write(self.style.ERROR('Error loading project', str(e)))
+            self.stdout.write(self.style.ERROR('Error loading project: {}'.format(e)))
             sys.exit(-1)
 
         schemas = projectUtils.getPlugins()
@@ -41,10 +41,10 @@ class Command(BaseCommand):
     def _print_dependency_tree(self, deb, project):
         self.stdout.write("Project data of ", project.name)
         for dependency in deb:
-            self.stdout.write(dependency.collection_name, " ", "(", dependency.count, ")")
+            self.stdout.write('{} ({})'.format(dependency.collection_name, dependency.count,))
             self._print_sub_dependency(dependency.dependencys, 1)
 
     def _print_sub_dependency(self, deb, depth):
         for dependency in deb:
-            self.stdout.write("  " * (depth - 1), "└──", dependency.collection_name, " ", "(", dependency.count, ")")
+            self.stdout.write('{} └── {} ({})'.format('  ' * (depth - 1), dependency.collection_name, dependency.count))
             self._print_sub_dependency(dependency.dependencys, depth + 1)
