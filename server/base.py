@@ -59,8 +59,7 @@ ROOT_URLCONF = 'server.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [os.path.join(BASE_DIR, 'templates')]
-        ,
+        'DIRS': [os.path.join(BASE_DIR, 'templates')],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -93,7 +92,7 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-SERVERSHARK_VERSION = '0.1.2'
+SERVERSHARK_VERSION = '0.1.3'
 SUIT_CONFIG = {
     'ADMIN_NAME': 'ServerSHARK ' + SERVERSHARK_VERSION,
 }

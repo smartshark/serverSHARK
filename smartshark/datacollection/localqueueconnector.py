@@ -18,52 +18,17 @@ import redis
 
 from django.conf import settings
 
+from smartshark.util.connector import BaseConnector
 from smartshark.models import Job
 from smartshark.datacollection.pluginmanagementinterface import PluginManagementInterface
-
-
-class BaseConnector(object):
-    """Basic connector execution stuff that could be shared between connectors."""
-
-    def _add_parameters_to_install_command(self, path_to_script, plugin):
-        # we may have additional parameters
-        command = path_to_script + " "
-
-        for argument in plugin.argument_set.all().filter(type='install').order_by('position'):
-            # Add none if the value is not set, this needs to be catched in the install.sh of the plugin
-            if not argument.install_value.strip():
-                command += "None"
-            else:
-                command += argument.install_value + " "
-
-        return command
-
-    def _generate_plugin_execution_command(self, plugin_path, plugin_execution):
-        path_to_execute_script = '{}/{}/execute.sh'.format(plugin_path, str(plugin_execution.plugin))
-
-        # we have parmeters!
-        path_to_execute_script += " "
-
-        # Add parameter
-        command = path_to_execute_script + plugin_execution.get_sorted_argument_values()
-
-        # Substitute stuff
-        return string.Template(command).safe_substitute({
-            'db_user': settings.DATABASES['mongodb']['USER'],
-            'db_password': settings.DATABASES['mongodb']['PASSWORD'],
-            'db_database': settings.DATABASES['mongodb']['NAME'],
-            'db_hostname': settings.DATABASES['mongodb']['HOST'],
-            'db_port': settings.DATABASES['mongodb']['PORT'],
-            'db_authentication': settings.DATABASES['mongodb']['AUTHENTICATION_DB'],
-            'project_name': plugin_execution.project.name,
-            'plugin_path': os.path.join(plugin_path, str(plugin_execution.plugin))
-        })
 
 
 class LocalQueueConnector(PluginManagementInterface, BaseConnector):
     """Feeds jobs into a local redis queue.
 
     The purpose is mainly for running a local instance of ServerSHARK for debugging purposes.
+
+    Does not support 'queue' and 'cores_per_job' params from plugin execution!
     """
 
     def __init__(self):
@@ -93,7 +58,6 @@ class LocalQueueConnector(PluginManagementInterface, BaseConnector):
         """
         self._log.info('Preparing project...')
 
-
         # this try/catch is used to catch other executions which do not have a project
         all_projects = False
         try:
@@ -105,7 +69,7 @@ class LocalQueueConnector(PluginManagementInterface, BaseConnector):
             all_projects = True
 
         # prepare project with this information
-        # TODO: Fails on multiple repositories for one project in the same plugin_execution list        
+        # TODO: Fails on multiple repositories for one project in the same plugin_execution list
         if not all_projects:
             git_clone_target = os.path.join(self.project_path, project_name)
             self._delete_sanity_check(git_clone_target)
@@ -114,11 +78,6 @@ class LocalQueueConnector(PluginManagementInterface, BaseConnector):
 
         for plugin_execution in plugin_executions:
             plugin_command = self._generate_plugin_execution_command(self.plugin_path, plugin_execution)
-
-            if plugin_execution.job_queue != None:
-                self.job_queue = plugin_execution.job_queue
-            else:
-                self.job_queue = settings.LOCALQUEUE['job_queue']
 
             plugin_execution_output_path = os.path.join(self.output_path, str(plugin_execution.pk))
             self._execute_command({'shell': 'mkdir -p {}'.format(plugin_execution_output_path)})
