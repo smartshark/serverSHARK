@@ -12,7 +12,7 @@ class Command(BaseCommand):
         for p in Project.objects.all():
             self.stdout.write(p.name)
         try:
-            l = input("Which project should be deleted?")
+            l = input("Which project should be deleted? ")
             project = Project.objects.all().get(name__iexact=l)
             self.stdout.write("Calculate data tree for {}".format(project.name))
         except (Project.DoesNotExist, Project.MultipleObjectsReturned) as e:
@@ -39,9 +39,9 @@ class Command(BaseCommand):
             self.stdout.write(self.style.ERROR('No data deleted'))
 
     def _print_dependency_tree(self, deb, project):
-        self.stdout.write("Project data of ", project.name)
+        self.stdout.write("Project data of {}".format(project.name))
         for dependency in deb:
-            self.stdout.write('{} ({})'.format(dependency.collection_name, dependency.count,))
+            self.stdout.write('{} ({})'.format(dependency.collection_name, dependency.count))
             self._print_sub_dependency(dependency.dependencys, 1)
 
     def _print_sub_dependency(self, deb, depth):
