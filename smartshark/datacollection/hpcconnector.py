@@ -132,6 +132,20 @@ class HPCConnector(PluginManagementInterface):
         commands = []
         for plugin_execution in plugin_executions:
             plugin_command = self.generate_plugin_execution_command(plugin_execution)
+
+            # Job Queue
+            if plugin_execution.job_queue != None:
+                self.queue = plugin_execution.job_queue
+            else:
+                self.queue = HPC['queue']
+
+            # Cores per Job
+            if plugin_execution.cores_per_job != None:
+                self.cores_per_job = plugin_execution.cores_per_job
+            else:
+                self.cores_per_job = HPC['cores_per_job']
+
+
             jobs = Job.objects.filter(plugin_execution=plugin_execution).all()
             plugin_execution_output_path = os.path.join(self.log_path, str(plugin_execution.id))
             self.execute_command('mkdir %s' % plugin_execution_output_path, ignore_errors=True)

@@ -127,6 +127,8 @@ SUBSTITUTIONS = {
     'plugin_path': {'name': '$plugin_path', 'description': 'path to the plugins root folder'},
     'project_name': {'name': '$project_name', 'description': 'Name of the project'},
     'revision': {'name': '$revision', 'description': 'revision hash of the revision which is processed'},
+    'queue': {'name': '$queue', 'description': 'default job queue'},
+    'cores_per_job': {'name': '$cores_per_job', 'description': 'cores per job (HPC only)'},
 }
 
 LOGGING = {

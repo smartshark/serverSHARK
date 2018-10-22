@@ -93,6 +93,7 @@ class LocalQueueConnector(PluginManagementInterface, BaseConnector):
         """
         self._log.info('Preparing project...')
 
+
         # this try/catch is used to catch other executions which do not have a project
         all_projects = False
         try:
@@ -113,6 +114,11 @@ class LocalQueueConnector(PluginManagementInterface, BaseConnector):
 
         for plugin_execution in plugin_executions:
             plugin_command = self._generate_plugin_execution_command(self.plugin_path, plugin_execution)
+
+            if plugin_execution.job_queue != None:
+                self.job_queue = plugin_execution.job_queue
+            else:
+                self.job_queue = settings.LOCALQUEUE['job_queue']
 
             plugin_execution_output_path = os.path.join(self.output_path, str(plugin_execution.pk))
             self._execute_command({'shell': 'mkdir -p {}'.format(plugin_execution_output_path)})
