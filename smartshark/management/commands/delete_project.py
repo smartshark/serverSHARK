@@ -33,8 +33,12 @@ class Command(BaseCommand):
 
         l = input("Continue with data deletion? (y/n) ")
         if(l == "yes" or l == "y"):
+            self.stdout.write('Deleting project from the MongoDB')
             projectUtils.deleteOnDependencyTree(project_schema, ObjectId(project.mongo_id))
-            self.stdout.write(self.style.SUCCESS('Successfully deleted project data'))
+            self.stdout.write(self.style.SUCCESS('Successfully deleted project from the MongoDB'))
+            self.stdout.write('Deleting project from the serverSHARK')
+            project.delete()
+            self.stdout.write(self.style.SUCCESS('Successfully deleted project from the serverSHARK'))
         else:
             self.stdout.write(self.style.ERROR('No data deleted'))
 
