@@ -101,7 +101,7 @@ class HPCConnector(PluginManagementInterface, BaseConnector):
         return full_cmd
 
     def get_sent_bash_command(self, job):
-        plugin_command = self._generate_plugin_execution_command(job.plugin_execution)
+        plugin_command = self._generate_plugin_execution_command(self.plugin_path, job.plugin_execution)
         plugin_execution_output_path = os.path.join(self.log_path, str(job.plugin_execution.id))
         return self.generate_bsub_command(plugin_command, job, plugin_execution_output_path)
 
@@ -113,7 +113,7 @@ class HPCConnector(PluginManagementInterface, BaseConnector):
         logger.info('Generating bsub script...')
         commands = []
         for plugin_execution in plugin_executions:
-            plugin_command = self._generate_plugin_execution_command(plugin_execution)
+            plugin_command = self._generate_plugin_execution_command(self.plugin_path, plugin_execution)
 
             # Job Queue
             if plugin_execution.job_queue != None:

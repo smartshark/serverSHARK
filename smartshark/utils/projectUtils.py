@@ -42,7 +42,7 @@ def findDependencyOfSchema(name, schemas, ground_dependencys=[]):
 
 def countOnDependencyTree(tree, parent_id):
     #print(handler.database)
-    query = handler.client.get_database(handler.database).get_collection(tree.collection_name).find({tree.field: parent_id})
+    query = handler.client.get_database(handler.database).get_collection(tree.collection_name).find({tree.field: parent_id}, {'_id': 1})
     count = query.count()
     # print(tree.collection_name)
     tree.count = tree.count + count
@@ -53,7 +53,7 @@ def countOnDependencyTree(tree, parent_id):
             countOnDependencyTree(deb,object.get('_id'))
 
 def deleteOnDependencyTree(tree, parent_id):
-    query = handler.client.get_database(handler.database).get_collection(tree.collection_name).find({tree.field: parent_id})
+    query = handler.client.get_database(handler.database).get_collection(tree.collection_name).find({tree.field: parent_id}, {'_id': 1})
     count = query.count()
     # print(tree.collection_name)
     tree.count = tree.count + count
