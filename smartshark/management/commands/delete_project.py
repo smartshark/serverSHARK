@@ -1,8 +1,13 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+import sys
+
 from django.core.management.base import BaseCommand
+from bson.objectid import ObjectId
+
 from smartshark.models import Project
 from smartshark.utils import projectUtils
-from bson.objectid import ObjectId
-import sys
 
 
 class Command(BaseCommand):
@@ -27,14 +32,13 @@ class Command(BaseCommand):
         project_schema = projectUtils.SchemaReference('project', '_id', x)
         deb.append(project_schema)
 
-        projectUtils.countOnDependencyTree(project_schema, ObjectId(project.mongo_id))
-
+        projectUtils.count_on_dependency_tree(project_schema, ObjectId(project.mongo_id))
         self._print_dependency_tree(deb, project)
 
         l = input("Continue with data deletion? (y/n) ")
         if(l == "yes" or l == "y"):
             self.stdout.write('Deleting project from the MongoDB')
-            projectUtils.deleteOnDependencyTree(project_schema, ObjectId(project.mongo_id))
+            projectUtils.delete_on_dependency_tree(project_schema, ObjectId(project.mongo_id))
             self.stdout.write(self.style.SUCCESS('Successfully deleted project from the MongoDB'))
             self.stdout.write('Deleting project from the serverSHARK')
             project.delete()

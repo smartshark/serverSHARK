@@ -1,5 +1,6 @@
 from smartshark.mongohandler import handler
 
+
 def getPlugins():
     # Load the tables directly from the MongoDB
     schemas = {}
@@ -27,6 +28,7 @@ def getPlugins():
     #            schemas.append(json_data)
     return schemas
 
+
 def findDependencyOfSchema(name, schemas, ground_dependencys=[]):
     dependencys = []
     for schema in schemas:
@@ -40,9 +42,34 @@ def findDependencyOfSchema(name, schemas, ground_dependencys=[]):
 
     return dependencys
 
+
+def count_on_dependency_tree(tree, parent_id):
+
+    ids = handler.client.get_database(handler.database).get_collection(tree.collection_name).find({tree.field: parent_id}).distinct('_id')
+    count = len(ids)
+
+    tree.count = tree.count + count
+    for _id in ids:
+        for deb in tree.dependencys:
+            count_on_dependency_tree(deb, _id)
+
+
+def delete_on_dependency_tree(tree, parent_id):
+
+    ids = handler.client.get_database(handler.database).get_collection(tree.collection_name).find({tree.field: parent_id}).distinct('_id')
+    count = len(ids)
+
+    tree.count = tree.count + count
+    for _id in ids:
+        for deb in tree.dependencys:
+            delete_on_dependency_tree(deb, _id)
+
+    handler.client.get_database(handler.database).get_collection(tree.collection_name).delete_many({tree.field: parent_id})
+
+
 def countOnDependencyTree(tree, parent_id):
     #print(handler.database)
-    query = handler.client.get_database(handler.database).get_collection(tree.collection_name).find({tree.field: parent_id}, {'_id': 1})
+    query = handler.client.get_database(handler.database).get_collection(tree.collection_name).find({tree.field: parent_id})
     count = query.count()
     # print(tree.collection_name)
     tree.count = tree.count + count
@@ -52,8 +79,9 @@ def countOnDependencyTree(tree, parent_id):
         for deb in tree.dependencys:
             countOnDependencyTree(deb,object.get('_id'))
 
+
 def deleteOnDependencyTree(tree, parent_id):
-    query = handler.client.get_database(handler.database).get_collection(tree.collection_name).find({tree.field: parent_id}, {'_id': 1})
+    query = handler.client.get_database(handler.database).get_collection(tree.collection_name).find({tree.field: parent_id})
     count = query.count()
     # print(tree.collection_name)
     tree.count = tree.count + count
@@ -65,6 +93,7 @@ def deleteOnDependencyTree(tree, parent_id):
     # Delete finally
     #if(tree.collection_name != 'project'):
     handler.client.get_database(handler.database).get_collection(tree.collection_name).delete_many({tree.field: parent_id})
+
 
 class SchemaReference:
 
