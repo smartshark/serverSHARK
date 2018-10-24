@@ -116,16 +116,16 @@ class HPCConnector(PluginManagementInterface, BaseConnector):
             plugin_command = self._generate_plugin_execution_command(self.plugin_path, plugin_execution)
 
             # Job Queue
-            if plugin_execution.job_queue != None:
-                self.queue = plugin_execution.job_queue
-            else:
-                self.queue = HPC['queue']
+            # if plugin_execution.job_queue != None:
+            #     self.queue = plugin_execution.job_queue
+            # else:
+            #     self.queue = HPC['queue']
 
-            # Cores per Job
-            if plugin_execution.cores_per_job != None:
-                self.cores_per_job = plugin_execution.cores_per_job
-            else:
-                self.cores_per_job = HPC['cores_per_job']
+            # # Cores per Job
+            # if plugin_execution.cores_per_job != None:
+            #     self.cores_per_job = plugin_execution.cores_per_job
+            # else:
+            #     self.cores_per_job = HPC['cores_per_job']
 
             jobs = Job.objects.filter(plugin_execution=plugin_execution).all()
             plugin_execution_output_path = os.path.join(self.log_path, str(plugin_execution.id))
