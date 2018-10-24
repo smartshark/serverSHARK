@@ -4,7 +4,7 @@
 import sys
 
 from django.core.management.base import BaseCommand
-from django.db import connection
+from django.db import connections
 from bson.objectid import ObjectId
 
 from smartshark.models import Project
@@ -42,7 +42,7 @@ class Command(BaseCommand):
             projectUtils.delete_on_dependency_tree(project_schema, ObjectId(project.mongo_id))
             self.stdout.write(self.style.SUCCESS('Successfully deleted project from the MongoDB'))
 
-            connection.close()
+            connections['default'].close()
 
             self.stdout.write('Deleting project from the serverSHARK')
             project.delete()
