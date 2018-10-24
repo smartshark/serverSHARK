@@ -158,31 +158,46 @@ LOGGING = {
             'class': 'logging.StreamHandler',
             'formatter': 'simple'
         },
-        'development_logfile': {
+        'file_debug': {
             'level': 'DEBUG',
-            'filters': ['require_debug_true'],
-            'class': 'logging.FileHandler',
-            'filename': '/tmp/django_dev.log',
-            'formatter': 'verbose'
+            'class': 'logging.handlers.RotatingFileHandler',
+            'formatter': 'verbose',
+            'filename': os.path.normpath(BASE_DIR + '/logs/debug.log'),
+            'maxBytes': 1024 * 1024 * 8,
+            'backupCount': 3
         },
-        'production_logfile': {
+        'file_info': {
+            'level': 'INFO',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'formatter': 'verbose',
+            'filename': os.path.normpath(BASE_DIR + '/logs/info.log'),
+            'maxBytes': 1024 * 1024 * 8,
+            'backupCount': 3
+        },
+        'file_error': {
             'level': 'ERROR',
-            'filters': ['require_debug_false'],
-            'class': 'logging.FileHandler',
-            'filename': '/tmp/django_production.log',
-            'formatter': 'simple'
+            'class': 'logging.handlers.RotatingFileHandler',
+            'formatter': 'verbose',
+            'filename': os.path.normpath(BASE_DIR + '/logs/error.log'),
+            'maxBytes': 1024 * 1024 * 8,
+            'backupCount': 3
         }
     },
     'loggers': {
         'hpcconnector': {
-            'handlers': ['console', 'development_logfile', 'production_logfile'],
+            'handlers': ['console', 'file_debug', 'file_info', 'file_error'],
             'level': 'DEBUG',
         },
         'django': {
-            'handlers': ['console', 'development_logfile', 'production_logfile'],
+            'handlers': ['console', 'file_debug', 'file_info', 'file_error'],
         },
         'py.warnings': {
-            'handlers': ['console', 'development_logfile'],
+            'handlers': ['console', 'file_debug', 'file_info', 'file_error'],
+        },
+        'root': {
+            'handlers': ['file_debug', 'file_info', 'file_error'],
+            'level': 'DEBUG',
+            'propagate': True,
         },
     }
 }
