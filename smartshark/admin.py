@@ -16,7 +16,7 @@ from smartshark.mongohandler import handler
 
 from .views.collection import JobSubmissionThread
 from .models import MongoRole, SmartsharkUser, Plugin, Argument, Project, Job, PluginExecution, ExecutionHistory, ProjectMongo
-import pygit2, os, shutil, re
+import pygit2, os, shutil, re, datetime
 
 admin.site.unregister(User)
 
@@ -368,6 +368,8 @@ class ProjectMongoAdmin(admin.ModelAdmin):
         for projmongo in queryset:
             proj = projmongo.project
 
+            print("Starting validation for " + proj.name)
+
             if (project_db.find({"name": proj.name}).count() > 0):
 
                 projdoc = project_db.find_one({"name": proj.name})
@@ -382,7 +384,6 @@ class ProjectMongoAdmin(admin.ModelAdmin):
                         vcsid = vcsdoc["_id"]
                         projmongo.vcs_id = vcsid
                         projmongo.executed_plugins = "vcsSHARK"
-                        projmongo.save()
 
                         repourl = "git" + url[5:]
 
@@ -404,8 +405,10 @@ class ProjectMongoAdmin(admin.ModelAdmin):
 
                             for commit in repo.walk(repo.head.target, pygit2.GIT_SORT_TIME):
                                 if not commit.hex in total_commit_hexs:
-                                    total_commit_hexs.append(commit.hex)
-                                    commit_count+=1
+                                    time = datetime.datetime.utcfromtimestamp(commit.commit_time)
+                                    if time < vcsdoc["last_updated"]:
+                                        total_commit_hexs.append(commit.hex)
+                                        commit_count+=1
 
                             # inspired by vcsshark gitparser.py
                             references = set(repo.listall_references())
@@ -421,15 +424,16 @@ class ProjectMongoAdmin(admin.ModelAdmin):
                                 for child in repo.walk(commit.id,
                                                                   pygit2.GIT_SORT_TIME | pygit2.GIT_SORT_TOPOLOGICAL):
                                     if not child.hex in total_commit_hexs:
-                                        total_commit_hexs.append(child.hex)
-                                        commit_count += 1
+                                        time = datetime.datetime.utcfromtimestamp(child.commit_time)
+                                        if time < vcsdoc["last_updated"]:
+                                            total_commit_hexs.append(child.hex)
+                                            commit_count += 1
 
                             for hex in total_commit_hexs:
                                 if hex in db_commit_hexs:
                                     db_commit_hexs.remove(hex)
 
-                            projmongo.validation = ("commits in db: " + str(db_commit_count) + " unmatched commits: " + str(len(db_commit_hexs)) + " commits found online: " + str(len(total_commit_hexs)) + " commits missing in db: " + str(commit_count))
-                            projmongo.save()
+                            projmongo.validation = ("commits in db: " + str(db_commit_count) + " unmatched commits: " + str(len(db_commit_hexs)))
 
                             # validate fileactions
                             if "file_action" in keymap:
@@ -437,15 +441,16 @@ class ProjectMongoAdmin(admin.ModelAdmin):
                                 counter = 0
                                 validated_file_actions = 0
 
-                                unvalidated_file_actions_ids = []
+                                unvalidated_file_actions = 0
 
                                 for db_commit in db.commit.find({"vcs_system_id": vcsid}):
+
+                                    unvalidated_file_actions_ids = []
                                     for db_file_action in db.file_action.find(
                                             {"commit_id": db_commit["_id"]}):
                                         if not db_file_action["_id"] in unvalidated_file_actions_ids:
                                             unvalidated_file_actions_ids.append(db_file_action["_id"])
 
-                                for db_commit in db.commit.find({"vcs_system_id": vcsid}):
 
                                     hex = db_commit["revision_hash"]
 
@@ -562,16 +567,67 @@ class ProjectMongoAdmin(admin.ModelAdmin):
                                                     validated_file_actions += 1
                                                     unvalidated_file_actions_ids.remove(db_file_action["_id"])
 
-                                projmongo.validation+=(" file_actions found: " + str(counter) + " unvalidated file_actions: " + str(len(unvalidated_file_actions_ids)))
-                                projmongo.save()
+                                    unvalidated_file_actions+= len(unvalidated_file_actions_ids)
+
+
+                                projmongo.validation+=(" file_actions found: " + str(counter) + " unvalidated file_actions: " + str(unvalidated_file_actions))
+
+                            # validate coastshark's code_entity_states
+                            if "code_entity_state" in keymap:
+
+                                unvalidated_code_entity_states = 0
+                                total_code_entity_states = 0
+                                #head_ref = repo.head.target
+                                #head = repo.get(head_ref)
+
+                                for db_commit in db.commit.find({"vcs_system_id": vcsid}):
+
+                                    # print(db_commit["message"])
+                                    commit = repo.get(db_commit["revision_hash"])
+                                    commit_id = commit.hex
+                                    ref = repo.create_reference('refs/tags/temp', commit_id)
+                                    repo.checkout(ref)
+
+                                    for db_code_entity_state in db.code_entity_state.find(
+                                            {"commit_id": db_commit["_id"]}):
+                                        validated = False
+
+                                        for root, dirs, files in os.walk(path):
+
+                                            for file in files:
+
+                                                #if file.endswith('.py') or file.endswith('.java'):
+
+                                                filepath = os.path.join(root, file)
+                                                filepath = filepath.replace(path +"/", '')
+                                                #print(file)
+                                                    #print(filepath + " " + db_code_entity_state["long_name"])
+                                                if filepath == db_code_entity_state["long_name"]:
+                                                    validated = True
+                                                    #print(filepath + " == " + db_code_entity_state["long_name"])
+
+                                        if not validated:
+                                            unvalidated_code_entity_states+=1
+                                            #print("unvalidated: " + db_code_entity_state["long_name"])
+                                        total_code_entity_states+=1
+
+                                    repo.reset(repo.head.target.hex, pygit2.GIT_RESET_HARD)
+                                    ref.delete()
+
+                                #print("unvalidated_code_entity_states: " + str(unvalidated_code_entity_states))
+                                projmongo.validation+= (" code_entity_states found: " + str(total_code_entity_states) + " unvalidated code_entity_states: " + str(unvalidated_code_entity_states))
+                                #print("total_commit_hexs: " + str(total_code_entity_states))
 
                         if os.path.isdir(path):
                             shutil.rmtree(path)
+                    projmongo.save()
 
             else:
                 print(proj.name + " not found in database")
 
-    crawler.short_description = 'Validate vcsSHARK'
+            print("Finished validation for " + proj.name)
+
+    crawler.short_description = 'Validate Data'
 
 
 admin.site.register(ProjectMongo, ProjectMongoAdmin)
