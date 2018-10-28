@@ -16,7 +16,7 @@ from smartshark.mongohandler import handler
 
 from .views.collection import JobSubmissionThread
 from .models import MongoRole, SmartsharkUser, Plugin, Argument, Project, Job, PluginExecution, ExecutionHistory, ProjectMongo
-import pygit2, os, shutil, re, datetime
+import pygit2, os, shutil, re, datetime, gc, timeit
 
 admin.site.unregister(User)
 
@@ -360,14 +360,19 @@ class ProjectMongoAdmin(admin.ModelAdmin):
             if col.name not in keymap:
                 keymap[col.name] = []
 
-        # print out the detected database structure
+        # print out the detected database structure, this can be used for debugging
         # print("collections in keymap:")
         # for key in keymap:
         #     print(key, ':', keymap[key])
 
+        # free memory after mapping is done
+        del open_collections, visited_collections, final_collections, doc, subdoc ,subsubdoc
+        gc.collect()
+
         for projmongo in queryset:
             proj = projmongo.project
 
+            start = timeit.default_timer()
             print("Starting validation for " + proj.name)
 
             if (project_db.find({"name": proj.name}).count() > 0):
@@ -434,6 +439,10 @@ class ProjectMongoAdmin(admin.ModelAdmin):
                                     db_commit_hexs.remove(hex)
 
                             projmongo.validation = ("commits in db: " + str(db_commit_count) + " unmatched commits: " + str(len(db_commit_hexs)))
+
+                            # total_commit_hexs won't be needed anymore and memory can be freed
+                            del total_commit_hexs
+                            gc.collect()
 
                             # validate fileactions
                             if "file_action" in keymap:
@@ -512,7 +521,7 @@ class ProjectMongoAdmin(admin.ModelAdmin):
                                                 already_checked_file_paths.add(patch.delta.new_file.path)
 
                                                 for db_file_action in db.file_action.find(
-                                                        {"commit_id": db_commit["_id"]}):
+                                                        {"commit_id": db_commit["_id"]}).batch_size(30):
 
                                                     db_file = db.file.find_one({"_id": db_file_action["file_id"]})
 
@@ -625,7 +634,8 @@ class ProjectMongoAdmin(admin.ModelAdmin):
             else:
                 print(proj.name + " not found in database")
 
-            print("Finished validation for " + proj.name)
+            end = timeit.default_timer() - start
+            print("Finished validation for " + proj.name + " in {:.5f}s".format(end))
 
     crawler.short_description = 'Validate Data'
 
