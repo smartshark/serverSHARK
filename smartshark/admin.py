@@ -541,8 +541,9 @@ class ProjectMongoAdmin(admin.ModelAdmin):
                                                         identical = False
 
                                                     if identical:
-                                                        validated_file_actions += 1
-                                                        unvalidated_file_actions_ids.remove(db_file_action["_id"])
+                                                        if db_file_action["_id"] in unvalidated_file_actions_ids:
+                                                            validated_file_actions += 1
+                                                            unvalidated_file_actions_ids.remove(db_file_action["_id"])
 
                                     else:
                                         diff = online_commit.tree.diff_to_tree(context_lines=0, interhunk_lines=1)
@@ -558,7 +559,7 @@ class ProjectMongoAdmin(admin.ModelAdmin):
 
                                             counter+= 1
 
-                                            for db_file_action in db.file_action.find({"commit_id": db_commit["_id"]}):
+                                            for db_file_action in db.file_action.find({"commit_id": db_commit["_id"]}).batch_size(30):
 
                                                 db_file = db.file.find_one({"_id": db_file_action["file_id"]})
 
@@ -588,6 +589,7 @@ class ProjectMongoAdmin(admin.ModelAdmin):
                                 total_code_entity_states = 0
                                 #head_ref = repo.head.target
                                 #head = repo.get(head_ref)
+                                coastshark_executed = False
 
                                 for db_commit in db.commit.find({"vcs_system_id": vcsid}):
 
@@ -614,6 +616,7 @@ class ProjectMongoAdmin(admin.ModelAdmin):
                                                 if filepath == db_code_entity_state["long_name"]:
                                                     validated = True
                                                     #print(filepath + " == " + db_code_entity_state["long_name"])
+                                                    coastshark_executed = True
 
                                         if not validated:
                                             unvalidated_code_entity_states+=1
@@ -627,8 +630,12 @@ class ProjectMongoAdmin(admin.ModelAdmin):
                                 projmongo.validation+= (" code_entity_states found: " + str(total_code_entity_states) + " unvalidated code_entity_states: " + str(unvalidated_code_entity_states))
                                 #print("total_commit_hexs: " + str(total_code_entity_states))
 
+                                if coastshark_executed:
+                                    projmongo.executed_plugins+=(", coastSHARK")
+
                         if os.path.isdir(path):
                             shutil.rmtree(path)
+
                     projmongo.save()
 
             else:
