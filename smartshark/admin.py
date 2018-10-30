@@ -365,8 +365,21 @@ class ProjectMongoAdmin(admin.ModelAdmin):
         # for key in keymap:
         #     print(key, ':', keymap[key])
 
+        vcs_system_exists = False
+        file_action_exists = False
+        code_entity_state_exists = False
+
+        if "vcs_system" in keymap:
+            vcs_system_exists = True
+
+        if "file_action" in keymap:
+            file_action_exists = True
+
+        if "code_entity_state" in keymap:
+            code_entity_state_exists = True
+
         # free memory after mapping is done
-        del open_collections, visited_collections, final_collections, doc, subdoc ,subsubdoc
+        del open_collections, visited_collections, final_collections, doc, subdoc ,subsubdoc, current_collection, found_collection, col, plugin_schema, keymap
         gc.collect()
 
         for projmongo in queryset:
@@ -379,7 +392,7 @@ class ProjectMongoAdmin(admin.ModelAdmin):
 
                 projdoc = project_db.find_one({"name": proj.name})
 
-                if "vcs_system" in keymap:
+                if vcs_system_exists:
 
                     if (db.vcs_system.find({"project_id": projdoc["_id"]}).count() > 0):
 
@@ -438,27 +451,42 @@ class ProjectMongoAdmin(admin.ModelAdmin):
                                 if hex in db_commit_hexs:
                                     db_commit_hexs.remove(hex)
 
-                            projmongo.validation = ("commits in db: " + str(db_commit_count) + " unmatched commits: " + str(len(db_commit_hexs)))
+                            unmatched_commits = len(db_commit_hexs)
+                            db_commit_hexs = []
+
+                            for db_commit in db.commit.find({"vcs_system_id": vcsid}):
+                                db_commit_hexs.append(db_commit["revision_hash"])
+
+                            for hex in db_commit_hexs:
+                                if hex in total_commit_hexs:
+                                    total_commit_hexs.remove(hex)
+
+                            missing_commits = len(total_commit_hexs)
+
+
+                            projmongo.validation = ("commits in db: " + str(db_commit_count) + " unmatched commits: " + str(unmatched_commits) + " missing commits: "+ str(missing_commits))
 
                             # total_commit_hexs won't be needed anymore and memory can be freed
-                            del total_commit_hexs
+                            del total_commit_hexs, db_commit_hexs, projdoc, vcsdoc, branches, references, child, url, repourl, tags, regex
                             gc.collect()
 
                             # validate fileactions
-                            if "file_action" in keymap:
+                            if file_action_exists:
 
                                 counter = 0
+                                file_action_counter = 0
                                 validated_file_actions = 0
 
                                 unvalidated_file_actions = 0
 
-                                for db_commit in db.commit.find({"vcs_system_id": vcsid}):
+                                for db_commit in db.commit.find({"vcs_system_id": vcsid}).batch_size(30):
 
                                     unvalidated_file_actions_ids = []
                                     for db_file_action in db.file_action.find(
-                                            {"commit_id": db_commit["_id"]}):
+                                            {"commit_id": db_commit["_id"]}).batch_size(30):
                                         if not db_file_action["_id"] in unvalidated_file_actions_ids:
                                             unvalidated_file_actions_ids.append(db_file_action["_id"])
+                                    file_action_counter+= len(unvalidated_file_actions_ids)
 
 
                                     hex = db_commit["revision_hash"]
@@ -523,7 +551,13 @@ class ProjectMongoAdmin(admin.ModelAdmin):
                                                 for db_file_action in db.file_action.find(
                                                         {"commit_id": db_commit["_id"]}).batch_size(30):
 
-                                                    db_file = db.file.find_one({"_id": db_file_action["file_id"]})
+                                                    db_file = None
+
+                                                    #for file in db.file.find({"_id": db_file_action["file_id"]},
+                                                    #                         no_cursor_timeout=True):
+                                                    for file in db.file.find({"_id": db_file_action["file_id"]}):
+
+                                                        db_file = file
 
                                                     identical = True
 
@@ -551,25 +585,23 @@ class ProjectMongoAdmin(admin.ModelAdmin):
                                         for patch in diff:
 
                                             filepath = patch.delta.new_file.path
-                                            filesize = patch.delta.new_file.size
-                                            linesadded = patch.line_stats[1]
-                                            linesremoved = patch.line_stats[2]
-                                            fileisbinary = patch.delta.is_binary
                                             filemode = 'A'
 
                                             counter+= 1
 
                                             for db_file_action in db.file_action.find({"commit_id": db_commit["_id"]}).batch_size(30):
 
-                                                db_file = db.file.find_one({"_id": db_file_action["file_id"]})
+                                                db_file = None
+
+                                                for file in db.file.find({"_id": db_file_action["file_id"]}).batch_size(
+                                                        30):
+                                                    db_file = file
 
                                                 identical = True
 
                                                 #for initial commit filesize and linesadded never match but checking filepath should be enough
                                                 if not filepath == db_file["path"]:
                                                     identical = False
-                                                #if not fileisbinary == db_file_action["is_binary"]:
-                                                #    identical = False
                                                 if not filemode == db_file_action["mode"]:
                                                     identical = False
 
@@ -579,59 +611,65 @@ class ProjectMongoAdmin(admin.ModelAdmin):
 
                                     unvalidated_file_actions+= len(unvalidated_file_actions_ids)
 
+                                projmongo.validation+=(" file_actions found: " + str(counter) + " unmatched file_actions: " + str(unvalidated_file_actions) + " missing file_actions: " + str(file_action_counter - validated_file_actions))
 
-                                projmongo.validation+=(" file_actions found: " + str(counter) + " unvalidated file_actions: " + str(unvalidated_file_actions))
+                                del diff, parent, already_checked_file_paths, db_file_action, unvalidated_file_actions_ids, hex, patch
+                                gc.collect()
 
                             # validate coastshark's code_entity_states
-                            if "code_entity_state" in keymap:
+                            if code_entity_state_exists:
 
-                                unvalidated_code_entity_states = 0
-                                total_code_entity_states = 0
-                                #head_ref = repo.head.target
-                                #head = repo.get(head_ref)
                                 coastshark_executed = False
 
-                                for db_commit in db.commit.find({"vcs_system_id": vcsid}):
 
-                                    # print(db_commit["message"])
-                                    commit = repo.get(db_commit["revision_hash"])
-                                    commit_id = commit.hex
-                                    ref = repo.create_reference('refs/tags/temp', commit_id)
-                                    repo.checkout(ref)
+                                for db_commit in db.commit.find({"vcs_system_id": vcsid}).batch_size(30):
+                                    if db.code_entity_state.find({"commit_id": db_commit["_id"]}).count()>0:
+                                        coastshark_executed = True
+                                        break
 
-                                    for db_code_entity_state in db.code_entity_state.find(
-                                            {"commit_id": db_commit["_id"]}):
-                                        validated = False
+                                if coastshark_executed:
+
+                                    unvalidated_code_entity_states = 0
+                                    total_code_entity_states = 0
+                                    missing_code_entity_states = 0
+
+                                    for db_commit in db.commit.find({"vcs_system_id": vcsid}).batch_size(30):
+
+                                        commit = repo.get(db_commit["revision_hash"])
+                                        commit_id = commit.hex
+                                        ref = repo.create_reference('refs/tags/temp', commit_id)
+                                        repo.checkout(ref)
+                                        unvalidated_code_entity_state_longnames = []
+
+                                        for db_code_entity_state in db.code_entity_state.find(
+                                                {"commit_id": db_commit["_id"]}):
+                                            unvalidated_code_entity_state_longnames.append(db_code_entity_state["long_name"])
+
+                                        total_code_entity_states += len(unvalidated_code_entity_state_longnames)
 
                                         for root, dirs, files in os.walk(path):
 
                                             for file in files:
 
-                                                #if file.endswith('.py') or file.endswith('.java'):
+                                                if file.endswith('.py') or file.endswith('.java'):
 
-                                                filepath = os.path.join(root, file)
-                                                filepath = filepath.replace(path +"/", '')
-                                                #print(file)
-                                                    #print(filepath + " " + db_code_entity_state["long_name"])
-                                                if filepath == db_code_entity_state["long_name"]:
-                                                    validated = True
-                                                    #print(filepath + " == " + db_code_entity_state["long_name"])
-                                                    coastshark_executed = True
+                                                    filepath = os.path.join(root, file)
+                                                    filepath = filepath.replace(path +"/", '')
+                                                    if filepath in unvalidated_code_entity_state_longnames:
+                                                        unvalidated_code_entity_state_longnames.remove(filepath)
+                                                    else:
+                                                        missing_code_entity_states+=1
 
-                                        if not validated:
-                                            unvalidated_code_entity_states+=1
-                                            #print("unvalidated: " + db_code_entity_state["long_name"])
-                                        total_code_entity_states+=1
+                                        unvalidated_code_entity_states+= len(unvalidated_code_entity_state_longnames)
 
-                                    repo.reset(repo.head.target.hex, pygit2.GIT_RESET_HARD)
-                                    ref.delete()
+                                        repo.reset(repo.head.target.hex, pygit2.GIT_RESET_HARD)
+                                        ref.delete()
+                                    projmongo.validation+= (" code_entity_states found: " + str(total_code_entity_states) + " unmatched code_entity_states: " + str(unvalidated_code_entity_states) + " missing code_entity_states: " + str(missing_code_entity_states))
 
-                                #print("unvalidated_code_entity_states: " + str(unvalidated_code_entity_states))
-                                projmongo.validation+= (" code_entity_states found: " + str(total_code_entity_states) + " unvalidated code_entity_states: " + str(unvalidated_code_entity_states))
-                                #print("total_commit_hexs: " + str(total_code_entity_states))
-
-                                if coastshark_executed:
                                     projmongo.executed_plugins+=(", coastSHARK")
+
+                                    del db_code_entity_state, files, ref, unvalidated_code_entity_state_longnames, root, vcsid, db_commit, filepath, db_file, commit_id, repo, commit
+                                    gc.collect()
 
                         if os.path.isdir(path):
                             shutil.rmtree(path)
