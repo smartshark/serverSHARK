@@ -12,7 +12,7 @@ from server import settings
 from smartshark.mongohandler import handler
 import inspect, os
 from django.template.defaultfilters import filesizeformat
-import magic, datetime
+import magic
 
 from smartshark.pluginhandler import PluginInformationHandler
 

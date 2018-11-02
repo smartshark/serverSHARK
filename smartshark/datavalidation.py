@@ -1,4 +1,4 @@
-import pygit2, os, shutil, re, datetime, gc, timeit
+import pygit2, os, shutil, re, datetime
 
 
 def map_database(db):
@@ -106,9 +106,6 @@ def validate_commits(repo, vcsdoc, commit_col):
         results+= "unmatched commits: " + str(unmatched_commits) + " "
     if missing_commits>0:
         results+= "missing commits: " + str(missing_commits) + " "
-
-    #results = "commits in db: " + str(db_commit_count) + " unmatched commits: " + str(
-    #    unmatched_commits) + " missing commits: " + str(missing_commits)
 
     return results
 
@@ -253,10 +250,6 @@ def validate_file_action(repo, vcsid, commit_col, file_action_col, file_col):
     if (file_action_counter - validated_file_actions)>0:
         results+= "missing file_actions: " + str((file_action_counter - validated_file_actions)) + " "
 
-    #results = (" file_actions found: " + str(counter) + " unmatched file_actions: " + str(
-    #    unvalidated_file_actions) + " missing file_actions: " + str(
-    #    file_action_counter - validated_file_actions))
-
     return results
 
 
@@ -310,11 +303,6 @@ def validate_code_entity_states(repo, vcsid, path, commit_col, code_entity_state
 
         repo.reset(repo.head.target.hex, pygit2.GIT_RESET_HARD)
         ref.delete()
-
-    #results = (" code_entity_states found: " + str(
-    #    total_code_entity_states) + " unmatched code_entity_states: " + str(
-    #    unvalidated_code_entity_states) + " missing code_entity_states: " + str(
-    #    missing_code_entity_states))
 
     results = ""
 
