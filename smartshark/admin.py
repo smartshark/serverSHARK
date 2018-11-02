@@ -16,7 +16,8 @@ from smartshark.mongohandler import handler
 
 from .views.collection import JobSubmissionThread
 from .models import MongoRole, SmartsharkUser, Plugin, Argument, Project, Job, PluginExecution, ExecutionHistory, ProjectMongo
-from .datavalidation import map_database, create_local_repo, was_vcsshark_executed, was_coastshark_executed, get_time, validate_commits, validate_code_entity_states, validate_file_action, delete_local_repo
+from .datavalidation import map_database, create_local_repo, was_vcsshark_executed, was_coastshark_executed, validate_commits, validate_code_entity_states, validate_file_action, delete_local_repo
+import timeit, datetime
 
 admin.site.unregister(User)
 
@@ -314,8 +315,8 @@ class ProjectAdmin(admin.ModelAdmin):
 
 
 class ProjectMongoAdmin(admin.ModelAdmin):
-    list_display = ('project', 'executed_plugins','validation')
-    actions = [ 'full_validation']
+    list_display = ('project', 'get_executed_plugins','vcs_validation', 'coast_validation', 'get_last_validation')
+    actions = ['full_validation']
 
     def full_validation(self, request, queryset):
         mongoclient = handler.client
@@ -342,7 +343,9 @@ class ProjectMongoAdmin(admin.ModelAdmin):
             proj = projmongo.project
 
             print("Starting validation for " + proj.name)
-            start = get_time()
+            start = timeit.default_timer()
+
+            projmongo.executed_plugins.clear()
 
             if (project_db.find({"name": proj.name}).count() > 0):
 
@@ -353,7 +356,7 @@ class ProjectMongoAdmin(admin.ModelAdmin):
                     if (db.vcs_system.find({"project_id": projdoc["_id"]}).count() > 0):
 
                         if was_vcsshark_executed(db.vcs_system,projdoc["_id"]):
-                            projmongo.executed_plugins = "vcsSHARK"
+                            projmongo.executed_plugins.add(Plugin.objects.get(name='vcsSHARK'))
 
                             vcsdoc = db.vcs_system.find_one({"project_id": projdoc["_id"]})
 
@@ -363,31 +366,37 @@ class ProjectMongoAdmin(admin.ModelAdmin):
 
                                 commit_validation = validate_commits(repo,vcsdoc,db.commit)
 
-                                projmongo.validation = commit_validation
+                                projmongo.vcs_validation = commit_validation
 
                                 if file_action_exists:
                                     file_action_validation = validate_file_action(repo,vcsdoc["_id"], db.commit, db.file, db.file)
 
-                                    projmongo.validation+= file_action_validation
+                                    projmongo.vcs_validation+= file_action_validation
 
                                 if code_entity_state_exists:
 
                                     if was_coastshark_executed(vcsdoc["_id"], db.code_entity_state, db.commit):
-
-                                        projmongo.executed_plugins+= ", coastSHARK"
+                                        projmongo.executed_plugins.add(Plugin.objects.get(name='coastSHARK'))
 
                                         code_entity_state_validation = validate_code_entity_states(repo, vcsdoc["_id"], path, db.commit, db.code_entity_state)
 
-                                        projmongo.validation+= code_entity_state_validation
+                                        projmongo.coast_validation= code_entity_state_validation
 
                             delete_local_repo(path)
 
+                            if projmongo.vcs_validation == "":
+                                projmongo.vcs_validation = "No Error"
+                            if projmongo.coast_validation == "":
+                                projmongo.coast_validation = "No Error"
+
+                            projmongo.last_validation = datetime.datetime.now()
+                            projmongo.validated = True
                             projmongo.save()
 
             else:
                 print(proj.name + " not found in database")
 
-            end = get_time() - start
+            end = timeit.default_timer() - start
             print("Finished validation for " + proj.name + " in {:.5f}s".format(end))
 
     full_validation.short_description = 'Validate Data'

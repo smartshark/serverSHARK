@@ -19,25 +19,24 @@ def map_database(db):
                     if "reference_to" in subsubdoc:
                         if (subsubdoc["reference_to"] == current_collection.name):
                             found_collection = db[subdoc["collection_name"]]
-                            if not (found_collection in open_collections):
-                                if not (found_collection in visited_collections):
-                                    open_collections.append(found_collection)
-                                    if current_collection.name in keymap:
-                                        keymap[current_collection.name].append(found_collection.name)
-                                    else:
-                                        keymap[current_collection.name] = [found_collection.name]
+                            if found_collection not in open_collections:
+                                if found_collection not in visited_collections:
+                                    if not found_collection == current_collection:
+                                        open_collections.append(found_collection)
+                                        if current_collection.name in keymap.keys():
+                                            keymap[current_collection.name].append(found_collection.name)
+                                        else:
+                                            keymap[current_collection.name] = [found_collection.name]
 
         visited_collections.append(current_collection)
 
-    # for some reason issue collection appears twice so I put up another filter
-    final_collections = []
     for col in visited_collections:
-        if col not in final_collections:
-            final_collections.append(col)
-
-    for col in final_collections:
         if col.name not in keymap:
             keymap[col.name] = []
+
+    #print("collections in keymap:")
+    #for key in keymap:
+    #    print(key, ':', keymap[key])
 
     return keymap
 
@@ -56,15 +55,7 @@ def create_local_repo(vcsdoc, path):
 
 def was_vcsshark_executed(vcs_col, proj_id):
 
-    vcsshark_executed = False
-    if vcs_col.find({"project_id": proj_id}).count() > 0:
-        vcsshark_executed = True
-
-    return  vcsshark_executed
-
-
-def get_time():
-    return timeit.default_timer()
+    return vcs_col.find({"project_id": proj_id}).count() > 0
 
 
 def validate_commits(repo, vcsdoc, commit_col):
@@ -73,13 +64,13 @@ def validate_commits(repo, vcsdoc, commit_col):
     db_commit_hexs = []
     for db_commit in commit_col.find({"vcs_system_id": vcsid}):
         db_commit_hexs.append(db_commit["revision_hash"])
-    total_commit_hexs = db_commit_hexs.copy()
+    total_commit_hexs = [] #db_commit_hexs.copy()
 
     db_commit_count = len(db_commit_hexs)
     commit_count = 0
 
     for commit in repo.walk(repo.head.target, pygit2.GIT_SORT_TIME):
-        if not commit.hex in total_commit_hexs:
+        if commit.hex not in total_commit_hexs:
             time = datetime.datetime.utcfromtimestamp(commit.commit_time)
             if time < vcsdoc["last_updated"]:
                 total_commit_hexs.append(commit.hex)
@@ -104,24 +95,20 @@ def validate_commits(repo, vcsdoc, commit_col):
                     total_commit_hexs.append(child.hex)
                     commit_count += 1
 
-    for hex in total_commit_hexs:
-        if hex in db_commit_hexs:
-            db_commit_hexs.remove(hex)
+    missing = [sha for sha in total_commit_hexs if sha not in db_commit_hexs]
+    unmatched = [sha for sha in db_commit_hexs if sha not in total_commit_hexs]
 
-    unmatched_commits = len(db_commit_hexs)
-    db_commit_hexs = []
+    unmatched_commits = len(unmatched)
+    missing_commits = len(missing)
 
-    for db_commit in commit_col.find({"vcs_system_id": vcsid}):
-        db_commit_hexs.append(db_commit["revision_hash"])
+    results = ""
+    if unmatched_commits>0:
+        results+= "unmatched commits: " + str(unmatched_commits) + " "
+    if missing_commits>0:
+        results+= "missing commits: " + str(missing_commits) + " "
 
-    for hex in db_commit_hexs:
-        if hex in total_commit_hexs:
-            total_commit_hexs.remove(hex)
-
-    missing_commits = len(total_commit_hexs)
-
-    results = "commits in db: " + str(db_commit_count) + " unmatched commits: " + str(
-        unmatched_commits) + " missing commits: " + str(missing_commits)
+    #results = "commits in db: " + str(db_commit_count) + " unmatched commits: " + str(
+    #    unmatched_commits) + " missing commits: " + str(missing_commits)
 
     return results
 
@@ -192,18 +179,21 @@ def validate_file_action(repo, vcsid, commit_col, file_action_col, file_col):
                         mode = 'T'
 
                     filepath = patch.delta.new_file.path
-                    filesize = patch.delta.new_file.size
-                    linesadded = patch.line_stats[1]
-                    linesremoved = patch.line_stats[2]
-                    fileisbinary = patch.delta.is_binary
-                    filemode = mode
+
+                    repo_file_action = {
+                        "size_at_commit": patch.delta.new_file.size,
+                        "lines_added": patch.line_stats[1],
+                        "lines_deleted": patch.line_stats[2],
+                        "is_binary": patch.delta.is_binary,
+                        "mode": mode
+                    }
 
                     counter += 1
 
                     already_checked_file_paths.add(patch.delta.new_file.path)
 
                     for db_file_action in file_action_col.find(
-                            {"commit_id": db_commit["_id"]}).batch_size(8):
+                            {"commit_id": db_commit["_id"]}).batch_size(5):
 
                         db_file = None
 
@@ -212,20 +202,11 @@ def validate_file_action(repo, vcsid, commit_col, file_action_col, file_col):
                         for file in file_col.find({"_id": db_file_action["file_id"]}):
                             db_file = file
 
-                        identical = True
+                        identical = False
 
-                        if not filepath == db_file["path"]:
-                            identical = False
-                        if not filesize == db_file_action["size_at_commit"]:
-                            identical = False
-                        if not linesadded == db_file_action["lines_added"]:
-                            identical = False
-                        if not linesremoved == db_file_action["lines_deleted"]:
-                            identical = False
-                        if not fileisbinary == db_file_action["is_binary"]:
-                            identical = False
-                        if not filemode == db_file_action["mode"]:
-                            identical = False
+                        if filepath == db_file["path"]:
+                            if repo_file_action.items() <= db_file_action.items():
+                                identical = True
 
                         if identical:
                             if db_file_action["_id"] in unvalidated_file_actions_ids:
@@ -243,7 +224,7 @@ def validate_file_action(repo, vcsid, commit_col, file_action_col, file_col):
                 counter += 1
 
                 for db_file_action in file_action_col.find(
-                        {"commit_id": db_commit["_id"]}).batch_size(8):
+                        {"commit_id": db_commit["_id"]}).batch_size(5):
 
                     db_file = None
 
@@ -265,9 +246,16 @@ def validate_file_action(repo, vcsid, commit_col, file_action_col, file_col):
 
         unvalidated_file_actions += len(unvalidated_file_actions_ids)
 
-    results = (" file_actions found: " + str(counter) + " unmatched file_actions: " + str(
-        unvalidated_file_actions) + " missing file_actions: " + str(
-        file_action_counter - validated_file_actions))
+    results = ""
+
+    if unvalidated_file_actions>0:
+        results+= "unmatched file_actions: " + str(unvalidated_file_actions) + " "
+    if (file_action_counter - validated_file_actions)>0:
+        results+= "missing file_actions: " + str((file_action_counter - validated_file_actions)) + " "
+
+    #results = (" file_actions found: " + str(counter) + " unmatched file_actions: " + str(
+    #    unvalidated_file_actions) + " missing file_actions: " + str(
+    #    file_action_counter - validated_file_actions))
 
     return results
 
@@ -323,10 +311,18 @@ def validate_code_entity_states(repo, vcsid, path, commit_col, code_entity_state
         repo.reset(repo.head.target.hex, pygit2.GIT_RESET_HARD)
         ref.delete()
 
-    results = (" code_entity_states found: " + str(
-        total_code_entity_states) + " unmatched code_entity_states: " + str(
-        unvalidated_code_entity_states) + " missing code_entity_states: " + str(
-        missing_code_entity_states))
+    #results = (" code_entity_states found: " + str(
+    #    total_code_entity_states) + " unmatched code_entity_states: " + str(
+    #    unvalidated_code_entity_states) + " missing code_entity_states: " + str(
+    #    missing_code_entity_states))
+
+    results = ""
+
+    if unvalidated_code_entity_states>0:
+        results+= "unmatched code_entity_states: " + str(unvalidated_code_entity_states) + " "
+
+    if missing_code_entity_states>0:
+        results+= "missing code_entity_states: " + str(missing_code_entity_states) + " "
 
     return results
 

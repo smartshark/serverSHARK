@@ -12,7 +12,7 @@ from server import settings
 from smartshark.mongohandler import handler
 import inspect, os
 from django.template.defaultfilters import filesizeformat
-import magic
+import magic, datetime
 
 from smartshark.pluginhandler import PluginInformationHandler
 
@@ -410,11 +410,25 @@ class SmartsharkUser(models.Model):
 
 class ProjectMongo(models.Model):
     project = models.OneToOneField(Project)
-    executed_plugins = models.TextField(max_length=500, default=None, null=True, blank= True)
     vcs_id = models.CharField(max_length=50, default=None, null=True, blank=True)
     issue_id = models.CharField(max_length=50, default=None,  null=True, blank=True)
     mailing_id = models.CharField(max_length=50, default=None, null=True, blank=True)
     validation = models.TextField(max_length=500, default=None, null=True, blank= True)
+
+    executed_plugins = models.ManyToManyField(Plugin)
+    last_validation = models.DateTimeField(auto_now=True)
+    vcs_validation = models.TextField(max_length=500, default=None, null=True, blank= True)
+    coast_validation = models.TextField(max_length=500, default=None, null=True, blank= True)
+    validated = models.BooleanField(default=False)
+
+    def get_executed_plugins(self):
+        return "\n".join([p.name for p in self.executed_plugins.all()])
+
+    def get_last_validation(self):
+        if self.validated:
+            return str(self.last_validation)
+        else:
+            return "None"
 
     def __str__(self):
         return self.project.name
