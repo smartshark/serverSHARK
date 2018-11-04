@@ -276,11 +276,20 @@ class PluginExecution(models.Model):
         ('error', 'Executed on revisions that previously threw an error'),
     )
 
+    STATUS_CHOICES = (
+        ('DONE', 'Done'),
+        ('EXIT', 'Exit'),
+        ('WAIT', 'Waiting'),
+    )
+
     plugin = models.ForeignKey(Plugin)
     project = models.ForeignKey(Project)
     repository_url = models.CharField(max_length=500, null=True, blank=True)
     execution_type = models.CharField(max_length=5, choices=EXECUTION_TYPES, null=True, blank=True)
     revisions = models.TextField(null=True, blank=True)
+    queue = models.TextField(null=True, blank=True)
+    cores_per_job = models.IntegerField(default=1)
+    status = models.CharField(max_length=8, choices=STATUS_CHOICES, default='WAIT')
 
     submitted_at = models.DateTimeField(auto_now_add=True)
 
