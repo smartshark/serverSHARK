@@ -89,14 +89,30 @@ def validate_commits(repo, vcsdoc, commit_col):
         # Walk through every child
         for child in repo.walk(commit.id,
                                pygit2.GIT_SORT_TIME | pygit2.GIT_SORT_TOPOLOGICAL):
-            if not child.hex in total_commit_hexs:
+            if child.hex not in total_commit_hexs:
                 time = datetime.datetime.utcfromtimestamp(child.commit_time)
                 if time < vcsdoc["last_updated"]:
                     total_commit_hexs.append(child.hex)
                     commit_count += 1
 
-    missing = [sha for sha in total_commit_hexs if sha not in db_commit_hexs]
-    unmatched = [sha for sha in db_commit_hexs if sha not in total_commit_hexs]
+    for tag in tags:
+        commit = repo.lookup_reference(tag).peel()
+
+        if commit.hex not in total_commit_hexs:
+            time = datetime.datetime.utcfromtimestamp(commit.commit_time)
+        if time < vcsdoc["last_updated"]:
+            total_commit_hexs.append(commit.hex)
+            commit_count += 1
+
+        for child in repo.walk(commit.id, pygit2.GIT_SORT_TIME | pygit2.GIT_SORT_TOPOLOGICAL):
+            if child.hex not in total_commit_hexs:
+                time = datetime.datetime.utcfromtimestamp(child.commit_time)
+                if time < vcsdoc["last_updated"]:
+                    total_commit_hexs.append(child.hex)
+                    commit_count += 1
+
+    missing = set(total_commit_hexs) - set(db_commit_hexs)
+    unmatched = set(db_commit_hexs) - set(total_commit_hexs)
 
     unmatched_commits = len(unmatched)
     missing_commits = len(missing)
@@ -123,7 +139,7 @@ def validate_file_action(repo, vcsid, commit_col, file_action_col, file_col):
         unvalidated_file_actions_ids = []
         for db_file_action in file_action_col.find(
                 {"commit_id": db_commit["_id"]}).batch_size(30):
-            if not db_file_action["_id"] in unvalidated_file_actions_ids:
+            if db_file_action["_id"] not in unvalidated_file_actions_ids:
                 unvalidated_file_actions_ids.append(db_file_action["_id"])
         file_action_counter += len(unvalidated_file_actions_ids)
 
@@ -253,19 +269,29 @@ def validate_file_action(repo, vcsid, commit_col, file_action_col, file_col):
     return results
 
 
-def was_coastshark_executed(vcsid, code_entity_state_col, commit_col):
+def was_coastshark_executed(vcsid, code_entity_state_col, commit_col, compressed=False):
 
     coastshark_executed = False
 
     for db_commit in commit_col.find({"vcs_system_id": vcsid}).batch_size(30):
-        if code_entity_state_col.find({"commit_id": db_commit["_id"]}).count() > 0:
-            coastshark_executed = True
-            break
+        if compressed:
+            if "code_entity_states" in db_commit:
+                for code_entity_state in db_commit["code_entity_states"]:
+                    if code_entity_state["metrics"]["node_count"] > 0:
+                        coastshark_executed = True
+                        return coastshark_executed
+        else:
+            if code_entity_state_col.find({"commit_id": db_commit["_id"]}).count() > 0:
+                for code_entity_state in code_entity_state_col.find({"commit_id":db_commit["_id"]}):
+                    if "node_count" in code_entity_state["metrics"]:
+                        if code_entity_state["metrics"]["node_count"] > 0:
+                            coastshark_executed = True
+                            return coastshark_executed
 
     return coastshark_executed
 
 
-def validate_code_entity_states(repo, vcsid, path, commit_col, code_entity_state_col):
+def validate_code_entity_states(repo, vcsid, path, commit_col, code_entity_state_col, compressed=False):
 
     unvalidated_code_entity_states = 0
     total_code_entity_states = 0
@@ -279,10 +305,19 @@ def validate_code_entity_states(repo, vcsid, path, commit_col, code_entity_state
         repo.checkout(ref)
         unvalidated_code_entity_state_longnames = []
 
-        for db_code_entity_state in code_entity_state_col.find(
-                {"commit_id": db_commit["_id"]}):
-            unvalidated_code_entity_state_longnames.append(
-                db_code_entity_state["long_name"])
+        if compressed:
+            for db_code_entity_state in db_commit["code_entity_states"]:
+                if "node_count" in db_code_entity_state["metrics"]:
+                    if db_code_entity_state["metrics"]["node_count"] > 0:
+                        unvalidated_code_entity_state_longnames.append(
+                            db_code_entity_state["long_name"])
+        else:
+            for db_code_entity_state in code_entity_state_col.find(
+                    {"commit_id": db_commit["_id"]}):
+                if "node_count" in db_code_entity_state["metrics"]:
+                    if db_code_entity_state["metrics"]["node_count"]>0:
+                        unvalidated_code_entity_state_longnames.append(
+                            db_code_entity_state["long_name"])
 
         total_code_entity_states += len(unvalidated_code_entity_state_longnames)
 
