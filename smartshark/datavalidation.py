@@ -119,25 +119,24 @@ def validate_commits(repo, vcsdoc, commit_col, projectmongo):
     unmatched_commits = len(unmatched)
     missing_commits = len(missing)
 
-    total_commit_hexs = set(total_commit_hexs) - missing
+    for commit in list(unmatched):
+        if CommitValidation.objects.filter(projectmongo=projectmongo, revision_hash__exact=commit, valid=False, missing=False).count()!=0:
+            unmatched.remove(commit)
+    for commit in unmatched:
+        CommitValidation.objects.update_or_create(projectmongo=projectmongo, revision_hash=commit, defaults={'valid': False, 'missing' : False})
+
+    for commit in list((set(total_commit_hexs) - missing)):
+        if CommitValidation.objects.filter(projectmongo=projectmongo, revision_hash__exact=commit, valid=True, missing=False).count()!=0:
+            total_commit_hexs.remove(commit)
+    for commit in set(total_commit_hexs) - missing:
+        CommitValidation.objects.update_or_create(projectmongo=projectmongo, revision_hash=commit, defaults={'valid': True, 'missing' : False})
 
     for commit in list(missing):
-        if CommitValidation.objects.filter(projectmongo__project__name=projectmongo.project.name).filter(revision_hash__exact=commit).filter(valid=True).filter(missing=True).count()!=0:
+        if CommitValidation.objects.filter(projectmongo=projectmongo, revision_hash__exact=commit, valid=True, missing=True).count()!=0:
             missing.remove(commit)
-    if len(missing)>0:
-        bulk_commitvalidation(missing, projectmongo=projectmongo, valid=True, missing=True)
+    for commit in missing:
+        CommitValidation.objects.update_or_create(projectmongo=projectmongo, revision_hash=commit, defaults={'valid': True, 'missing' : True})
 
-    for commit in list(unmatched):
-        if CommitValidation.objects.filter(projectmongo__project__name=projectmongo.project.name).filter(revision_hash__exact=commit).filter(valid=False).filter(missing=False).count()!=0:
-            unmatched.remove(commit)
-    if len(unmatched)>0:
-        bulk_commitvalidation(unmatched, projectmongo=projectmongo, valid=False, missing=False)
-
-    for commit in list(total_commit_hexs):
-        if CommitValidation.objects.filter(projectmongo__project__name=projectmongo.project.name).filter(revision_hash__exact=commit).filter(valid=True).filter(missing=False).count()!=0:
-            total_commit_hexs.remove(commit)
-    if len(total_commit_hexs)>0:
-        bulk_commitvalidation(total_commit_hexs, projectmongo=projectmongo, valid=True, missing=False)
 
     results = ""
     if unmatched_commits>0:
@@ -146,16 +145,6 @@ def validate_commits(repo, vcsdoc, commit_col, projectmongo):
         results+= "missing commits: " + str(missing_commits) + " "
 
     return results
-
-
-def bulk_commitvalidation(commits, projectmongo, valid, missing):
-    batch_size = 50
-    objs = (CommitValidation(projectmongo=projectmongo, revision_hash=hash, valid=valid, missing=missing) for hash in commits)
-    while True:
-        batch = list(islice(objs, batch_size))
-        if not batch:
-            break
-        CommitValidation.objects.bulk_create(batch, batch_size=batch_size)
 
 
 def validate_file_action(repo, vcsid, commit_col, file_action_col, file_col):
