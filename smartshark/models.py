@@ -66,9 +66,6 @@ class FileValidator(object):
 class Project(models.Model):
     name = models.CharField(max_length=100, unique=True)
     mongo_id = models.CharField(max_length=50, blank=True)
-    #executions = models.TextField(default='None', editable=False)
-    #projectmap = models.TextField(default='None', editable=False)
-    #datacounts = models.TextField(default='None', editable=False)
 
     class Meta:
         permissions = (
@@ -437,3 +434,15 @@ class ProjectMongo(models.Model):
     def create_ProjectMongo(sender, created, instance, **kwargs):
         if created:
             ProjectMongo.objects.create(project= instance)
+
+
+class CommitValidation(models.Model):
+    projectmongo = models.ForeignKey(ProjectMongo, on_delete=models.CASCADE)
+    revision_hash = models.CharField(max_length=50, default="None")
+    valid = models.BooleanField(default=False)
+    missing = models.BooleanField(default=True)
+    # valid = True, missing = True means commit exists but is missing in db
+    # valid = True, missing = False means commit in db is validated
+    # valid = False, missing = False means commit could not be matched with an online commit
+    # valid = False, missing = True means is the default setting and means this object should not exist
+

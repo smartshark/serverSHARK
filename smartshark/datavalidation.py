@@ -1,4 +1,6 @@
 import pygit2, os, shutil, re, datetime
+from itertools import islice
+from .models import CommitValidation
 
 
 def map_database(db):
@@ -58,7 +60,7 @@ def was_vcsshark_executed(vcs_col, proj_id):
     return vcs_col.find({"project_id": proj_id}).count() > 0
 
 
-def validate_commits(repo, vcsdoc, commit_col):
+def validate_commits(repo, vcsdoc, commit_col, projectmongo):
 
     vcsid = vcsdoc["_id"]
     db_commit_hexs = []
@@ -117,6 +119,26 @@ def validate_commits(repo, vcsdoc, commit_col):
     unmatched_commits = len(unmatched)
     missing_commits = len(missing)
 
+    total_commit_hexs = set(total_commit_hexs) - missing
+
+    for commit in list(missing):
+        if CommitValidation.objects.filter(projectmongo__project__name=projectmongo.project.name).filter(revision_hash__exact=commit).filter(valid=True).filter(missing=True).count()!=0:
+            missing.remove(commit)
+    if len(missing)>0:
+        bulk_commitvalidation(missing, projectmongo=projectmongo, valid=True, missing=True)
+
+    for commit in list(unmatched):
+        if CommitValidation.objects.filter(projectmongo__project__name=projectmongo.project.name).filter(revision_hash__exact=commit).filter(valid=False).filter(missing=False).count()!=0:
+            unmatched.remove(commit)
+    if len(unmatched)>0:
+        bulk_commitvalidation(unmatched, projectmongo=projectmongo, valid=False, missing=False)
+
+    for commit in list(total_commit_hexs):
+        if CommitValidation.objects.filter(projectmongo__project__name=projectmongo.project.name).filter(revision_hash__exact=commit).filter(valid=True).filter(missing=False).count()!=0:
+            total_commit_hexs.remove(commit)
+    if len(total_commit_hexs)>0:
+        bulk_commitvalidation(total_commit_hexs, projectmongo=projectmongo, valid=True, missing=False)
+
     results = ""
     if unmatched_commits>0:
         results+= "unmatched commits: " + str(unmatched_commits) + " "
@@ -124,6 +146,16 @@ def validate_commits(repo, vcsdoc, commit_col):
         results+= "missing commits: " + str(missing_commits) + " "
 
     return results
+
+
+def bulk_commitvalidation(commits, projectmongo, valid, missing):
+    batch_size = 50
+    objs = (CommitValidation(projectmongo=projectmongo, revision_hash=hash, valid=valid, missing=missing) for hash in commits)
+    while True:
+        batch = list(islice(objs, batch_size))
+        if not batch:
+            break
+        CommitValidation.objects.bulk_create(batch, batch_size=batch_size)
 
 
 def validate_file_action(repo, vcsid, commit_col, file_action_col, file_col):
@@ -210,8 +242,6 @@ def validate_file_action(repo, vcsid, commit_col, file_action_col, file_col):
 
                         db_file = None
 
-                        # for file in db.file.find({"_id": db_file_action["file_id"]},
-                        #                         no_cursor_timeout=True):
                         for file in file_col.find({"_id": db_file_action["file_id"]}):
                             db_file = file
 

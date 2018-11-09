@@ -15,7 +15,7 @@ from smartshark.datacollection.pluginmanagementinterface import PluginManagement
 from smartshark.mongohandler import handler
 
 from .views.collection import JobSubmissionThread
-from .models import MongoRole, SmartsharkUser, Plugin, Argument, Project, Job, PluginExecution, ExecutionHistory, ProjectMongo
+from .models import MongoRole, SmartsharkUser, Plugin, Argument, Project, Job, PluginExecution, ExecutionHistory, ProjectMongo, CommitValidation
 from .datavalidation import map_database, create_local_repo, was_vcsshark_executed, was_coastshark_executed, validate_commits, validate_code_entity_states, validate_file_action, delete_local_repo
 import timeit, datetime
 
@@ -364,7 +364,7 @@ class ProjectMongoAdmin(admin.ModelAdmin):
 
                             if not repo.is_empty:
 
-                                commit_validation = validate_commits(repo,vcsdoc,db.commit)
+                                commit_validation = validate_commits(repo,vcsdoc,db.commit, projmongo)
 
                                 projmongo.vcs_validation = commit_validation
 
@@ -402,6 +402,19 @@ class ProjectMongoAdmin(admin.ModelAdmin):
     full_validation.short_description = 'Validate Data'
 
 
+class CommitValidationAdmin(admin.ModelAdmin):
+    list_display = ('projectmongo', 'revision_hash', 'valid', 'missing')
+    actions = ['delete_only_valid']
+
+    def delete_only_valid(self, request, queryset):
+
+        for validation in queryset:
+            if validation.valid is True and validation.missing is False:
+                validation.delete()
+    delete_only_valid.short_description = 'Delete selected valid commit validations'
+
+
+admin.site.register(CommitValidation, CommitValidationAdmin)
 admin.site.register(ProjectMongo, ProjectMongoAdmin)
 admin.site.register(User, MyUserAdmin)
 admin.site.register(SmartsharkUser, SmartsharkUserAdmin)
