@@ -119,23 +119,9 @@ def validate_commits(repo, vcsdoc, commit_col, projectmongo):
     unmatched_commits = len(unmatched)
     missing_commits = len(missing)
 
-    for commit in list(unmatched):
-        if CommitValidation.objects.filter(projectmongo=projectmongo, revision_hash__exact=commit, valid=False, missing=False).count()!=0:
-            unmatched.remove(commit)
-    for commit in unmatched:
-        CommitValidation.objects.update_or_create(projectmongo=projectmongo, revision_hash=commit, defaults={'valid': False, 'missing' : False})
-
-    for commit in list((set(total_commit_hexs) - missing)):
-        if CommitValidation.objects.filter(projectmongo=projectmongo, revision_hash__exact=commit, valid=True, missing=False).count()!=0:
-            total_commit_hexs.remove(commit)
-    for commit in set(total_commit_hexs) - missing:
-        CommitValidation.objects.update_or_create(projectmongo=projectmongo, revision_hash=commit, defaults={'valid': True, 'missing' : False})
-
-    for commit in list(missing):
-        if CommitValidation.objects.filter(projectmongo=projectmongo, revision_hash__exact=commit, valid=True, missing=True).count()!=0:
-            missing.remove(commit)
-    for commit in missing:
-        CommitValidation.objects.update_or_create(projectmongo=projectmongo, revision_hash=commit, defaults={'valid': True, 'missing' : True})
+    make_commitvalidations(unmatched, projectmongo=projectmongo, valid=False, missing=False)
+    make_commitvalidations(missing, projectmongo=projectmongo, valid=True, missing= True)
+    make_commitvalidations((set(total_commit_hexs)-missing),projectmongo=projectmongo, valid=True, missing=False)
 
 
     results = ""
@@ -145,6 +131,15 @@ def validate_commits(repo, vcsdoc, commit_col, projectmongo):
         results+= "missing commits: " + str(missing_commits) + " "
 
     return results
+
+
+def make_commitvalidations(commits, projectmongo, valid, missing):
+    for commit in list(commits):
+        if CommitValidation.objects.filter(projectmongo=projectmongo, revision_hash__exact=commit, valid=valid,
+                                           missing=missing).exists():
+            commits.remove(commit)
+    for commit in commits:
+        CommitValidation.objects.update_or_create(projectmongo=projectmongo, revision_hash=commit, defaults={'valid': valid, 'missing' : missing})
 
 
 def validate_file_action(repo, vcsid, commit_col, file_action_col, file_col):
