@@ -16,7 +16,7 @@ from smartshark.mongohandler import handler
 
 from .views.collection import JobSubmissionThread
 from .models import MongoRole, SmartsharkUser, Plugin, Argument, Project, Job, PluginExecution, ExecutionHistory, ProjectMongo, CommitValidation
-from .datavalidation import map_database, create_local_repo, was_vcsshark_executed, was_coastshark_executed, validate_commits, validate_code_entity_states, validate_file_action, delete_local_repo
+from .datavalidation import map_database, create_local_repo, was_vcsshark_executed, was_coastshark_executed, validate_commits, validate_coast_code_entity_states, validate_meco_code_entity_states, validate_file_action, delete_local_repo, was_mecoshark_executed
 import timeit, datetime
 
 admin.site.unregister(User)
@@ -315,7 +315,7 @@ class ProjectAdmin(admin.ModelAdmin):
 
 
 class ProjectMongoAdmin(admin.ModelAdmin):
-    list_display = ('project', 'get_executed_plugins','vcs_validation', 'coast_validation', 'get_last_validation')
+    list_display = ('project', 'get_executed_plugins','vcs_validation', 'coast_validation', 'meco_validation', 'get_last_validation')
     actions = ['full_validation']
 
     def full_validation(self, request, queryset):
@@ -378,9 +378,17 @@ class ProjectMongoAdmin(admin.ModelAdmin):
                                     if was_coastshark_executed(vcsdoc["_id"], db.code_entity_state, db.commit):
                                         projmongo.executed_plugins.add(Plugin.objects.get(name='coastSHARK'))
 
-                                        code_entity_state_validation = validate_code_entity_states(repo, vcsdoc["_id"], path, db.commit, db.code_entity_state)
+                                        coast_code_entity_state_validation = validate_coast_code_entity_states(repo, vcsdoc["_id"], path, db.commit, db.code_entity_state, projmongo)
 
-                                        projmongo.coast_validation= code_entity_state_validation
+                                        projmongo.coast_validation= coast_code_entity_state_validation
+
+                                    if was_mecoshark_executed(vcsdoc["_id"], db.code_entity_state, db.commit):
+                                        projmongo.executed_plugins.add(Plugin.objects.get(name='mecoSHARK'))
+
+                                        meco_code_entity_state_validation = validate_meco_code_entity_states(repo, vcsdoc["_id"], path, db.commit, db.code_entity_state, projmongo)
+
+                                        projmongo.meco_validation= meco_code_entity_state_validation
+
 
                             delete_local_repo(path)
 
@@ -388,6 +396,8 @@ class ProjectMongoAdmin(admin.ModelAdmin):
                                 projmongo.vcs_validation = "No Error"
                             if projmongo.coast_validation == "":
                                 projmongo.coast_validation = "No Error"
+                            if projmongo.meco_validation == "":
+                                projmongo.meco_validation = "No Error"
 
                             projmongo.last_validation = datetime.datetime.now()
                             projmongo.validated = True
@@ -403,14 +413,16 @@ class ProjectMongoAdmin(admin.ModelAdmin):
 
 
 class CommitValidationAdmin(admin.ModelAdmin):
-    list_display = ('projectmongo', 'revision_hash', 'valid', 'missing')
+    list_display = ('projectmongo', 'revision_hash', 'valid', 'present', 'coast_valid', 'coast_present', 'meco_valid', 'meco_present')
     actions = ['delete_only_valid']
 
     def delete_only_valid(self, request, queryset):
 
         for validation in queryset:
-            if validation.valid is True and validation.missing is False:
-                validation.delete()
+            if validation.valid != validation.missing:
+                if validation.coast_valid != validation.coast_missing:
+                    if validation.meco_valid != validation.meco_missing:
+                        validation.delete()
     delete_only_valid.short_description = 'Delete selected valid commit validations'
 
 

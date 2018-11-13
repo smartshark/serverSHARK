@@ -291,9 +291,10 @@ def was_coastshark_executed(vcsid, code_entity_state_col, commit_col, compressed
         if compressed:
             if "code_entity_states" in db_commit:
                 for code_entity_state in db_commit["code_entity_states"]:
-                    if code_entity_state["metrics"]["node_count"] > 0:
-                        coastshark_executed = True
-                        return coastshark_executed
+                    if "node_count" in code_entity_state["metrics"]:
+                        if code_entity_state["metrics"]["node_count"] > 0:
+                            coastshark_executed = True
+                            return coastshark_executed
         else:
             if code_entity_state_col.find({"commit_id": db_commit["_id"]}).count() > 0:
                 for code_entity_state in code_entity_state_col.find({"commit_id":db_commit["_id"]}):
@@ -305,13 +306,41 @@ def was_coastshark_executed(vcsid, code_entity_state_col, commit_col, compressed
     return coastshark_executed
 
 
-def validate_code_entity_states(repo, vcsid, path, commit_col, code_entity_state_col, compressed=False):
+def was_mecoshark_executed(vcsid, code_entity_state_col, commit_col, compressed=False):
+
+    mecoshark_executed = False
+
+    for db_commit in commit_col.find({"vcs_system_id": vcsid}).batch_size(30):
+        if compressed:
+            if "code_entity_states" in db_commit:
+                for code_entity_state in db_commit["code_entity_states"]:
+                    if "McCC" in code_entity_state["metrics"]:
+                        if code_entity_state["metrics"]["McCC"]:
+                            mecoshark_executed = True
+                            return mecoshark_executed
+        else:
+            if code_entity_state_col.find({"commit_id": db_commit["_id"]}).count() > 0:
+                for code_entity_state in code_entity_state_col.find({"commit_id":db_commit["_id"]}):
+                    if "McCC" in code_entity_state["metrics"]:
+                        if code_entity_state["metrics"]["McCC"]:
+                            mecoshark_executed = True
+                            return mecoshark_executed
+
+    return mecoshark_executed
+
+
+def validate_coast_code_entity_states(repo, vcsid, path, commit_col, code_entity_state_col, projectmongo, compressed=False):
 
     unvalidated_code_entity_states = 0
     total_code_entity_states = 0
     missing_code_entity_states = 0
 
     for db_commit in commit_col.find({"vcs_system_id": vcsid}).batch_size(30):
+
+        valid = False
+        missing = True
+
+        missing_so_far = missing_code_entity_states
 
         commit = repo.get(db_commit["revision_hash"])
         commit_id = commit.hex
@@ -321,17 +350,19 @@ def validate_code_entity_states(repo, vcsid, path, commit_col, code_entity_state
 
         if compressed:
             for db_code_entity_state in db_commit["code_entity_states"]:
-                if "node_count" in db_code_entity_state["metrics"]:
-                    if db_code_entity_state["metrics"]["node_count"] > 0:
-                        unvalidated_code_entity_state_longnames.append(
-                            db_code_entity_state["long_name"])
+                if db_code_entity_state["ce_type"] == 'file':
+                    if "node_count" in db_code_entity_state["metrics"]:
+                        if db_code_entity_state["metrics"]["node_count"] > 0:
+                            unvalidated_code_entity_state_longnames.append(
+                                db_code_entity_state["long_name"])
         else:
             for db_code_entity_state in code_entity_state_col.find(
                     {"commit_id": db_commit["_id"]}):
-                if "node_count" in db_code_entity_state["metrics"]:
-                    if db_code_entity_state["metrics"]["node_count"]>0:
-                        unvalidated_code_entity_state_longnames.append(
-                            db_code_entity_state["long_name"])
+                if db_code_entity_state["ce_type"] == 'file':
+                    if "node_count" in db_code_entity_state["metrics"]:
+                        if db_code_entity_state["metrics"]["node_count"]>0:
+                            unvalidated_code_entity_state_longnames.append(
+                                db_code_entity_state["long_name"])
 
         total_code_entity_states += len(unvalidated_code_entity_state_longnames)
 
@@ -353,15 +384,104 @@ def validate_code_entity_states(repo, vcsid, path, commit_col, code_entity_state
         repo.reset(repo.head.target.hex, pygit2.GIT_RESET_HARD)
         ref.delete()
 
+        if len(unvalidated_code_entity_state_longnames)==0:
+            valid = True
+        if missing_code_entity_states==missing_so_far:
+            missing = False
+        update_coast_commitvalidation(db_commit["revision_hash"], projectmongo, valid, missing)
+
     results = ""
 
     if unvalidated_code_entity_states>0:
-        results+= "unmatched code_entity_states: " + str(unvalidated_code_entity_states) + " "
+        results+= "unmatched coast code_entity_states: " + str(unvalidated_code_entity_states) + " "
 
     if missing_code_entity_states>0:
-        results+= "missing code_entity_states: " + str(missing_code_entity_states) + " "
+        results+= "missing coast code_entity_states: " + str(missing_code_entity_states) + " "
 
     return results
+
+
+def validate_meco_code_entity_states(repo, vcsid, path, commit_col, code_entity_state_col, projectmongo, compressed=False):
+
+    unvalidated_code_entity_states = 0
+    total_code_entity_states = 0
+    missing_code_entity_states = 0
+
+    for db_commit in commit_col.find({"vcs_system_id": vcsid}).batch_size(30):
+
+        valid = False
+        missing = True
+
+        missing_so_far = missing_code_entity_states
+
+        commit = repo.get(db_commit["revision_hash"])
+        commit_id = commit.hex
+        ref = repo.create_reference('refs/tags/temp', commit_id)
+        repo.checkout(ref)
+        unvalidated_code_entity_state_longnames = []
+
+        if compressed:
+            for db_code_entity_state in db_commit["code_entity_states"]:
+                if db_code_entity_state["ce_type"] == 'file':
+                    if "McCC" in db_code_entity_state["metrics"]:
+                        if db_code_entity_state["metrics"]["McCC"]:
+                            unvalidated_code_entity_state_longnames.append(
+                                db_code_entity_state["long_name"])
+        else:
+            for db_code_entity_state in code_entity_state_col.find(
+                    {"commit_id": db_commit["_id"]}):
+                if db_code_entity_state["ce_type"] == 'file':
+                    if "McCC" in db_code_entity_state["metrics"]:
+                        if db_code_entity_state["metrics"]["McCC"]:
+                            unvalidated_code_entity_state_longnames.append(
+                                db_code_entity_state["long_name"])
+
+        total_code_entity_states += len(unvalidated_code_entity_state_longnames)
+
+        for root, dirs, files in os.walk(path):
+
+            for file in files:
+
+                if file.endswith('.py') or file.endswith('.java'):
+
+                    filepath = os.path.join(root, file)
+                    filepath = filepath.replace(path + "/", '')
+                    if filepath in unvalidated_code_entity_state_longnames:
+                        unvalidated_code_entity_state_longnames.remove(filepath)
+                    else:
+                        missing_code_entity_states += 1
+
+        unvalidated_code_entity_states += len(unvalidated_code_entity_state_longnames)
+
+        repo.reset(repo.head.target.hex, pygit2.GIT_RESET_HARD)
+        ref.delete()
+
+        if len(unvalidated_code_entity_state_longnames)==0:
+            valid = True
+        if missing_code_entity_states==missing_so_far:
+            missing = False
+        update_meco_commitvalidation(db_commit["revision_hash"], projectmongo, valid, missing)
+
+    results = ""
+
+    if unvalidated_code_entity_states>0:
+        results+= "unmatched meco code_entity_states: " + str(unvalidated_code_entity_states) + " "
+
+    if missing_code_entity_states>0:
+        results+= "missing meco code_entity_states: " + str(missing_code_entity_states) + " "
+
+    return results
+
+
+def update_coast_commitvalidation(hash, projectmongo, valid, missing):
+    #print("updating coast commitvalidation valid: " + str(valid)+ " missing: " + str(missing))
+    if not CommitValidation.objects.filter(revision_hash__exact=hash, projectmongo=projectmongo, coast_valid=valid, coast_missing=missing).exists():
+        CommitValidation.objects.filter(revision_hash__exact=hash, projectmongo=projectmongo).update(coast_valid=valid, coast_missing=missing)
+
+
+def update_meco_commitvalidation(hash, projectmongo, valid, missing):
+    if not CommitValidation.objects.filter(revision_hash__exact=hash, projectmongo=projectmongo, meco_valid=valid, meco_missing=missing).exists():
+        CommitValidation.objects.filter(revision_hash__exact=hash, projectmongo=projectmongo).update(meco_valid=valid, meco_missing=missing)
 
 
 def delete_local_repo(path):

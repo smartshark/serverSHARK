@@ -416,6 +416,7 @@ class ProjectMongo(models.Model):
     last_validation = models.DateTimeField(auto_now=True)
     vcs_validation = models.TextField(max_length=500, default=None, null=True, blank= True)
     coast_validation = models.TextField(max_length=500, default=None, null=True, blank= True)
+    meco_validation = models.TextField(max_length=500, default=None, null=True, blank= True)
     validated = models.BooleanField(default=False)
 
     def get_executed_plugins(self):
@@ -445,4 +446,19 @@ class CommitValidation(models.Model):
     # valid = True, missing = False means commit in db is validated
     # valid = False, missing = False means commit could not be matched with an online commit
     # valid = False, missing = True means is the default setting and means this object should not exist
+    coast_valid = models.BooleanField(default=False)
+    coast_missing = models.BooleanField(default=True)
+    meco_valid = models.BooleanField(default=False)
+    meco_missing = models.BooleanField(default=True)
 
+    def present(self):
+        return self.missing == False
+    present.boolean = True
+
+    def coast_present(self):
+        return self.coast_missing == False
+    coast_present.boolean = True
+
+    def meco_present(self):
+        return self.meco_missing == False
+    meco_present.boolean = True
