@@ -88,7 +88,8 @@ class Plugin(models.Model):
     version = models.DecimalField(max_digits=5, decimal_places=2)
     description = models.CharField(max_length=400)
     plugin_type = models.CharField(max_length=5, choices=TYPE_CHOICES)
-    validate_file = FileValidator(max_size=1024*1024*500, content_types=('application/x-tar', 'application/octet-stream'))
+    validate_file = FileValidator(max_size=1024 * 1024 * 500,
+                                  content_types=('application/x-tar', 'application/octet-stream'))
     archive = models.FileField(upload_to="uploads/plugins/", validators=[validate_file])
     requires = models.ManyToManyField("self", blank=True, symmetrical=False)
     linux_libraries = models.CharField(max_length=1000, default=None, blank=True, null=True)
@@ -141,11 +142,11 @@ class Plugin(models.Model):
         done_job_set = set()
         for plugin_execution in plugin_executions:
             # For each plugin_execution get all done_jobs and their revisions
-            done_jobs_revisions = plugin_execution.job_set.all().filter(status='DONE').order_by('revision_hash')\
+            done_jobs_revisions = plugin_execution.job_set.all().filter(status='DONE').order_by('revision_hash') \
                 .values_list('revision_hash', flat=True).distinct()
 
             # Get all revisions of exit jobs
-            exit_jobs_revisions = plugin_execution.job_set.all().filter(status='EXIT').order_by('revision_hash')\
+            exit_jobs_revisions = plugin_execution.job_set.all().filter(status='EXIT').order_by('revision_hash') \
                 .values_list('revision_hash', flat=True).distinct()
 
             exit_job_set = exit_job_set | set(exit_jobs_revisions)
@@ -325,7 +326,8 @@ class ExecutionHistory(models.Model):
     execution_value = models.CharField(max_length=300, default=None, null=True, blank=True)
 
     def __str__(self):
-        return "Argument: %s, Value: %s, plugin_execution: %s" % (self.execution_argument, self.execution_value, self.plugin_execution.id)
+        return "Argument: %s, Value: %s, plugin_execution: %s" % (
+            self.execution_argument, self.execution_value, self.plugin_execution.id)
 
 
 class Job(models.Model):
@@ -408,15 +410,15 @@ class SmartsharkUser(models.Model):
 class ProjectMongo(models.Model):
     project = models.OneToOneField(Project)
     vcs_id = models.CharField(max_length=50, default=None, null=True, blank=True)
-    issue_id = models.CharField(max_length=50, default=None,  null=True, blank=True)
+    issue_id = models.CharField(max_length=50, default=None, null=True, blank=True)
     mailing_id = models.CharField(max_length=50, default=None, null=True, blank=True)
-    validation = models.TextField(max_length=500, default=None, null=True, blank= True)
+    validation = models.TextField(max_length=500, default=None, null=True, blank=True)
 
     executed_plugins = models.ManyToManyField(Plugin)
     last_validation = models.DateTimeField(auto_now=True)
-    vcs_validation = models.TextField(max_length=500, default=None, null=True, blank= True)
-    coast_validation = models.TextField(max_length=500, default=None, null=True, blank= True)
-    meco_validation = models.TextField(max_length=500, default=None, null=True, blank= True)
+    vcs_validation = models.TextField(max_length=500, default=None, null=True, blank=True)
+    coast_validation = models.TextField(max_length=500, default=None, null=True, blank=True)
+    meco_validation = models.TextField(max_length=500, default=None, null=True, blank=True)
     validated = models.BooleanField(default=False)
 
     def get_executed_plugins(self):
@@ -434,7 +436,7 @@ class ProjectMongo(models.Model):
     @receiver(post_save, sender=Project)
     def create_ProjectMongo(sender, created, instance, **kwargs):
         if created:
-            ProjectMongo.objects.create(project= instance)
+            ProjectMongo.objects.create(project=instance)
 
 
 class CommitValidation(models.Model):
@@ -453,12 +455,15 @@ class CommitValidation(models.Model):
 
     def present(self):
         return self.missing == False
+
     present.boolean = True
 
     def coast_present(self):
         return self.coast_missing == False
+
     coast_present.boolean = True
 
     def meco_present(self):
         return self.meco_missing == False
+
     meco_present.boolean = True
