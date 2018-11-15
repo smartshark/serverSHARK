@@ -430,6 +430,84 @@ class ProjectMongo(models.Model):
         else:
             return "None"
 
+    def get_missing_coast_hashs_as_string(self):
+        hashs = ""
+        for commitvalidation in CommitValidation.objects.filter(projectmongo=self, coast_valid=True,
+                                                                coast_missing=True):
+            hashs = hashs + commitvalidation.revision_hash + ", "
+        return hashs
+
+    def get_missing_coast_hashs_as_list(self):
+        hashs = []
+        for commitvalidation in CommitValidation.objects.filter(projectmongo=self, coast_valid=True,
+                                                                coast_missing=True):
+            hashs.append(commitvalidation.revision_hash)
+        return hashs
+
+    def get_invalid_coast_hashs_as_string(self):
+        hashs = ""
+        for commitvalidation in CommitValidation.objects.filter(projectmongo=self, coast_valid=False,
+                                                                coast_missing=False):
+            hashs = hashs + commitvalidation.revision_hash + ", "
+        return hashs
+
+    def get_invalid_coast_hashs_as_list(self):
+        hashs = []
+        for commitvalidation in CommitValidation.objects.filter(projectmongo=self, coast_valid=False,
+                                                                coast_missing=False):
+            hashs.append(commitvalidation.revision_hash)
+        return hashs
+
+    def get_missing_meco_hashs_as_string(self):
+        hashs = ""
+        for commitvalidation in CommitValidation.objects.filter(projectmongo=self, meco_valid=True, meco_missing=True):
+            hashs = hashs + commitvalidation.revision_hash + ", "
+        return hashs
+
+    def get_missing_meco_hashs_as_list(self):
+        hashs = []
+        for commitvalidation in CommitValidation.objects.filter(projectmongo=self, meco_valid=True, meco_missing=True):
+            hashs.append(commitvalidation.revision_hash)
+        return hashs
+
+    def get_invalid_meco_hashs_as_string(self):
+        hashs = ""
+        for commitvalidation in CommitValidation.objects.filter(projectmongo=self, meco_valid=False,
+                                                                meco_missing=False):
+            hashs = hashs + commitvalidation.revision_hash + ", "
+        return hashs
+
+    def get_invalid_meco_hashs_as_list(self):
+        hashs = []
+        for commitvalidation in CommitValidation.objects.filter(projectmongo=self, meco_valid=False,
+                                                                meco_missing=False):
+            hashs.append(commitvalidation.revision_hash)
+        return hashs
+
+    def get_missing_hashs_as_string(self):
+        hashs = ""
+        for commitvalidation in CommitValidation.objects.filter(projectmongo=self, valid=True, missing=True):
+            hashs = hashs + commitvalidation.revision_hash + ", "
+        return hashs
+
+    def get_missing_hashs_as_list(self):
+        hashs = []
+        for commitvalidation in CommitValidation.objects.filter(projectmongo=self, valid=True, missing=True):
+            hashs.append(commitvalidation.revision_hash)
+        return hashs
+
+    def get_invalid_hashs_as_string(self):
+        hashs = ""
+        for commitvalidation in CommitValidation.objects.filter(projectmongo=self, valid=False, missing=False):
+            hashs = hashs + commitvalidation.revision_hash + ", "
+        return hashs
+
+    def get_invalid_hashs_as_list(self):
+        hashs = []
+        for commitvalidation in CommitValidation.objects.filter(projectmongo=self, valid=False, missing=False):
+            hashs.append(commitvalidation.revision_hash)
+        return hashs
+
     def __str__(self):
         return self.project.name
 
