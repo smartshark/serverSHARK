@@ -320,7 +320,7 @@ class ProjectAdmin(admin.ModelAdmin):
 
 class ProjectMongoAdmin(admin.ModelAdmin):
     list_display = (
-    'project', 'get_executed_plugins', 'vcs_validation', 'coast_validation', 'meco_validation', 'get_last_validation', 'get_missing_coast_hashs_as_string')
+    'project', 'get_executed_plugins', 'vcs_validation', 'coast_validation', 'meco_validation', 'get_last_validation')
     actions = ['full_validation']
 
     def full_validation(self, request, queryset):
