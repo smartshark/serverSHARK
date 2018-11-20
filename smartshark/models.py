@@ -85,7 +85,7 @@ class Plugin(models.Model):
     )
     name = models.CharField(max_length=100)
     author = models.CharField(max_length=200)
-    version = models.DecimalField(max_digits=5, decimal_places=2)
+    version = models.CharField(max_length=100)
     description = models.CharField(max_length=400)
     plugin_type = models.CharField(max_length=5, choices=TYPE_CHOICES)
     validate_file = FileValidator(max_size=1024*1024*500, content_types=('application/x-tar', 'application/octet-stream'))
