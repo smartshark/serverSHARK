@@ -28,7 +28,7 @@ admin.site.unregister(User)
 class JobAdmin(admin.ModelAdmin):
     list_display = ('job_id', 'plugin_execution', 'status', 'revision_hash')
     list_filter = (
-    'plugin_execution__project', 'plugin_execution__plugin', 'status', 'plugin_execution__execution_type')
+        'plugin_execution__project', 'plugin_execution__plugin', 'status', 'plugin_execution__execution_type')
     search_fields = ('revision_hash',)
 
     actions = ['restart_job', 'set_exit', 'set_done', 'set_job_stati']
@@ -320,15 +320,17 @@ class ProjectAdmin(admin.ModelAdmin):
 
 class ProjectMongoAdmin(admin.ModelAdmin):
     list_display = (
-    'project', 'get_executed_plugins', 'vcs_validation', 'coast_validation', 'meco_validation', 'get_last_validation')
+        'project', 'get_executed_plugins', 'vcs_validation', 'coast_validation', 'meco_validation',
+        'get_last_validation')
     actions = ['full_validation']
 
+    # Runs a data validation, currently supports vcsshark, coastshark and mecoshark and only on github
     def full_validation(self, request, queryset):
         mongoclient = handler.client
         path = "../tmp-repo"
         db = mongoclient.smartshark
         project_db = db.project
-
+        # creates a dict with collections as keys and collections that can be reached as values
         keymap = map_database(db)
 
         vcs_system_exists = False
@@ -355,7 +357,7 @@ class ProjectMongoAdmin(admin.ModelAdmin):
             if (project_db.find({"name": proj.name}).count() > 0):
 
                 projdoc = project_db.find_one({"name": proj.name})
-
+                # coast and mecoshark depend on vcsshark so vcsshark has to be validated first
                 if vcs_system_exists:
 
                     if (db.vcs_system.find({"project_id": projdoc["_id"]}).count() > 0):
@@ -365,45 +367,54 @@ class ProjectMongoAdmin(admin.ModelAdmin):
 
                             vcsdoc = db.vcs_system.find_one({"project_id": projdoc["_id"]})
 
-                            repo = create_local_repo(vcsdoc, path)
+                            if vcsdoc["repository_type"] == 'git':
+                                # uses pygit2 to create a local repo
+                                repo = create_local_repo(vcsdoc, path)
 
-                            if not repo.is_empty:
+                                if not repo.is_empty:
+                                    # returns a string with the summarized results, same for other validations
+                                    commit_validation = validate_commits(repo, vcsdoc, db.commit, projmongo)
 
-                                commit_validation = validate_commits(repo, vcsdoc, db.commit, projmongo)
+                                    projmongo.vcs_validation = commit_validation
 
-                                projmongo.vcs_validation = commit_validation
+                                    if file_action_exists:
+                                        file_action_validation = validate_file_action(repo, vcsdoc["_id"], db.commit,
+                                                                                      db.file, db.file)
 
-                                if file_action_exists:
-                                    file_action_validation = validate_file_action(repo, vcsdoc["_id"], db.commit,
-                                                                                  db.file, db.file)
+                                        projmongo.vcs_validation += file_action_validation
 
-                                    projmongo.vcs_validation += file_action_validation
+                                    if code_entity_state_exists:
 
-                                if code_entity_state_exists:
+                                        if was_coastshark_executed(vcsdoc["_id"], db.code_entity_state, db.commit):
+                                            projmongo.executed_plugins.add(Plugin.objects.get(name='coastSHARK'))
 
-                                    if was_coastshark_executed(vcsdoc["_id"], db.code_entity_state, db.commit):
-                                        projmongo.executed_plugins.add(Plugin.objects.get(name='coastSHARK'))
+                                            coast_code_entity_state_validation = validate_coast_code_entity_states(repo,
+                                                                                                                   vcsdoc[
+                                                                                                                       "_id"],
+                                                                                                                   path,
+                                                                                                                   db.commit,
+                                                                                                                   db.code_entity_state,
+                                                                                                                   projmongo)
 
-                                        coast_code_entity_state_validation = validate_coast_code_entity_states(repo,
-                                                                                                               vcsdoc["_id"],
-                                                                                                               path,
-                                                                                                               db.commit,
-                                                                                                               db.code_entity_state,
-                                                                                                               projmongo)
+                                            projmongo.coast_validation = coast_code_entity_state_validation
 
-                                        projmongo.coast_validation = coast_code_entity_state_validation
+                                        if was_mecoshark_executed(vcsdoc["_id"], db.code_entity_state, db.commit):
+                                            projmongo.executed_plugins.add(Plugin.objects.get(name='mecoSHARK'))
 
-                                    if was_mecoshark_executed(vcsdoc["_id"], db.code_entity_state, db.commit):
-                                        projmongo.executed_plugins.add(Plugin.objects.get(name='mecoSHARK'))
+                                            meco_code_entity_state_validation = validate_meco_code_entity_states(repo,
+                                                                                                                 vcsdoc[
+                                                                                                                     "_id"],
+                                                                                                                 path,
+                                                                                                                 db.commit,
+                                                                                                                 db.code_entity_state,
+                                                                                                                 projmongo)
 
-                                        meco_code_entity_state_validation = validate_meco_code_entity_states(repo,
-                                                                                                             vcsdoc["_id"],
-                                                                                                             path,
-                                                                                                             db.commit,
-                                                                                                             db.code_entity_state,
-                                                                                                             projmongo)
+                                            projmongo.meco_validation = meco_code_entity_state_validation
+                                else:
+                                    print("Couldn't create local repo for " + proj.name + ".")
 
-                                        projmongo.meco_validation = meco_code_entity_state_validation
+                            else:
+                                print("Only github is supported for now. " + proj.name + " is not from github.")
 
                             delete_local_repo(path)
 
@@ -429,7 +440,8 @@ class ProjectMongoAdmin(admin.ModelAdmin):
 
 class CommitValidationAdmin(admin.ModelAdmin):
     list_display = (
-    'projectmongo', 'revision_hash', 'valid', 'present', 'coast_valid', 'coast_present', 'meco_valid', 'meco_present')
+        'projectmongo', 'revision_hash', 'valid', 'present', 'coast_valid', 'coast_present', 'meco_valid',
+        'meco_present')
     actions = ['delete_only_valid']
 
     def delete_only_valid(self, request, queryset):

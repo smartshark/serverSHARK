@@ -430,6 +430,7 @@ class ProjectMongo(models.Model):
         else:
             return "None"
 
+    # provides revision hash's of commits with flawed or missing data as list or string separated with ','
     def get_missing_coast_hashs_as_string(self):
         hashs = ""
         for commitvalidation in CommitValidation.objects.filter(projectmongo=self, coast_valid=True,
@@ -520,17 +521,18 @@ class ProjectMongo(models.Model):
 class CommitValidation(models.Model):
     projectmongo = models.ForeignKey(ProjectMongo, on_delete=models.CASCADE)
     revision_hash = models.CharField(max_length=50, default="None")
-    valid = models.BooleanField(default=False)
-    missing = models.BooleanField(default=True)
     # valid = True, missing = True means commit exists but is missing in db
     # valid = True, missing = False means commit in db is validated
     # valid = False, missing = False means commit could not be matched with an online commit
     # valid = False, missing = True means is the default setting and means this object should not exist
+    valid = models.BooleanField(default=False)
+    missing = models.BooleanField(default=True)
     coast_valid = models.BooleanField(default=False)
     coast_missing = models.BooleanField(default=True)
     meco_valid = models.BooleanField(default=False)
     meco_missing = models.BooleanField(default=True)
 
+    # flips missing for admin view so 2 green checkboxes mean everything is ok
     def present(self):
         return self.missing == False
 

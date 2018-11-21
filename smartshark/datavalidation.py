@@ -1,9 +1,9 @@
 import pygit2, os, shutil, re, datetime
-from itertools import islice
 from .models import CommitValidation
 
 
-def map_database(db):
+def map_database(db, print_map=False):
+    # performs a breadth search to find all collections and how they can be traversed down from project
     keymap = dict()
     plugin_schema = db.plugin_schema
     project_db = db.project
@@ -31,25 +31,28 @@ def map_database(db):
                                             keymap[current_collection.name] = [found_collection.name]
 
         visited_collections.append(current_collection)
-
+    # adds all collections which do not have any further collections attached to them
     for col in visited_collections:
         if col.name not in keymap:
             keymap[col.name] = []
 
-    # print("collections in keymap:")
-    # for key in keymap:
-    #    print(key, ':', keymap[key])
+    # option to print out the current database structure
+    if print_map:
+        print("collections in keymap:")
+        for key in keymap:
+            print(key, ':', keymap[key])
 
     return keymap
 
 
 def create_local_repo(vcsdoc, path):
     url = vcsdoc["url"]
-    repourl = "git" + url[5:]
+    # removes the https and replaces it with git
+    repo_url = "git" + url[5:]
     if os.path.isdir(path):
         shutil.rmtree(path)
 
-    repo = pygit2.clone_repository(repourl, path)
+    repo = pygit2.clone_repository(repo_url, path)
 
     return repo
 
@@ -63,17 +66,13 @@ def validate_commits(repo, vcsdoc, commit_col, projectmongo):
     db_commit_hexs = []
     for db_commit in commit_col.find({"vcs_system_id": vcsid}):
         db_commit_hexs.append(db_commit["revision_hash"])
-    total_commit_hexs = []  # db_commit_hexs.copy()
-
-    db_commit_count = len(db_commit_hexs)
-    commit_count = 0
+    total_commit_hexs = []
 
     for commit in repo.walk(repo.head.target, pygit2.GIT_SORT_TIME):
         if commit.hex not in total_commit_hexs:
             time = datetime.datetime.utcfromtimestamp(commit.commit_time)
             if time < vcsdoc["last_updated"]:
                 total_commit_hexs.append(commit.hex)
-                commit_count += 1
 
     # inspired by vcsshark gitparser.py
     references = set(repo.listall_references())
@@ -92,7 +91,6 @@ def validate_commits(repo, vcsdoc, commit_col, projectmongo):
                 time = datetime.datetime.utcfromtimestamp(child.commit_time)
                 if time < vcsdoc["last_updated"]:
                     total_commit_hexs.append(child.hex)
-                    commit_count += 1
 
     for tag in tags:
         commit = repo.lookup_reference(tag).peel()
@@ -101,14 +99,12 @@ def validate_commits(repo, vcsdoc, commit_col, projectmongo):
             time = datetime.datetime.utcfromtimestamp(commit.commit_time)
         if time < vcsdoc["last_updated"]:
             total_commit_hexs.append(commit.hex)
-            commit_count += 1
 
         for child in repo.walk(commit.id, pygit2.GIT_SORT_TIME | pygit2.GIT_SORT_TOPOLOGICAL):
             if child.hex not in total_commit_hexs:
                 time = datetime.datetime.utcfromtimestamp(child.commit_time)
                 if time < vcsdoc["last_updated"]:
                     total_commit_hexs.append(child.hex)
-                    commit_count += 1
 
     missing = set(total_commit_hexs) - set(db_commit_hexs)
     unmatched = set(db_commit_hexs) - set(total_commit_hexs)
@@ -116,6 +112,7 @@ def validate_commits(repo, vcsdoc, commit_col, projectmongo):
     unmatched_commits = len(unmatched)
     missing_commits = len(missing)
 
+    # create or update the commitvalidation object for each commit
     make_commitvalidations(unmatched, projectmongo=projectmongo, valid=False, missing=False)
     make_commitvalidations(missing, projectmongo=projectmongo, valid=True, missing=True)
     make_commitvalidations((set(total_commit_hexs) - missing), projectmongo=projectmongo, valid=True, missing=False)
@@ -130,6 +127,7 @@ def validate_commits(repo, vcsdoc, commit_col, projectmongo):
 
 
 def make_commitvalidations(commits, projectmongo, valid, missing):
+    # using this filter has proven to be faster then just running update_or_create for everything
     for commit in list(commits):
         if CommitValidation.objects.filter(projectmongo=projectmongo, revision_hash__exact=commit, valid=valid,
                                            missing=missing).exists():
@@ -140,7 +138,6 @@ def make_commitvalidations(commits, projectmongo, valid, missing):
 
 
 def validate_file_action(repo, vcsid, commit_col, file_action_col, file_col):
-    counter = 0
     file_action_counter = 0
     validated_file_actions = 0
 
@@ -172,7 +169,7 @@ def validate_file_action(repo, vcsid, commit_col, file_action_col, file_col):
             for parent in online_commit.parents:
                 diff = repo.diff(parent, online_commit, context_lines=0,
                                  interhunk_lines=1)
-
+                # almost the same as in the normal file_action creation
                 opts = pygit2.GIT_DIFF_FIND_RENAMES | pygit2.GIT_DIFF_FIND_COPIES
                 diff.find_similar(opts, SIMILARITY_THRESHOLD,
                                   SIMILARITY_THRESHOLD)
@@ -213,8 +210,6 @@ def validate_file_action(repo, vcsid, commit_col, file_action_col, file_col):
                         "mode": mode
                     }
 
-                    counter += 1
-
                     already_checked_file_paths.add(patch.delta.new_file.path)
 
                     for db_file_action in file_action_col.find(
@@ -244,8 +239,6 @@ def validate_file_action(repo, vcsid, commit_col, file_action_col, file_col):
                 filepath = patch.delta.new_file.path
                 filemode = 'A'
 
-                counter += 1
-
                 for db_file_action in file_action_col.find(
                         {"commit_id": db_commit["_id"]}).batch_size(5):
 
@@ -257,7 +250,7 @@ def validate_file_action(repo, vcsid, commit_col, file_action_col, file_col):
 
                     identical = True
 
-                    # for initial commit filesize and linesadded never match but checking filepath should be enough
+                    # for initial commit file size and lines added never match but checking filepath should be enough
                     if not filepath == db_file["path"]:
                         identical = False
                     if not filemode == db_file_action["mode"]:
@@ -281,7 +274,7 @@ def validate_file_action(repo, vcsid, commit_col, file_action_col, file_col):
 
 def was_coastshark_executed(vcsid, code_entity_state_col, commit_col, compressed=False):
     coastshark_executed = False
-
+    # search until the first code_entity_state with coastshark specific data was found
     for db_commit in commit_col.find({"vcs_system_id": vcsid}).batch_size(30):
         if compressed:
             if "code_entity_states" in db_commit:
@@ -303,7 +296,7 @@ def was_coastshark_executed(vcsid, code_entity_state_col, commit_col, compressed
 
 def was_mecoshark_executed(vcsid, code_entity_state_col, commit_col, compressed=False):
     mecoshark_executed = False
-
+    # search until the first code_entity_state with mecoshark specific data was found
     for db_commit in commit_col.find({"vcs_system_id": vcsid}).batch_size(30):
         if compressed:
             if "code_entity_states" in db_commit:
@@ -328,7 +321,8 @@ def validate_coast_code_entity_states(repo, vcsid, path, commit_col, code_entity
     unvalidated_code_entity_states = 0
     total_code_entity_states = 0
     missing_code_entity_states = 0
-
+    # for every code_entity_state checks the values and saves the longname
+    # after repo checkout for the current commit the files are checked against the list of longnames
     for db_commit in commit_col.find({"vcs_system_id": vcsid}).batch_size(30):
 
         valid = False
@@ -400,7 +394,8 @@ def validate_meco_code_entity_states(repo, vcsid, path, commit_col, code_entity_
     unvalidated_code_entity_states = 0
     total_code_entity_states = 0
     missing_code_entity_states = 0
-
+    # for every code_entity_state checks the values and saves the longname
+    # after repo checkout for the current commit the files are checked against the list of longnames
     for db_commit in commit_col.find({"vcs_system_id": vcsid}).batch_size(30):
 
         valid = False
