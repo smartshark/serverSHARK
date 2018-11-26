@@ -401,6 +401,7 @@ class ProjectMongoAdmin(admin.ModelAdmin):
                                         if was_mecoshark_executed(vcsdoc["_id"], db.code_entity_state, db.commit):
                                             projmongo.executed_plugins.add(Plugin.objects.get(name='mecoSHARK'))
 
+                                            # meco validation does not work for projects in C or C++ yet
                                             meco_code_entity_state_validation = validate_meco_code_entity_states(repo,
                                                                                                                  vcsdoc[
                                                                                                                      "_id"],

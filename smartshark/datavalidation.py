@@ -430,7 +430,7 @@ def validate_meco_code_entity_states(repo, vcsid, path, commit_col, code_entity_
         for root, dirs, files in os.walk(path):
 
             for file in files:
-
+                # TODO add support for C and C++ file extensions
                 if file.endswith('.py') or file.endswith('.java'):
 
                     filepath = os.path.join(root, file)
