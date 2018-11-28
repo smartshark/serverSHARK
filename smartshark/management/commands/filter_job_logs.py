@@ -49,18 +49,24 @@ class Command(BaseCommand):
         interface = PluginManagementInterface.find_correct_plugin_manager()
 
         if options['execute']:
-            found = 0
+            found_revs = []
+            notfound_revs = []
             for job in jobs:
                 output = []
                 if options['filter_log_type'] == 'error':
                     output = interface.get_error_log(job)
                 if options['filter_log_type'] == 'output':
                     output = interface.get_output_log(job)
-
                 if output:
                     output = '\n'.join(output)
 
                 if options['filter_string'] in output:
-                    found += 1
+                    found_revs.append(job.revision_hash)
+                else:
+                    notfound_revs.append(job.revision_hash)
 
-            self.stdout.write('String found in {} of {} jobs'.format(found, len(jobs)))
+            self.stdout.write('String found in {} of {} jobs'.format(len(found_revs), len(jobs)))
+            if len(notfound_revs) < len(found_revs):
+                self.stdout.write('not found: {}'.format(','.join(notfound_revs)))
+            else:
+                self.stdout.write('found: {}'.format(','.join(found_revs)))
