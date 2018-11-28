@@ -310,6 +310,18 @@ class PluginExecution(models.Model):
 
         return False
 
+    def get_counts_of_jobstatus(self):
+        done = 0
+        exits = 0
+        for job in self.job_set.all():
+            if job.status == 'DONE':
+                done += 1
+            if job.status == 'EXIT':
+                exits += 1
+
+
+        return (done,exits)
+
     def get_sorted_argument_with_name(self):
         arguments = OrderedDict()
 
