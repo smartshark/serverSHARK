@@ -6,9 +6,9 @@
  <script type="text/javascript">
  $(document).ready(function() {
     $('#show_all_button').on('click', function() {
-        $("li").each(function(){
+        $("li[data-fieldType='hidden']").each(function(){
             var input = $(this);
-            input.show()
+            input.toggle()
         });
     });
 });
@@ -29,7 +29,7 @@
 {% endblock %}
 
 {% block content %}
-    <h1>Choose Plugins for Installation</h1>
+    <h1>Choose Plugins for Execution</h1>
     <h2>You have chosen the following plugins for execution:</h2>
     <ul>
         {% for plugin in plugins %}
@@ -65,7 +65,7 @@
             {% if field.is_hidden %}
               {{ field }}
             {% else %}
-              <li{{ field.row_attrs }} style="list-style-type: none; padding: 5px 0px;" id="{{ field.auto_id }}">
+              <li{{ field.row_attrs }} style="list-style-type: none; padding: 5px 0px;" id="{{ field.auto_id }}" data-fieldType="hidden">
                 {{ field.label_tag }}
                 {{ field }}
                 <p class="help-block text-muted">
