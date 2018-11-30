@@ -51,6 +51,12 @@ class LocalQueueConnector(PluginManagementInterface, BaseConnector):
         """Return uniqe identifier for this connector."""
         return 'LOCALQUEUE'
 
+    def default_queue(self):
+        return self.job_queue
+
+    def default_cores_per_job(self):
+        return 1
+
     def execute_plugins(self, project, plugin_executions):
         """Execute plugins.
 

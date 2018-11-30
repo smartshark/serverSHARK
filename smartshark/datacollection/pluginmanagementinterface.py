@@ -43,6 +43,14 @@ class PluginManagementInterface(metaclass=abc.ABCMeta):
     def delete_output_for_plugin_execution(self, plugin_execution):
         return
 
+    @abc.abstractmethod
+    def default_cores_per_job(self):
+        return
+
+    @abc.abstractmethod
+    def default_queue(self):
+        return
+
     @staticmethod
     def find_correct_plugin_manager():
         plugin_files = [x[:-3] for x in os.listdir(os.path.dirname(os.path.realpath(__file__))) if x.endswith(".py")]

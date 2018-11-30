@@ -27,10 +27,9 @@ class JobSubmissionThread(threading.Thread):
 
     def run(self):
         interface = PluginManagementInterface.find_correct_plugin_manager()
-        jobs = []
         if self.create_jobs:
-            jobs = create_jobs_for_execution(self.project, self.plugin_executions)
-        interface.execute_plugins(self.project, jobs, self.plugin_executions)
+            create_jobs_for_execution(self.project, self.plugin_executions)
+        interface.execute_plugins(self.project, self.plugin_executions)
 
 
 def install(request):
@@ -91,18 +90,11 @@ def _check_if_at_least_one_execution_was_successful(req_plugin, project):
 
 
 def choose_plugins(request):
-    projects = []
-
     if not request.user.is_authenticated() or not request.user.has_perm('smartshark.start_collection'):
         messages.error(request, 'You are not authorized to perform this action.')
         return HttpResponseRedirect('/admin/smartshark/project')
 
-    if request.GET.get('ids'):
-        for project_id in request.GET.get('ids', '').split(','):
-            projects.append(get_object_or_404(Project, pk=project_id))
-    else:
-        messages.error(request, 'No project ids were given.')
-        return HttpResponseRedirect('/admin/smartshark/project')
+    project = get_object_or_404(Project, pk=request.GET.get('project_id'))
 
     # if this is a POST request we need to process the form data
     if request.method == 'POST':
@@ -136,49 +128,48 @@ def choose_plugins(request):
                 # TODO
 
                 # if plugin with this project is in plugin execution and has status != finished | error -> problem
-                for project in projects:
-                    for req_plugin in plugin.requires.all():
-                        logger.debug("Looking at required plugin %s" % str(req_plugin))
+                for req_plugin in plugin.requires.all():
+                    logger.debug("Looking at required plugin %s" % str(req_plugin))
 
-                        # todo: implement check for plugins taking into account the plugin version e.g., if vcsshark-0.10 is required
-                        # also allow vcsshark-0.11 or newer (if info.json allows that (>=))
-                        #if not _check_if_at_least_one_execution_was_successful(req_plugin, project):
-                        #    messages.error(request,
-                        #                   'Not all requirements for plugin %s are met. Plugin %s was not executed '
-                        #                   'successfully for project %s before!'
-                        #                   % (str(plugin), str(req_plugin), str(project)))
-                        #    return HttpResponseRedirect(request.get_full_path())
+                    # todo: implement check for plugins taking into account the plugin version e.g., if vcsshark-0.10 is required
+                    # also allow vcsshark-0.11 or newer (if info.json allows that (>=))
+                    #if not _check_if_at_least_one_execution_was_successful(req_plugin, project):
+                    #    messages.error(request,
+                    #                   'Not all requirements for plugin %s are met. Plugin %s was not executed '
+                    #                   'successfully for project %s before!'
+                    #                   % (str(plugin), str(req_plugin), str(project)))
+                    #    return HttpResponseRedirect(request.get_full_path())
 
-                        logger.debug("At least one plugin execution for plugin %s was successful." % str(req_plugin))
+                    logger.debug("At least one plugin execution for plugin %s was successful." % str(req_plugin))
 
-                    # Update job information
-                    plugin_executions = PluginExecution.objects.all().filter(plugin=plugin, project=project)
+                # Update job information
+                plugin_executions = PluginExecution.objects.all().filter(plugin=plugin, project=project)
 
-                    # Get all jobs from all plugin_executions which did not terminate yet
-                    jobs = []
-                    for plugin_execution in plugin_executions:
-                        jobs.extend(Job.objects.filter(plugin_execution=plugin_execution, status='WAIT').all())
+                # Get all jobs from all plugin_executions which did not terminate yet
+                jobs = []
+                for plugin_execution in plugin_executions:
+                    jobs.extend(Job.objects.filter(plugin_execution=plugin_execution, status='WAIT').all())
 
-                    # Update the job stati for these jobs
-                    job_stati = interface.get_job_stati(jobs)
-                    i = 0
-                    for job in jobs:
-                        job.status = job_stati[i]
-                        job.save()
+                # Update the job stati for these jobs
+                job_stati = interface.get_job_stati(jobs)
+                i = 0
+                for job in jobs:
+                    job.status = job_stati[i]
+                    job.save()
 
-                    # check if some plugin has unfinished jobs
-                    has_unfinished_jobs = False
-                    for plugin_execution in plugin_executions:
-                        if plugin_execution.has_unfinished_jobs():
-                            has_unfinished_jobs = True
+                # check if some plugin has unfinished jobs
+                has_unfinished_jobs = False
+                for plugin_execution in plugin_executions:
+                    if plugin_execution.has_unfinished_jobs():
+                        has_unfinished_jobs = True
 
-                    if has_unfinished_jobs:
-                        messages.error(request, 'Plugin %s is already scheduled for project %s.' % (str(plugin),
-                                                                                                    project))
-                        return HttpResponseRedirect(request.get_full_path())
+                if has_unfinished_jobs:
+                    messages.error(request, 'Plugin %s is already scheduled for project %s.' % (str(plugin),
+                                                                                                project))
+                    return HttpResponseRedirect(request.get_full_path())
 
-            return HttpResponseRedirect('/smartshark/project/collection/start?plugins=%s&projects=%s' %
-                                        (','.join(plugin_ids), request.GET.get('ids')))
+            return HttpResponseRedirect('/smartshark/project/collection/start?plugins=%s&project_id=%s' %
+                                        (','.join(plugin_ids), request.GET.get('project_id')))
 
     # if a GET (or any other method) we'll create a blank form
     else:
@@ -186,25 +177,19 @@ def choose_plugins(request):
 
     return render(request, 'smartshark/project/action_collection.html', {
         'form': form,
-        'projects': projects,
+        'projects': [project],
 
     })
 
 
 def start_collection(request):
-    projects = []
     plugins = []
 
     if not request.user.is_authenticated() or not request.user.has_perm('smartshark.start_collection'):
         messages.error(request, 'You are not authorized to perform this action.')
         return HttpResponseRedirect('/admin/smartshark/project')
 
-    if request.GET.get('projects'):
-        for project_id in request.GET.get('projects', '').split(','):
-            projects.append(get_object_or_404(Project, pk=project_id))
-    else:
-        messages.error(request, 'No project ids were given.')
-        return HttpResponseRedirect('/admin/smartshark/project')
+    project = get_object_or_404(Project, pk=request.GET.get('project_id'))
 
     if request.GET.get('plugins'):
         for plugin_id in request.GET.get('plugins', '').split(','):
@@ -231,36 +216,33 @@ def start_collection(request):
 
             sorted_plugins = order_plugins(plugins)
 
-            for project in projects:
+            plugin_executions = []
+            for plugin in sorted_plugins:
+                # Create Plugin Execution Objects
+                plugin_execution = PluginExecution(project=project, plugin=plugin)
 
-                plugin_executions = []
-                for plugin in sorted_plugins:
-                    # Create Plugin Execution Objects
-                    plugin_execution = PluginExecution(project=project, plugin=plugin)
+                if plugin.plugin_type == 'repo' or plugin.plugin_type == 'rev':
+                    plugin_execution.repository_url = repository_url
 
-                    if plugin.plugin_type == 'repo' or plugin.plugin_type == 'rev':
-                        plugin_execution.repository_url = repository_url
+                if plugin.plugin_type == 'rev':
+                    plugin_execution.execution_type = execution_type
+                    plugin_execution.revisions = revisions
 
-                    if plugin.plugin_type == 'rev':
-                        plugin_execution.execution_type = execution_type
-                        plugin_execution.revisions = revisions
+                # Set the job queue and cores_per_job
+                plugin_execution.job_queue = job_queue
+                plugin_execution.cores_per_job = cores_per_job
 
-                    # Set the job queue and cores_per_job
-                    plugin_execution.job_queue = job_queue
-                    plugin_execution.cores_per_job = cores_per_job
+                plugin_execution.save()
+                plugin_executions.append(plugin_execution)
 
-                    plugin_execution.save()
-                    plugin_executions.append(plugin_execution)
+                messages.success(request, 'Started plugin %s on project %s.' % (str(plugin), project.name))
 
-                    messages.success(request, 'Started plugin %s on project %s.' %
-                             (str(plugin), project.name))
+            # Set execution history with execution values for the plugin execution
+            set_argument_execution_values(form.cleaned_data, plugin_executions)
 
-                # Set execution history with execution values for the plugin execution
-                set_argument_execution_values(form.cleaned_data, plugin_executions)
-
-                # Create jobs and execute them in a separate thread
-                thread = JobSubmissionThread(project, plugin_executions)
-                thread.start()
+            # Create jobs and execute them in a separate thread
+            thread = JobSubmissionThread(project, plugin_executions)
+            thread.start()
 
             return HttpResponseRedirect('/admin/smartshark/project')
 
@@ -271,7 +253,7 @@ def start_collection(request):
     return render(request, 'smartshark/project/execution.html', {
         'form': form,
         'plugins': plugins,
-        'projects': projects,
+        'projects': [project],
         'substitutions': create_substitutions_for_display()
     })
 
