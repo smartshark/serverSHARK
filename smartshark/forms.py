@@ -64,10 +64,10 @@ def get_form(plugins, post, type, project):
         cores_per_job = interface.default_cores_per_job()
         queue = interface.default_queue()
 
-        vcs_url = get_vcs_url_for_project_id(project.mongo_id)
-
         added_fields = []
         if type == 'execute':
+            vcs_url = get_vcs_url_for_project_id(project.mongo_id)
+            
             # Add fields if there are plugins that work on revision level
             rev_plugins = [plugin for plugin in plugins if plugin.plugin_type == 'rev']
             if len(rev_plugins) > 0:
