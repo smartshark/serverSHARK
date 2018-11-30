@@ -68,7 +68,7 @@ def install(request):
 
     # if a GET (or any other method) we'll create a blank form
     else:
-        form = get_form(plugins, request.POST or None, 'install')
+        form = get_form(plugins, request.POST or None, 'install', None)
 
     return render(request, 'smartshark/plugin/install.html', {
         'form': form,
@@ -204,7 +204,7 @@ def start_collection(request):
             return HttpResponseRedirect('/admin/smartshark/project')
 
         # create a form instance and populate it with data from the request:
-        form = get_form(plugins, request.POST, 'execute')
+        form = get_form(plugins, request.POST, 'execute', project)
 
         # check whether it's valid:
         if form.is_valid():
@@ -248,7 +248,7 @@ def start_collection(request):
 
     # if a GET (or any other method) we'll create a blank form
     else:
-        form = get_form(plugins, request.POST or None, 'execute')
+        form = get_form(plugins, request.POST or None, 'execute', project)
 
     return render(request, 'smartshark/project/execution.html', {
         'form': form,
