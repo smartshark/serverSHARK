@@ -13,6 +13,7 @@ from django import forms
 class ProjectForm(forms.Form):
     plugins = forms.ModelMultipleChoiceField(queryset=Plugin.objects.all().filter(active=True, installed=True))
 
+
 class SparkSubmitForm(forms.Form):
     change_form_template = 'progressbarupload/change_form.html'
     add_form_template = 'progressbarupload/change_form.html'
@@ -49,7 +50,6 @@ def set_argument_execution_values(form_data, plugin_executions):
             exe.save()
 
 
-
 def get_form(plugins, post, type):
         created_fieldsets = []
         plugin_fields = {}
@@ -72,17 +72,16 @@ def get_form(plugins, post, type):
                 plugin_fields['repository_url'] = forms.CharField(label='Repository URL', required=True)
                 added_fields.append('repository_url')
 
+            plugin_fields['queue'] = forms.CharField(label='Default job queue', required=False)
+            added_fields.append('queue')
 
-        plugin_fields['queue'] = forms.CharField(label='Default job queue', required=False)
-        added_fields.append('queue')
-
-        plugin_fields['cores_per_job'] = forms.CharField(label='Cores per job (HPC only)', required=False)
-        added_fields.append('cores_per_job')
+            plugin_fields['cores_per_job'] = forms.CharField(label='Cores per job (HPC only)', required=False)
+            added_fields.append('cores_per_job')
 
         created_fieldsets.append(['Basis Configuration', {'fields': added_fields}])
         # Create lists for the fieldsets and a list for the fields of the form
         for plugin in plugins:
-            arguments=[]
+            arguments = []
             for argument in plugin.argument_set.all().filter(type=type):
                 identifier = '%s_argument_%s' % (plugin.id, argument.id)
                 arguments.append(identifier)
@@ -107,4 +106,3 @@ def get_form(plugins, post, type):
                 self.fields = plugin_fields
 
         return PluginForm(post)
-

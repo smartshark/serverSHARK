@@ -2,14 +2,14 @@ import os
 import string
 import subprocess
 import threading
-import sys
 import uuid
 import logging
 
-from server.settings import HPC, DATABASES
+from server.settings import HPC
 
+from smartshark.utils.connector import BaseConnector
 from smartshark.datacollection.pluginmanagementinterface import PluginManagementInterface
-from smartshark.models import ExecutionHistory, Job
+from smartshark.models import Job
 from smartshark.scp import SCPClient
 from smartshark.shellhandler import ShellHandler
 
@@ -39,7 +39,7 @@ class JobSubmissionThread(threading.Thread):
             logger.debug(err)
 
 
-class HPCConnector(PluginManagementInterface):
+class HPCConnector(PluginManagementInterface, BaseConnector):
     """
     Connector for the HPC cluster of the GWDG.
 
@@ -70,29 +70,11 @@ class HPCConnector(PluginManagementInterface):
     def identifier(self):
         return 'GWDG'
 
-    def generate_plugin_execution_command(self, plugin_execution):
-        path_to_execute_script = "%s/%s/execute.sh " % (self.plugin_path, str(plugin_execution.plugin))
-
-        # Add parameters
-        command = path_to_execute_script+plugin_execution.get_sorted_argument_values()
-
-        # Substitute stuff
-        return string.Template(command).safe_substitute({
-                'db_user': DATABASES['mongodb']['USER'],
-                'db_password': DATABASES['mongodb']['PASSWORD'],
-                'db_database': DATABASES['mongodb']['NAME'],
-                'db_hostname': DATABASES['mongodb']['HOST'],
-                'db_port': DATABASES['mongodb']['PORT'],
-                'db_authentication': DATABASES['mongodb']['AUTHENTICATION_DB'],
-                'project_name': plugin_execution.project.name,
-                'plugin_path': os.path.join(self.plugin_path, str(plugin_execution.plugin))
-        })
-
     def generate_bsub_command(self, plugin_command, job, plugin_execution_output_path):
-        output_path = os.path.join(plugin_execution_output_path, str(job.id)+'_out.txt')
-        error_path = os.path.join(plugin_execution_output_path, str(job.id)+'_err.txt')
+        output_path = os.path.join(plugin_execution_output_path, str(job.id) + '_out.txt')
+        error_path = os.path.join(plugin_execution_output_path, str(job.id) + '_err.txt')
 
-        bsub_command = 'bsub -n '+str(self.cores_per_job)+' -W 48:00 -q %s -o %s -e %s -J "%s" ' % (
+        bsub_command = 'bsub -n ' + str(self.cores_per_job) + ' -W 48:00 -q %s -o %s -e %s -J "%s" ' % (
             self.queue, output_path, error_path, str(job.id)
         )
 
@@ -119,7 +101,7 @@ class HPCConnector(PluginManagementInterface):
         return full_cmd
 
     def get_sent_bash_command(self, job):
-        plugin_command = self.generate_plugin_execution_command(job.plugin_execution)
+        plugin_command = self._generate_plugin_execution_command(self.plugin_path, job.plugin_execution)
         plugin_execution_output_path = os.path.join(self.log_path, str(job.plugin_execution.id))
         return self.generate_bsub_command(plugin_command, job, plugin_execution_output_path)
 
@@ -131,20 +113,19 @@ class HPCConnector(PluginManagementInterface):
         logger.info('Generating bsub script...')
         commands = []
         for plugin_execution in plugin_executions:
-            plugin_command = self.generate_plugin_execution_command(plugin_execution)
+            plugin_command = self._generate_plugin_execution_command(self.plugin_path, plugin_execution)
 
             # Job Queue
-            if plugin_execution.job_queue != None:
-                self.queue = plugin_execution.job_queue
-            else:
-                self.queue = HPC['queue']
+            # if plugin_execution.job_queue != None:
+            #     self.queue = plugin_execution.job_queue
+            # else:
+            #     self.queue = HPC['queue']
 
-            # Cores per Job
-            if plugin_execution.cores_per_job != None:
-                self.cores_per_job = plugin_execution.cores_per_job
-            else:
-                self.cores_per_job = HPC['cores_per_job']
-
+            # # Cores per Job
+            # if plugin_execution.cores_per_job != None:
+            #     self.cores_per_job = plugin_execution.cores_per_job
+            # else:
+            #     self.cores_per_job = HPC['cores_per_job']
 
             jobs = Job.objects.filter(plugin_execution=plugin_execution).all()
             plugin_execution_output_path = os.path.join(self.log_path, str(plugin_execution.id))
@@ -184,7 +165,7 @@ class HPCConnector(PluginManagementInterface):
             sftp_client = handler.get_ssh_client().open_sftp()
             plugin_execution_output_path = os.path.join(self.log_path, str(job.plugin_execution.id))
             try:
-                remote_file = sftp_client.open(os.path.join(plugin_execution_output_path, str(job.id)+'_out.txt'))
+                remote_file = sftp_client.open(os.path.join(plugin_execution_output_path, str(job.id) + '_out.txt'))
             except FileNotFoundError:
                 return ['File Not Found']
 
@@ -203,7 +184,7 @@ class HPCConnector(PluginManagementInterface):
             sftp_client = handler.get_ssh_client().open_sftp()
             plugin_execution_output_path = os.path.join(self.log_path, str(job.plugin_execution.id))
             try:
-                remote_file = sftp_client.open(os.path.join(plugin_execution_output_path, str(job.id)+'_err.txt'))
+                remote_file = sftp_client.open(os.path.join(plugin_execution_output_path, str(job.id) + '_err.txt'))
             except FileNotFoundError:
                 return ['File Not Found']
 
@@ -224,7 +205,7 @@ class HPCConnector(PluginManagementInterface):
         commands = []
         plugin_execution_output_path = os.path.join(self.log_path, str(jobs[0].plugin_execution.id))
         for job in jobs:
-            error_path = os.path.join(plugin_execution_output_path, str(job.id)+'_err.txt')
+            error_path = os.path.join(plugin_execution_output_path, str(job.id) + '_err.txt')
             commands.append("wc -c < %s" % error_path)
 
         out = self.send_and_execute_file(commands, True)
@@ -294,23 +275,11 @@ class HPCConnector(PluginManagementInterface):
         self.execute_command("chmod +x %s" % path_to_execute_script)
 
         # Add parameters
-        command = self.add_parameters_to_install_command(path_to_install_script, plugin)
+        command = self._add_parameters_to_install_command(path_to_install_script, plugin)
 
         return string.Template(command).substitute({
             'plugin_path': os.path.join(self.plugin_path, str(plugin))
         })
-
-    def add_parameters_to_install_command(self, path_to_script, plugin):
-        command = path_to_script
-
-        for argument in plugin.argument_set.all().filter(type='install').order_by('position'):
-            # Add none if the value is not set, this needs to be catched in the install.sh of the plugin
-            if not argument.install_value.strip():
-                command += "None"
-            else:
-                command += argument.install_value+" "
-
-        return command
 
     def execute_command(self, command, ignore_errors=False):
 
@@ -329,8 +298,8 @@ class HPCConnector(PluginManagementInterface):
 
     def send_and_execute_file(self, commands, blocking):
         generated_uuid = str(uuid.uuid4())
-        path_to_sh_file = os.path.join(os.path.dirname(__file__), 'temp', generated_uuid+'.sh')
-        path_to_remote_sh_file = os.path.join(self.project_path, generated_uuid+'.sh')
+        path_to_sh_file = os.path.join(os.path.dirname(__file__), 'temp', generated_uuid + '.sh')
+        path_to_remote_sh_file = os.path.join(self.project_path, generated_uuid + '.sh')
         with open(path_to_sh_file, 'w') as shell_file:
             shell_file.write("#!/bin/sh\n")
 
@@ -360,7 +329,7 @@ class HPCConnector(PluginManagementInterface):
                 return out
         else:
             thread = JobSubmissionThread(path_to_remote_sh_file, self.host, self.username, self.password, self.port,
-                                         self.tunnel_host, self.tunnel_username, self.tunnel_password,self.tunnel_port,
+                                         self.tunnel_host, self.tunnel_username, self.tunnel_password, self.tunnel_port,
                                          self.use_tunnel)
             thread.start()
             return None

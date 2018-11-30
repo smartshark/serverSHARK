@@ -1,13 +1,12 @@
-import string
 import os
 import subprocess
-from collections import OrderedDict, defaultdict
+from collections import defaultdict
 
 import pygit2
 import re
 
-from server.settings import DATABASES
 from smartshark.models import Job
+from smartshark.mongohandler import handler
 
 
 def get_revisions_for_failed_plugins(plugins, project):
@@ -18,6 +17,15 @@ def get_revisions_for_failed_plugins(plugins, project):
 
 
 def get_all_revisions(plugin_execution):
+    """Return all revisions that are stored in the mongodb for this url."""
+    revisions = set()
+    for rev in handler.get_revisions_for_url(plugin_execution.repository_url):
+        revisions.add(rev['revision_hash'])
+    return revisions
+
+
+def get_all_revisions_clone(plugin_execution):
+    """Return all revisions via live cloning the repository url."""
     revisions = set()
     path_to_repo = os.path.join(os.path.dirname(__file__), 'temp', plugin_execution.project.name)
 
@@ -79,6 +87,7 @@ def create_job(plugin_execution, req_jobs, revision_hash=None):
     job.save()
 
     return job
+
 
 def create_jobs_for_execution(project, plugin_executions):
     jobs_temp = defaultdict(list)
