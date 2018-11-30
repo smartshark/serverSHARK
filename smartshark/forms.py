@@ -10,6 +10,7 @@ from server.settings import DATABASES
 
 from .models import Plugin, Argument, ExecutionHistory, PluginExecution
 from .datacollection.pluginmanagementinterface import PluginManagementInterface
+from .mongohandler import handler
 
 
 class ProjectForm(forms.Form):
@@ -52,7 +53,7 @@ def set_argument_execution_values(form_data, plugin_executions):
             exe.save()
 
 
-def get_form(plugins, post, type):
+def get_form(plugins, post, type, project):
         created_fieldsets = []
         plugin_fields = {}
         EXEC_OPTIONS = (('all', 'Execute on all revisions'), ('error', 'Execute on all revisions with errors'),
@@ -62,6 +63,8 @@ def get_form(plugins, post, type):
         interface = PluginManagementInterface.find_correct_plugin_manager()
         cores_per_job = interface.default_cores_per_job()
         queue = interface.default_queue()
+
+        vcs_url = get_vcs_url_for_project_id(project.mongo_id)
 
         added_fields = []
         if type == 'execute':

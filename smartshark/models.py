@@ -282,6 +282,9 @@ class PluginExecution(models.Model):
     execution_type = models.CharField(max_length=5, choices=EXECUTION_TYPES, null=True, blank=True)
     revisions = models.TextField(null=True, blank=True)
 
+    queue = models.CharField(max_length=255, null=True, blank=True)
+    cores_per_job = models.IntegerField(null=True)
+
     submitted_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
