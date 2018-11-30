@@ -181,9 +181,9 @@ class MongoHandler(object):
     def get_vcs_url_for_project_id(self, mongo_id):
         url = None
 
-        urls = self.client.get_database(self.database).get_collection('vcs_system').find({'project_id': mongo_id}, {'repository_url': 1})
+        urls = self.client.get_database(self.database).get_collection('vcs_system').find({'project_id': mongo_id}, {'url': 1})
         try:
-            url = urls[0]['repository_url']
+            url = urls[0]['url']
         except IndexError:
             pass
         return url
