@@ -1,7 +1,7 @@
 from collections import OrderedDict
 
 from pymongo import MongoClient
-from pymongo.objectid import ObjectId   
+from bson.objectid import ObjectId
 from pymongo.errors import OperationFailure
 
 import server.settings
