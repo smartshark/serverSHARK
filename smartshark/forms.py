@@ -66,8 +66,8 @@ def get_form(plugins, post, type, project):
 
         added_fields = []
         if type == 'execute':
-            vcs_url = get_vcs_url_for_project_id(project.mongo_id)
-            
+            vcs_url = handler.get_vcs_url_for_project_id(project.mongo_id)
+
             # Add fields if there are plugins that work on revision level
             rev_plugins = [plugin for plugin in plugins if plugin.plugin_type == 'rev']
             if len(rev_plugins) > 0:
