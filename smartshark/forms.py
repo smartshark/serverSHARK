@@ -65,6 +65,7 @@ def get_form(plugins, post, type, project):
         queue = interface.default_queue()
 
         added_fields = []
+        vcs_url = None
         if type == 'execute':
             vcs_url = handler.get_vcs_url_for_project_id(project.mongo_id)
 
@@ -99,9 +100,14 @@ def get_form(plugins, post, type, project):
                 for name, value in SUBSTITUTIONS.items():
                     if SequenceMatcher(None, argument.name, name).ratio() > 0.8:
                         initial = value['name']
+                if argument.name == 'project_name':
+                    initial = project.name
+                if argument.name == 'repository_url':
+                    initial = vcs_url
 
                 plugin_fields[identifier] = forms.CharField(label=argument.name, required=argument.required,
                                                             initial=initial, help_text=argument.description)
+
 
             created_fieldsets.append([str(plugin), {'fields': arguments}])
 
