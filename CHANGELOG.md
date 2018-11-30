@@ -1,3 +1,8 @@
+# 0.1.4
+- fix #24, #19, #16 (remove add from Jobs and PluginExecution, error on multiple project selection, remove jobs from queueconnectors)
+- fix bdist_wheel error in Vagrant
+- fix mysql timeout for peon worker
+
 # 0.1.3
 - refactored localqueue and hpc connector common methods to new util module connector
 - include deletion of projects via command

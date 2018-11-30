@@ -70,6 +70,12 @@ class HPCConnector(PluginManagementInterface, BaseConnector):
     def identifier(self):
         return 'GWDG'
 
+    def default_queue(self):
+        return self.queue
+
+    def default_cores_per_job(self):
+        return self.cores_per_job
+
     def generate_bsub_command(self, plugin_command, job, plugin_execution_output_path):
         output_path = os.path.join(plugin_execution_output_path, str(job.id) + '_out.txt')
         error_path = os.path.join(plugin_execution_output_path, str(job.id) + '_err.txt')
