@@ -80,7 +80,7 @@ def get_form(plugins, post, type, project):
             repo_plugins = [plugin for plugin in plugins if plugin.plugin_type == 'repo']
             # If we have revision or repository plugins, we need to ask for the repository to use
             if len(rev_plugins) > 0 or len(repo_plugins) > 0:
-                plugin_fields['repository_url'] = forms.CharField(label='Repository URL', required=True)
+                plugin_fields['repository_url'] = forms.CharField(label='Repository URL', required=True, initial=vcs_url)
                 added_fields.append('repository_url')
 
             plugin_fields['queue'] = forms.CharField(label='Default job queue', required=False, initial=queue)
