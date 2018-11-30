@@ -179,7 +179,13 @@ class MongoHandler(object):
         return self.client.get_database(self.database).get_collection('commit').find({'vcs_system_id': vs['_id']}, {'revision_hash': 1})
 
     def get_vcs_url_for_project_id(self, mongo_id):
+        url = None
+
         urls = self.client.get_database(self.database).get_collection('vcs_system').find({'project_id': mongo_id}, {'repository_url': 1})
-        return urls[0]['repository_url']
+        try:
+            url = urls[0]['repository_url']
+        except IndexError:
+            pass
+        return url
 
 handler = MongoHandler()
