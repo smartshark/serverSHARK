@@ -12,7 +12,7 @@ class Command(BaseCommand):
       finishedJobs = []
       print("Checking", executions.count(), "PluginExecutions")
       for execution in executions:
-          if( not execution.has_unfinished_jobs()):
+          if(execution.has_unfinished_jobs()):
               print(execution.plugin.name, "on", execution.project.name ,":Execution is still running")
           else:
               print(execution.plugin.name, "on", execution.project.name ,":Execution is done")
@@ -30,6 +30,6 @@ class Command(BaseCommand):
       emailBody = "The following jobs are ready: \n\r"
       for execution in data:
           (done, exits) = execution.get_counts_of_jobstatus()
-          emailBody = emailBody + "-" + execution.plugin.name + " on "+ execution.project.name + "(" + done + "/" + exits + ")\n\r"
+          emailBody = emailBody + "- " + execution.plugin.name + " on "+ execution.project.name + "(" + str(done) + "/" + str(exits) + ")\n\r"
       send_mail('Job Status', emailBody, settings.EMAIL_HOST_USER,
                   [settings.NOTIFICATION_RECEIVER])
