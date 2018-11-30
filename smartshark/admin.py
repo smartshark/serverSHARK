@@ -27,6 +27,9 @@ class JobAdmin(admin.ModelAdmin):
 
     actions = ['restart_job', 'set_exit', 'set_done', 'set_job_stati']
 
+    def has_add_permission(self, request, obj=None):
+        return False
+
     def set_job_stati(self, request, queryset):
         interface = PluginManagementInterface.find_correct_plugin_manager()
         job_stati = interface.get_job_stati(queryset)
@@ -89,8 +92,12 @@ class JobAdmin(admin.ModelAdmin):
 
 class PluginExecutionAdmin(admin.ModelAdmin):
     list_display = ('plugin', 'project', 'repository_url', 'execution_type', 'submitted_at')
+    list_filter = ('project',)
 
     actions = ['restart_plugin_execution']
+
+    def has_add_permission(self, request, obj=None):
+        return False
 
     def restart_plugin_execution(self, request, queryset):
         for pe in queryset:
@@ -301,10 +308,14 @@ class ProjectAdmin(admin.ModelAdmin):
                          reverse('plugin_status', kwargs={'id': obj.id}))
 
     def start_collection(self, request, queryset):
+        if queryset.count() != 1:
+            messages.error(request, "Can not only collect one project at a time.")
+            return
+
         selected = request.POST.getlist(admin.ACTION_CHECKBOX_NAME)
         return HttpResponseRedirect("/smartshark/project/collection/choose/?ids=%s" % (",".join(selected)))
 
-    start_collection.short_description = 'Start Collection for selected Projects'
+    start_collection.short_description = 'Start Collection for selected Project'
 
     def delete_data(self, request, queryset):
         selected = request.POST.getlist(admin.ACTION_CHECKBOX_NAME)

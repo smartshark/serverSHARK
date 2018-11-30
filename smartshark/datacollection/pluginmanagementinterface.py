@@ -16,7 +16,7 @@ class PluginManagementInterface(metaclass=abc.ABCMeta):
         return
 
     @abc.abstractmethod
-    def execute_plugins(self, project, jobs, plugin_executions):
+    def execute_plugins(self, project, plugin_executions):
         return
 
     @abc.abstractmethod

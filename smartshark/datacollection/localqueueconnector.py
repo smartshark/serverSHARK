@@ -51,7 +51,7 @@ class LocalQueueConnector(PluginManagementInterface, BaseConnector):
         """Return uniqe identifier for this connector."""
         return 'LOCALQUEUE'
 
-    def execute_plugins(self, project, jobs, plugin_executions):
+    def execute_plugins(self, project, plugin_executions):
         """Execute plugins.
 
         We are just pushing the shell commands that would have been run on the HPC System to the redis queue.

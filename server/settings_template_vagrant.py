@@ -45,7 +45,8 @@ DATABASES = {
         'NAME': 'servershark',
         'USER': 'root',
         'PASSWORD': 'CHANGEME',
-        'HOST': 'localhost'
+        'HOST': 'localhost',
+        'CONN_MAX_AGE': 3500,
     },
     'mongodb': {
         'ENGINE': '',
