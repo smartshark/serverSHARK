@@ -1,6 +1,7 @@
 from collections import OrderedDict
 
 from pymongo import MongoClient
+from pymongo.objectid import ObjectId   
 from pymongo.errors import OperationFailure
 
 import server.settings
@@ -180,8 +181,7 @@ class MongoHandler(object):
 
     def get_vcs_url_for_project_id(self, mongo_id):
         url = None
-
-        urls = self.client.get_database(self.database).get_collection('vcs_system').find({'project_id': mongo_id}, {'url': 1})
+        urls = self.client.get_database(self.database).get_collection('vcs_system').find({'project_id': ObjectId(mongo_id)}, {'url': 1})
         try:
             url = urls[0]['url']
         except IndexError:
