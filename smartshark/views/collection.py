@@ -27,10 +27,9 @@ class JobSubmissionThread(threading.Thread):
 
     def run(self):
         interface = PluginManagementInterface.find_correct_plugin_manager()
-        jobs = []
         if self.create_jobs:
-            jobs = create_jobs_for_execution(self.project, self.plugin_executions)
-        interface.execute_plugins(self.project, jobs, self.plugin_executions)
+            create_jobs_for_execution(self.project, self.plugin_executions)
+        interface.execute_plugins(self.project, self.plugin_executions)
 
 
 def install(request):
