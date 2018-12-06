@@ -252,7 +252,7 @@ def start_collection(request):
     return render(request, 'smartshark/project/execution.html', {
         'form': form,
         'plugins': plugins,
-        'project_id': project,
+        'projects': [project],
         'substitutions': create_substitutions_for_display()
     })
 
