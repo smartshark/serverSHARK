@@ -74,9 +74,17 @@ class HPCConnector(PluginManagementInterface, BaseConnector):
         output_path = os.path.join(plugin_execution_output_path, str(job.id) + '_out.txt')
         error_path = os.path.join(plugin_execution_output_path, str(job.id) + '_err.txt')
 
-        bsub_command = 'bsub -n ' + str(self.cores_per_job) + ' -W 48:00 -q %s -o %s -e %s -J "%s" ' % (
-            self.queue, output_path, error_path, str(job.id)
-        )
+        cores_per_job = self.cores_per_job
+        queue = self.queue
+
+        # plugin execution may want to override some settings
+        if job.plugin_execution.cores_per_job:
+            cores_per_job = job.plugin_execution.cores_per_job
+        if job.plugin_execution.queue:
+            queue = job.plugin_execution.queue
+
+        bsub_command = 'bsub -n %s -W 48:00 -q %s -o %s -e %s -J "%s" ' % (cores_per_job, queue,
+                                                                           output_path, error_path, job.id)
 
         req_jobs = job.requires.all()
         if req_jobs:
@@ -105,7 +113,7 @@ class HPCConnector(PluginManagementInterface, BaseConnector):
         plugin_execution_output_path = os.path.join(self.log_path, str(job.plugin_execution.id))
         return self.generate_bsub_command(plugin_command, job, plugin_execution_output_path)
 
-    def execute_plugins(self, project, jobs, plugin_executions):
+    def execute_plugins(self, project, plugin_executions):
         # Prepare project (clone / pull)
         logger.info('Preparing project...')
         self.prepare_project(plugin_executions)
@@ -114,18 +122,6 @@ class HPCConnector(PluginManagementInterface, BaseConnector):
         commands = []
         for plugin_execution in plugin_executions:
             plugin_command = self._generate_plugin_execution_command(self.plugin_path, plugin_execution)
-
-            # Job Queue
-            # if plugin_execution.job_queue != None:
-            #     self.queue = plugin_execution.job_queue
-            # else:
-            #     self.queue = HPC['queue']
-
-            # # Cores per Job
-            # if plugin_execution.cores_per_job != None:
-            #     self.cores_per_job = plugin_execution.cores_per_job
-            # else:
-            #     self.cores_per_job = HPC['cores_per_job']
 
             jobs = Job.objects.filter(plugin_execution=plugin_execution).all()
             plugin_execution_output_path = os.path.join(self.log_path, str(plugin_execution.id))
