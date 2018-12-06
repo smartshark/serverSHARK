@@ -65,8 +65,8 @@ def get_form(plugins, post, type, project=None):
         added_fields = []
         if type == 'execute':
 
-            vcs_url = ""
-            if(project != None):
+            vcs_url = ''
+            if not project:
                 vcs_url = handler.get_vcs_url_for_project_id(project.mongo_id)
 
             # Add fields if there are plugins that work on revision level
@@ -86,7 +86,7 @@ def get_form(plugins, post, type, project=None):
             plugin_fields['queue'] = forms.CharField(label='Default job queue', initial=queue, required=False)
             added_fields.append('queue')
 
-            plugin_fields['cores_per_job'] = forms.IntegerField(label='Cores per job (HPC only)',  initial=cores_per_job, required=False)
+            plugin_fields['cores_per_job'] = forms.IntegerField(label='Cores per job (HPC only)', initial=cores_per_job, required=False)
             added_fields.append('cores_per_job')
 
         created_fieldsets.append(['Basis Configuration', {'fields': added_fields}])
@@ -100,6 +100,9 @@ def get_form(plugins, post, type, project=None):
                 for name, value in SUBSTITUTIONS.items():
                     if SequenceMatcher(None, argument.name, name).ratio() > 0.8:
                         initial = value['name']
+
+                if name == 'repository_url':
+                    initial = vcs_url
 
                 plugin_fields[identifier] = forms.CharField(label=argument.name, required=argument.required,
                                                             initial=initial, help_text=argument.description)
