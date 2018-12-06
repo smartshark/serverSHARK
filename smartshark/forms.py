@@ -5,9 +5,10 @@ from django.shortcuts import get_object_or_404
 from form_utils.forms import BetterForm
 
 from server.base import SUBSTITUTIONS
-from server.settings import DATABASES
+from .datacollection.pluginmanagementinterface import PluginManagementInterface
 from .models import Plugin, Argument, ExecutionHistory, PluginExecution
 from django import forms
+from .mongohandler import handler
 
 
 class ProjectForm(forms.Form):
@@ -50,14 +51,24 @@ def set_argument_execution_values(form_data, plugin_executions):
             exe.save()
 
 
-def get_form(plugins, post, type):
+def get_form(plugins, post, type, project=None):
         created_fieldsets = []
         plugin_fields = {}
         EXEC_OPTIONS = (('all', 'Execute on all revisions'), ('error', 'Execute on all revisions with errors'),
                         ('new', 'Execute on new revisions'), ('rev', 'Execute on following revisions:'))
 
+        # we need to get the correct pluginmanager for this information because that depends on selected queue
+        interface = PluginManagementInterface.find_correct_plugin_manager()
+        cores_per_job = interface.default_cores_per_job()
+        queue = interface.default_queue()
+
         added_fields = []
         if type == 'execute':
+
+            vcs_url = ""
+            if(project != None):
+                vcs_url = handler.get_vcs_url_for_project_id(project.mongo_id)
+
             # Add fields if there are plugins that work on revision level
             rev_plugins = [plugin for plugin in plugins if plugin.plugin_type == 'rev']
             if len(rev_plugins) > 0:
@@ -69,13 +80,13 @@ def get_form(plugins, post, type):
             repo_plugins = [plugin for plugin in plugins if plugin.plugin_type == 'repo']
             # If we have revision or repository plugins, we need to ask for the repository to use
             if len(rev_plugins) > 0 or len(repo_plugins) > 0:
-                plugin_fields['repository_url'] = forms.CharField(label='Repository URL', required=True)
+                plugin_fields['repository_url'] = forms.CharField(label='Repository URL', required=True, initial=vcs_url)
                 added_fields.append('repository_url')
 
-            plugin_fields['queue'] = forms.CharField(label='Default job queue', required=False)
+            plugin_fields['queue'] = forms.CharField(label='Default job queue', initial=queue, required=False)
             added_fields.append('queue')
 
-            plugin_fields['cores_per_job'] = forms.CharField(label='Cores per job (HPC only)', required=False)
+            plugin_fields['cores_per_job'] = forms.IntegerField(label='Cores per job (HPC only)',  initial=cores_per_job, required=False)
             added_fields.append('cores_per_job')
 
         created_fieldsets.append(['Basis Configuration', {'fields': added_fields}])

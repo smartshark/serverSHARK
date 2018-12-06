@@ -85,7 +85,7 @@ class Plugin(models.Model):
     )
     name = models.CharField(max_length=100)
     author = models.CharField(max_length=200)
-    version = models.DecimalField(max_digits=5, decimal_places=2)
+    version = models.CharField(max_length=100)
     description = models.CharField(max_length=400)
     plugin_type = models.CharField(max_length=5, choices=TYPE_CHOICES)
     validate_file = FileValidator(max_size=1024*1024*500, content_types=('application/x-tar', 'application/octet-stream'))
@@ -276,11 +276,20 @@ class PluginExecution(models.Model):
         ('error', 'Executed on revisions that previously threw an error'),
     )
 
+    STATUS_CHOICES = (
+        ('DONE', 'Done'),
+        ('EXIT', 'Exit'),
+        ('WAIT', 'Waiting'),
+    )
+
     plugin = models.ForeignKey(Plugin)
     project = models.ForeignKey(Project)
     repository_url = models.CharField(max_length=500, null=True, blank=True)
     execution_type = models.CharField(max_length=5, choices=EXECUTION_TYPES, null=True, blank=True)
     revisions = models.TextField(null=True, blank=True)
+    queue = models.TextField(null=True, blank=True)
+    cores_per_job = models.IntegerField(default=1)
+    status = models.CharField(max_length=8, choices=STATUS_CHOICES, default='WAIT')
 
     submitted_at = models.DateTimeField(auto_now_add=True)
 
@@ -301,6 +310,18 @@ class PluginExecution(models.Model):
 
         return False
 
+    def get_counts_of_jobstatus(self):
+        done = 0
+        exits = 0
+        for job in self.job_set.all():
+            if job.status == 'DONE':
+                done += 1
+            if job.status == 'EXIT':
+                exits += 1
+
+
+        return (done,exits)
+
     def get_sorted_argument(self):
         arguments = OrderedDict()
 
@@ -313,6 +334,7 @@ class PluginExecution(models.Model):
 
         return arguments
 
+
     def get_sorted_argument_values(self):
         arguments = self.get_sorted_argument()
         arguments = sorted(arguments.items(), key=lambda t: t[0])
@@ -321,7 +343,6 @@ class PluginExecution(models.Model):
         for key, value in arguments:
             sorted_values += value + ' '
         return sorted_values
-
 
 class ExecutionHistory(models.Model):
     execution_argument = models.ForeignKey(Argument, on_delete=models.CASCADE)

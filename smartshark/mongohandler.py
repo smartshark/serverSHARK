@@ -1,6 +1,7 @@
 from collections import OrderedDict
 
 from pymongo import MongoClient
+from bson.objectid import ObjectId
 from pymongo.errors import OperationFailure
 
 import server.settings
@@ -177,6 +178,15 @@ class MongoHandler(object):
     def get_revisions_for_url(self, vcs_system_url):
         vs = self.client.get_database(self.database).get_collection('vcs_system').find_one({'url': vcs_system_url})
         return self.client.get_database(self.database).get_collection('commit').find({'vcs_system_id': vs['_id']}, {'revision_hash': 1})
+
+    def get_vcs_url_for_project_id(self, mongo_id):
+        url = None
+        urls = self.client.get_database(self.database).get_collection('vcs_system').find({'project_id': ObjectId(mongo_id)}, {'url': 1})
+        try:
+            url = urls[0]['url']
+        except IndexError:
+            pass
+        return url
 
 
 handler = MongoHandler()
