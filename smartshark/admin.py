@@ -312,8 +312,7 @@ class ProjectAdmin(admin.ModelAdmin):
             messages.error(request, "Can not only collect one project at a time.")
             return
 
-        selected = request.POST.getlist(admin.ACTION_CHECKBOX_NAME)
-        return HttpResponseRedirect("/smartshark/project/collection/choose/?ids=%s" % (",".join(selected)))
+        return HttpResponseRedirect("/smartshark/project/collection/choose/?project_id=%s" % (queryset[0].pk))
 
     start_collection.short_description = 'Start Collection for selected Project'
 

@@ -32,3 +32,9 @@ class AzureConnector(PluginManagementInterface):
 
     def delete_output_for_plugin_execution(self, plugin_execution):
         pass
+
+    def default_queue(self):
+        return 'default'
+
+    def default_cores_per_job(self):
+        return 1

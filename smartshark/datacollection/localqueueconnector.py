@@ -133,6 +133,12 @@ class LocalQueueConnector(PluginManagementInterface, BaseConnector):
         """Not implemented."""
         return
 
+    def default_queue(self):
+        return self.job_queue
+
+    def default_cores_per_job(self):
+        return 1
+
     def delete_plugins(self, plugins):
         """Delete plugin folder."""
         for plugin in plugins:
