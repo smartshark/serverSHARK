@@ -34,7 +34,7 @@ class BaseConnector(object):
         path_to_execute_script += " "
 
         # Add parameter
-        command = path_to_execute_script + plugin_execution.get_sorted_argument_values()
+        command = path_to_execute_script + plugin_execution.get_named_argument_values()
 
         # Substitute stuff
         return string.Template(command).safe_substitute({

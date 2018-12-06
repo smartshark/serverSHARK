@@ -278,12 +278,12 @@ class PluginExecution(models.Model):
 
     plugin = models.ForeignKey(Plugin)
     project = models.ForeignKey(Project)
-    repository_url = models.CharField(max_length=500, null=True, blank=True)
+    repository_url = models.CharField(max_length=500, null=True, blank=True)  # this does not belong here!
     execution_type = models.CharField(max_length=5, choices=EXECUTION_TYPES, null=True, blank=True)
     revisions = models.TextField(null=True, blank=True)
 
-    #queue = models.CharField(max_length=255, null=True, blank=True)
-    #cores_per_job = models.IntegerField(null=True)
+    # queue = models.CharField(max_length=255, null=True, blank=True)
+    # cores_per_job = models.IntegerField(null=True)
 
     submitted_at = models.DateTimeField(auto_now_add=True)
 
@@ -324,6 +324,19 @@ class PluginExecution(models.Model):
         for key, value in arguments:
             sorted_values += value + ' '
         return sorted_values
+
+    def get_named_argument_values(self):
+        arguments = OrderedDict()
+
+        for execution_history in ExecutionHistory.objects.filter(plugin_execution__pk=self.id):
+            # Add none if the value is not set, this needs to be catched in the execute.sh of the plugin
+            if execution_history.execution_value.strip():
+                arguments[execution_history.execution_argument.name] = execution_history.execution_value
+
+        params = []
+        for key, value in arguments:
+            params.append('--' + key + ' ' + value)
+        return ' '.join(params)
 
 
 class ExecutionHistory(models.Model):
