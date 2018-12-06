@@ -199,7 +199,9 @@ class Plugin(models.Model):
         return [in_info_file_specified for in_info_file_specified in info_file['requires']]
 
     def load_from_json(self, archive):
-        plugin_handler = PluginInformationHandler(archive)
+        self.load_with_information_handler(PluginInformationHandler(archive), archive)
+
+    def load_with_information_handler(self, plugin_handler, archive):
         info_json = plugin_handler.get_info()
         schema_json = plugin_handler.get_schema()
         self.name = info_json['name']

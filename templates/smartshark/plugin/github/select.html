@@ -1,0 +1,42 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+     {% if status %}
+       <h1>{{ status }}</h1>
+ {% else %}
+    <h1>Select plugin to install</h1>
+    <form action="" method="post">
+
+        {% csrf_token %}
+
+    <label>Enter the url of the github repo:</label>
+    <input type="text" name="url" placeholder="https://github.com/smartshark/vcsSHARK" value="{{ url }}">
+        <div>
+            <p>
+            <input type="submit" value="cancel" name="cancel" />
+            <input type="submit" value="select" name="select" />
+            </p>
+        </div>
+    </form>
+    {% if versions %}
+         <form action="" method="post">
+
+        {% csrf_token %}
+           <input type="hidden" name="url" value="{{ url }}">
+
+          <label>Version:</label>
+            <select name="version">
+              {% for version in versions %}
+                <option value="{{ version }}">{{ version }}</option>
+              {% endfor %}
+            </select>
+
+          <div>
+            <p>
+            <input type="submit" value="install" name="install" />
+            </p>
+        </div>
+         </form>
+    {% endif %}
+     {% endif %}
+{% endblock %}

@@ -21,6 +21,7 @@ urlpatterns = [
     url(r'^admin/smartshark/project/plugin_execution/(?P<id>[0-9]+)$', common.plugin_execution_status, name='plugin_execution_status'),
     url(r'^admin/smartshark/project/job/(?P<id>[0-9]+)/(?P<type>[a-z]+)$', common.job_output, name='job_output'),
     url(r'^smartshark/plugin/install/$', collection.install, name='install'),
+    url(r'^smartshark/plugin/github/install', collection.installgithub, name='view'),
 
     # remote additions
     url(r'^remote/test/$', remote.test_connection, name='remote_test_connection'),
