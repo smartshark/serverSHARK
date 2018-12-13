@@ -384,7 +384,13 @@ def installgithub(request):
         })
 
     # Default view to enter the url
-    plugin_url = settings.PLUGIN_URLS
+    plugin_url = []
+    for settings_url in settings.PLUGIN_URLS:
+        plugin = {}
+        plugin["url"] = settings_url
+        plugin["name"] = settings_url.replace("https://github.com/smartshark/","").replace("https://www.github.com/smartshark/","")
+        plugin_url.append(plugin)
+        
     return render(request, 'smartshark/plugin/github/select.html',
                   {
                       'plugin_url': plugin_url

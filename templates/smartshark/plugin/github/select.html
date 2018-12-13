@@ -17,7 +17,7 @@
                 <label>Select from plugin list:</label>
                 <select name="repo_url">
                     {% for url in plugin_url %}
-                        <option value="{{ url }}">{{ url }}</option>
+                        <option value="{{ url.url }}">{{ url.name }}</option>
                     {% endfor %}
                 </select>
             {% endif %}
