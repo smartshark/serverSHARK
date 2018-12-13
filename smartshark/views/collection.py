@@ -8,6 +8,7 @@ from django.contrib import messages
 from django.http import HttpResponseRedirect
 from django.shortcuts import render, get_object_or_404
 from django.core.files import File
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from bson.objectid import ObjectId
 
@@ -15,7 +16,6 @@ from smartshark.common import create_substitutions_for_display, order_plugins, a
 from smartshark.datacollection.executionutils import create_jobs_for_execution
 from smartshark.forms import ProjectForm, get_form, set_argument_values, set_argument_execution_values
 from smartshark.models import Plugin, Project, PluginExecution, Job
-from smartshark.pluginhandler import PluginInformationHandler
 from smartshark.utils import projectUtils
 
 from smartshark.datacollection.pluginmanagementinterface import PluginManagementInterface
@@ -323,6 +323,8 @@ def installgithub(request):
     if request.method == 'POST':
         versions = []
         url = request.POST.get('url')
+        if url == "":
+            url = request.POST.get('repo_url')
         if 'select' in request.POST:
             url = url.replace('https://www.github.com/', 'https://api.github.com/repos/')
             url = url.replace('https://github.com/','https://api.github.com/repos/')
@@ -382,4 +384,8 @@ def installgithub(request):
         })
 
     # Default view to enter the url
-    return render(request, 'smartshark/plugin/github/select.html')
+    plugin_url = settings.PLUGIN_URLS
+    return render(request, 'smartshark/plugin/github/select.html',
+                  {
+                      'plugin_url': plugin_url
+                  })
