@@ -8,6 +8,7 @@ from django.contrib import messages
 from django.http import HttpResponseRedirect
 from django.shortcuts import render, get_object_or_404
 from django.core.files import File
+from django.core.exceptions import ValidationError
 from bson.objectid import ObjectId
 
 from smartshark.common import create_substitutions_for_display, order_plugins, append_success_messages_to_req
@@ -361,14 +362,23 @@ def installgithub(request):
                     tarBall = data["assets"][0]
                     filename = 'media/uploads/plugins/' + data["node_id"] +'.tar.gz'
                     urllib.request.urlretrieve(tarBall["browser_download_url"],filename)
-                    plugin = Plugin()
-                    plugin.load_from_json(File(open(filename, 'rb')))
+                    try:
+                        plugin = Plugin()
+                        plugin.load_from_json(File(open(filename, 'rb')))
+                    except ValidationError as e:
+                        return render(request, 'smartshark/plugin/github/select.html',
+                                      {
+                                          'versions': versions,
+                                          'status': '; '.join(e.messages),
+                                          'url': url,
+                                      })
 
         return render(request, 'smartshark/plugin/github/select.html',
         {
             'versions': versions,
             'status': 'Installation successful',
             'url': url,
+            'success': True
         })
 
     # Default view to enter the url
