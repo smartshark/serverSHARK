@@ -7,10 +7,9 @@ import json
 from django.contrib import messages
 from django.http import HttpResponseRedirect
 from django.shortcuts import render, get_object_or_404
-from django.conf import settings
+from django.core.files import File
 from bson.objectid import ObjectId
 
-import smartshark
 from smartshark.common import create_substitutions_for_display, order_plugins, append_success_messages_to_req
 from smartshark.datacollection.executionutils import create_jobs_for_execution
 from smartshark.forms import ProjectForm, get_form, set_argument_values, set_argument_execution_values
@@ -324,6 +323,7 @@ def installgithub(request):
         versions = []
         url = request.POST.get('url')
         if 'select' in request.POST:
+            url = url.replace('https://www.github.com/', 'https://api.github.com/repos/')
             url = url.replace('https://github.com/','https://api.github.com/repos/')
             url = url + '/releases'
 
@@ -361,10 +361,8 @@ def installgithub(request):
                     tarBall = data["assets"][0]
                     filename = 'media/uploads/plugins/' + data["node_id"] +'.tar.gz'
                     urllib.request.urlretrieve(tarBall["browser_download_url"],filename)
-                    plugin_handler = PluginInformationHandler(filename)
                     plugin = Plugin()
-                    plugin.validate_file = filename
-                    plugin.load_with_information_handler(plugin_handler,data["node_id"] +'.tar.gz')
+                    plugin.load_from_json(File(open(filename, 'rb')))
 
         return render(request, 'smartshark/plugin/github/select.html',
         {
