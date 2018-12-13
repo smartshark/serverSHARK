@@ -87,3 +87,7 @@ EMAIL_HOST_USER = ''
 EMAIL_HOST_PASSWORD = ''
 EMAIL_USE_TLS = True
 NOTIFICATION_RECEIVER = ''
+
+
+
+PLUGIN_URLS = ["https://github.com/smartshark/vcsSHARK","https://github.com/smartshark/coastSHARK", "https://github.com/smartshark/mecoSHARK","https://github.com/smartshark/issueSHARK","https://github.com/smartshark/mailingSHARK","https://github.com/smartshark/labelSHARK"]
