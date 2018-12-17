@@ -1,3 +1,10 @@
+# 2.0.1
+- vagrantfile now includes maven and gradle for java plugins
+- plugin install from github now merged
+- plugin versioning scheme converted to semver
+- auto fill for repository_url (if parameter name in the plugin is correctly named)
+- delete_project now includes progress output
+
 # 0.1.3
 - refactored localqueue and hpc connector common methods to new util module connector
 - include deletion of projects via command

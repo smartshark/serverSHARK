@@ -66,7 +66,7 @@ def get_form(plugins, post, type, project=None):
         if type == 'execute':
 
             vcs_url = ''
-            if not project:
+            if project:
                 vcs_url = handler.get_vcs_url_for_project_id(project.mongo_id)
 
             # Add fields if there are plugins that work on revision level
@@ -101,7 +101,7 @@ def get_form(plugins, post, type, project=None):
                     if SequenceMatcher(None, argument.name, name).ratio() > 0.8:
                         initial = value['name']
 
-                if name == 'repository_url':
+                if argument.name == 'repository_url':
                     initial = vcs_url
 
                 plugin_fields[identifier] = forms.CharField(label=argument.name, required=argument.required,
