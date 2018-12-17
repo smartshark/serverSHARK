@@ -45,5 +45,6 @@ class BaseConnector(object):
             'db_port': settings.DATABASES['mongodb']['PORT'],
             'db_authentication': settings.DATABASES['mongodb']['AUTHENTICATION_DB'],
             'project_name': plugin_execution.project.name,
-            'plugin_path': os.path.join(plugin_path, str(plugin_execution.plugin))
+            'plugin_path': os.path.join(plugin_path, str(plugin_execution.plugin)),
+            'cores_per_job': 1,
         })
