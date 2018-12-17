@@ -67,6 +67,7 @@ Vagrant.configure("2") do |config|
     apt-get install -y git python3-venv python-pip python3-cffi libgit2-26 libgit2-dev libmysqlclient-dev libssl-dev python3-setuptools rpm
     apt-get install -y build-essential libtool pkg-config autoconf python3-dev libffi-dev cmake
     apt-get install -y redis-server
+    apt-get install -y maven gradle
 
     # install java8 dependency for mecoSHARK, accept license
     debconf-set-selections <<< 'oracle-java8-installer shared/accepted-oracle-license-v1-1 select true'
