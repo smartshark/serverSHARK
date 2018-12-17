@@ -167,6 +167,7 @@ class PluginAdmin(admin.ModelAdmin):
     list_display = ('name', 'version', 'description', 'plugin_type', 'active', 'installed')
     actions = ('delete_model', 'install_plugin')
     inlines = (ArgumentInline, )
+    change_list_template = 'smartshark/plugin/buttons.html'
 
     def get_formsets_with_inlines(self, request, obj=None):
         for inline in self.get_inline_instances(request, obj):

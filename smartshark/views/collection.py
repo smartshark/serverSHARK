@@ -1,10 +1,15 @@
+import os
 import threading
 import logging
+import urllib.request
+import json
 
 from django.contrib import messages
 from django.http import HttpResponseRedirect
 from django.shortcuts import render, get_object_or_404
+from django.core.files import File
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from bson.objectid import ObjectId
 
 from smartshark.common import create_substitutions_for_display, order_plugins, append_success_messages_to_req
@@ -307,3 +312,86 @@ def delete_project_data(request):
         'dependencys': deb
 
     })
+
+
+def installgithub(request):
+
+    if not request.user.is_authenticated() or not request.user.has_perm('smartshark.install_plugin'):
+        messages.error(request, 'You are not authorized to perform this action.')
+        return HttpResponseRedirect('/admin/smartshark/plugin')
+
+    if request.method == 'POST':
+        versions = []
+        url = request.POST.get('url')
+        if url == "":
+            url = request.POST.get('repo_url')
+        if 'select' in request.POST:
+            url = url.replace('https://www.github.com/', 'https://api.github.com/repos/')
+            url = url.replace('https://github.com/','https://api.github.com/repos/')
+            url = url + '/releases'
+
+        print(url)
+
+        webURL = urllib.request.urlopen(url)
+        html = webURL.read()
+
+        encoding = webURL.info().get_content_charset('utf-8')
+        jsonData = json.loads(html.decode(encoding))
+
+        if 'select' in request.POST:
+            for data in jsonData:
+                versions.append(data["tag_name"])
+
+            return render(request, 'smartshark/plugin/github/select.html', {
+                'versions': versions,
+                'url': url
+
+            })
+
+        if 'install' in request.POST:
+            version = request.POST.get('version')
+            for data in jsonData:
+                if version == data["tag_name"]:
+
+                    if(data["assets"] == None or data["assets"][0] == None):
+                        return render(request, 'smartshark/plugin/github/select.html',
+                                      {
+                                          'versions': versions,
+                                          'status': 'Assets not found',
+                                          'url': url,
+                                      })
+
+                    tarBall = data["assets"][0]
+                    filename = 'media/uploads/plugins/' + data["node_id"] +'.tar.gz'
+                    urllib.request.urlretrieve(tarBall["browser_download_url"],filename)
+                    try:
+                        plugin = Plugin()
+                        plugin.load_from_json(File(open(filename, 'rb')))
+                    except ValidationError as e:
+                        return render(request, 'smartshark/plugin/github/select.html',
+                                      {
+                                          'versions': versions,
+                                          'status': '; '.join(e.messages),
+                                          'url': url,
+                                      })
+
+        return render(request, 'smartshark/plugin/github/select.html',
+        {
+            'versions': versions,
+            'status': 'Installation successful',
+            'url': url,
+            'success': True
+        })
+
+    # Default view to enter the url
+    plugin_url = []
+    for settings_url in settings.PLUGIN_URLS:
+        plugin = {}
+        plugin["url"] = settings_url
+        plugin["name"] = settings_url.replace("https://github.com/smartshark/","").replace("https://www.github.com/smartshark/","")
+        plugin_url.append(plugin)
+        
+    return render(request, 'smartshark/plugin/github/select.html',
+                  {
+                      'plugin_url': plugin_url
+                  })
