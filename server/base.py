@@ -202,4 +202,4 @@ LOGGING = {
     }
 }
 
-PLUGIN_URLS = ["https://github.com/smartshark/vcsSHARK","https://github.com/smartshark/coastSHARK", "https://github.com/smartshark/mecoSHARK","https://github.com/smartshark/issueSHARK","https://github.com/smartshark/mailingSHARK","https://github.com/smartshark/labelSHARK"]
+PLUGIN_URLS = ["https://github.com/smartshark/vcsSHARK","https://github.com/smartshark/coastSHARK", "https://github.com/smartshark/mecoSHARK","https://github.com/smartshark/issueSHARK","https://github.com/smartshark/mailingSHARK","https://github.com/smartshark/labelSHARK","https://github.com/smartshark/refSHARK","https://github.com/smartshark/linksSHARK"]
