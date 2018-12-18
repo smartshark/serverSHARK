@@ -167,6 +167,7 @@ class ArgumentInline(admin.TabularInline):
 
 class PluginAdmin(admin.ModelAdmin):
     list_display = ('name', 'version', 'description', 'plugin_type', 'active', 'installed')
+    list_filter = ('active', 'installed', 'plugin_type')
     actions = ('delete_model', 'install_plugin')
     inlines = (ArgumentInline, )
     change_list_template = 'smartshark/plugin/buttons.html'
