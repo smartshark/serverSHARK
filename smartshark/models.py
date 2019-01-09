@@ -432,3 +432,15 @@ class SmartsharkUser(models.Model):
             handler.update_user(username=user.username, password=password, roles=[])
 
 
+class JobVerification(models.Model):
+    project_id = models.CharField(max_length=100, unique=True)
+    commmit = models.CharField(max_length=250)
+
+    vcsSHARK = models.BooleanField()
+    mecoSHARK = models.BooleanField()
+    coastSHARK = models.BooleanField()
+
+    text = models.TextField(null=True, blank=True)
+
+    def __str__(self):
+        return self.project_id + " " + self.commmit

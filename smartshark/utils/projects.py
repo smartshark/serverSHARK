@@ -1,5 +1,5 @@
 from smartshark.mongohandler import handler
-
+import pygit2, os, shutil, re, datetime
 
 def getPlugins():
     # Load the tables directly from the MongoDB
@@ -94,6 +94,17 @@ def deleteOnDependencyTree(tree, parent_id):
     #if(tree.collection_name != 'project'):
     handler.client.get_database(handler.database).get_collection(tree.collection_name).delete_many({tree.field: parent_id})
 
+
+def create_local_repo_for_project(vcsMongo, path):
+    url = vcsMongo["url"]
+    # removes the https and replaces it with git
+    repo_url = "git" + url[5:]
+    if os.path.isdir(path):
+        shutil.rmtree(path)
+
+    repo = pygit2.clone_repository(repo_url, path)
+
+    return repo
 
 class SchemaReference:
 
