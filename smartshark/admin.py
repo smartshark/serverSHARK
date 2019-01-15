@@ -297,6 +297,8 @@ class ProjectAdmin(admin.ModelAdmin):
     fields = ('name', 'mongo_id')
     list_display = ('name', 'mongo_id', 'plugin_executions')
     readonly_fields = ('mongo_id', )
+    search_fields = ('name', 'mongo_id')
+
     actions = ['start_collection', 'show_executions', 'delete_data']
 
     def get_readonly_fields(self, request, obj=None):

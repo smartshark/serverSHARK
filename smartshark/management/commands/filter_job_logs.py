@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from decimal import Decimal
-
 from smartshark.models import Job, Plugin, Project, PluginExecution
 from smartshark.datacollection.pluginmanagementinterface import PluginManagementInterface
 

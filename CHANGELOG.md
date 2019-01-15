@@ -1,3 +1,7 @@
+# 2.0.2 (in progress)
+- add search field for name and mongo_id to projects in admin.py
+- upgrade django to 1.11.18
+
 # 2.0.1
 - vagrantfile now includes maven and gradle for java plugins
 - plugin install from github now merged
