@@ -92,7 +92,7 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-SERVERSHARK_VERSION = '0.1.3'
+SERVERSHARK_VERSION = '2.0.2'
 SUIT_CONFIG = {
     'ADMIN_NAME': 'ServerSHARK ' + SERVERSHARK_VERSION,
 }
@@ -201,3 +201,5 @@ LOGGING = {
         },
     }
 }
+
+PLUGIN_URLS = ["https://github.com/smartshark/vcsSHARK","https://github.com/smartshark/coastSHARK", "https://github.com/smartshark/mecoSHARK","https://github.com/smartshark/issueSHARK","https://github.com/smartshark/mailingSHARK","https://github.com/smartshark/labelSHARK","https://github.com/smartshark/refSHARK","https://github.com/smartshark/linkSHARK","https://github.com/smartshark/changeSHARK"]
