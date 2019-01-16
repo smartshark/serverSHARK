@@ -23,7 +23,7 @@ class Command(BaseCommand):
         tmp = options['plugin_name'].split('=')
         if len(tmp) > 1:
             plugin_name = tmp[0]
-            plugin_version = Decimal(tmp[1])
+            plugin_version = tmp[1]
             plugin = Plugin.objects.get(name__icontains=plugin_name, version=plugin_version)
         else:
             plugin = Plugin.objects.get(name__icontains=options['plugin_name'])
