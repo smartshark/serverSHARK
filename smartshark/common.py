@@ -45,7 +45,7 @@ def append_success_messages_to_req(plugin_action, plugins, request):
             plugin.installed = True
             plugin.save()
 
-            messages.success(request, 'Successfully installed/executed plugin %s in version %.2f' %
+            messages.success(request, 'Successfully installed/executed plugin %s in version %s' %
                              (plugin.name, plugin.version))
         else:
             messages.error(request, 'Plugin %s was not installed/executed! Message: %s' % (plugin,

@@ -67,6 +67,7 @@ class JobAdmin(admin.ModelAdmin):
             # generate new plugin_execution objects
             new_plugin_execution = PluginExecution.objects.get(pk=old_pk)
             new_plugin_execution.pk = None
+            new_plugin_execution.status = 'WAIT'
             new_plugin_execution.save()
 
             # create new execution history objects based on the old
@@ -104,6 +105,7 @@ class PluginExecutionAdmin(admin.ModelAdmin):
             # create new plugin_execution with same values
             plugin_execution = PluginExecution.objects.get(pk=pe.pk)
             plugin_execution.pk = None
+            plugin_execution.status = 'WAIT'
             plugin_execution.save()
 
             # rewrite execution history for arguments and new plugin_execution
@@ -165,6 +167,7 @@ class ArgumentInline(admin.TabularInline):
 
 class PluginAdmin(admin.ModelAdmin):
     list_display = ('name', 'version', 'description', 'plugin_type', 'active', 'installed')
+    list_filter = ('active', 'installed', 'plugin_type')
     actions = ('delete_model', 'install_plugin')
     inlines = (ArgumentInline, )
     change_list_template = 'smartshark/plugin/buttons.html'
@@ -294,6 +297,8 @@ class ProjectAdmin(admin.ModelAdmin):
     fields = ('name', 'mongo_id')
     list_display = ('name', 'mongo_id', 'plugin_executions')
     readonly_fields = ('mongo_id', )
+    search_fields = ('name', 'mongo_id')
+
     actions = ['start_collection', 'show_executions', 'delete_data']
 
     def get_readonly_fields(self, request, obj=None):

@@ -1,3 +1,15 @@
+# 2.0.2 (in progress)
+- add search field for name and mongo_id to projects in admin.py
+- upgrade django to 1.11.18
+
+# 2.0.1
+- vagrantfile now includes maven and gradle for java plugins
+- plugin install from github now merged
+- plugin versioning scheme converted to semver
+- auto fill for repository_url (if parameter name in the plugin is correctly named)
+- delete_project now includes progress output
+- notification for pluginexecutions included in notification command
+
 # 0.1.3
 - refactored localqueue and hpc connector common methods to new util module connector
 - include deletion of projects via command
