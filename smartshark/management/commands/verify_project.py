@@ -29,13 +29,14 @@ class Command(BaseCommand):
         projectMongo = db.project.find_one({"name": project.name})
         print(projectMongo["_id"])
         vcsMongo = db.vcs_system.find_one({"project_id": projectMongo["_id"]})
-        if vcsMongo == None or vcsMongo["repository_type"] != 'git':
-            self.stdout.write(self.style.ERROR('Error: repository is not a git repository'))
-            sys.exit(-1)
+        #if vcsMongo == None or vcsMongo["repository_type"] != 'git':
+        #    self.stdout.write(self.style.ERROR('Error: repository is not a git repository'))
+        #    sys.exit(-1)
         # 1. Checkout the project
 
 
         repo = create_local_repo_for_project(vcsMongo, path)
-        # 2. Iterate over the commits
+        if not repo.is_empty:
+            # 2. Iterate over the commits
         # 3. Iterate foreach commit over the files
         # 4. Verfiy, that the files are in the database

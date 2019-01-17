@@ -96,7 +96,8 @@ def deleteOnDependencyTree(tree, parent_id):
 
 
 def create_local_repo_for_project(vcsMongo, path):
-    url = vcsMongo["url"]
+    #url = vcsMongo["url"]
+    url = "https://github.com/apache/commons-lang.git"
     # removes the https and replaces it with git
     repo_url = "git" + url[5:]
     if os.path.isdir(path):
