@@ -444,4 +444,4 @@ class JobVerification(models.Model):
     text = models.TextField(null=True, blank=True)
 
     def __str__(self):
-        return self.project_id + " " + self.vcs_system + " " + self.commmit
+        return self.vcs_system + " " + self.commmit + " || Validation: vcsSHARK:" + str(self.vcsSHARK) + " mecoSHARK:" + str(self.mecoSHARK) + " coastSHARK:" + str(self.coastSHARK)
