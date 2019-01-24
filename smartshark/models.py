@@ -434,7 +434,7 @@ class SmartsharkUser(models.Model):
 
 class JobVerification(models.Model):
     project_id = models.ForeignKey(Project)
-    vcs_system = models.CharField(max_length=100, unique=True)
+    vcs_system = models.CharField(max_length=100)
     commmit = models.CharField(max_length=250)
 
     vcsSHARK = models.BooleanField()

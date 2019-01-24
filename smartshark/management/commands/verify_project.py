@@ -21,7 +21,7 @@ class Command(BaseCommand):
         try:
             l = input("Which project should be verified? ")
             project = Project.objects.all().get(name__iexact=l)
-            self.stdout.write("Calculate data tree for {}".format(project.name))
+            self.stdout.write("Verfiy project {}".format(project.name))
         except (Project.DoesNotExist, Project.MultipleObjectsReturned) as e:
             self.stdout.write(self.style.ERROR('Error loading project: {}'.format(e)))
             sys.exit(-1)
@@ -30,11 +30,11 @@ class Command(BaseCommand):
         projectMongo = self.db.project.find_one({"name": project.name})
         print(projectMongo["_id"])
         vcsMongo = self.db.vcs_system.find_one({"project_id": projectMongo["_id"]})
-        #if vcsMongo == None or vcsMongo["repository_type"] != 'git':
-        #    self.stdout.write(self.style.ERROR('Error: repository is not a git repository'))
-        #    sys.exit(-1)
-        # 1. Checkout the project
 
+        l = input("Delete old verification data first? (Y/N)")
+        if(l == "y" or l == "Y"):
+            JobVerification.objects.filter(project_id=project).delete()
+            self.stdout.write("Deleted old verification data")
 
         repo = create_local_repo_for_project(vcsMongo, path)
         if not repo.is_empty:
@@ -52,8 +52,10 @@ class Command(BaseCommand):
                 resultModel.commit = commit
                 resultModel.text = ""
 
+                db_commit = self.get_commit_from_database(commit)
+
                 # Basic validation wihtout checkout the version
-                resultModel.vcsSHARK = self.validate_vcsSHARK()
+                resultModel.vcsSHARK = self.validate_vcsSHARK(db_commit, repo, resultModel)
 
                 # Checkout, to validate also on file level
                 ref = repo.create_reference('refs/tags/temp', commit)
@@ -61,14 +63,13 @@ class Command(BaseCommand):
 
                 # 3. Iterate foreach commit over the files
 
-                db_commit = self.get_commit_from_database(commit)
-
                 self.validate_mecoSHARK(path,db_commit, resultModel)
                 self.validate_coastSHARK(path,db_commit, resultModel)
 
                 # Save the model
-                print(resultModel)
-                print(resultModel.text)
+                resultModel.save()
+                #if(resultModel.vcsSHARK == False):
+                #    print(resultModel.text)
 
                 # Reset repo to iterate over all commits
                 repo.reset(repo.head.target.hex, pygit2.GIT_RESET_HARD)
@@ -84,12 +85,121 @@ class Command(BaseCommand):
 
 
     # Plugins validation methods
-    def validate_vcsSHARK(self):
-        return True
+    def validate_vcsSHARK(self, commit, repo, resultModel):
+        globalResult = True
+        resultModel.text = resultModel.text + "+++ vcsSHARK +++"
+        unvalidated_file_actions_ids = []
+        for db_file_action in self.db.file.find(
+                {"commit_id": commit["_id"]}).batch_size(30):
+            if db_file_action["_id"] not in unvalidated_file_actions_ids:
+                unvalidated_file_actions_ids.append(db_file_action["_id"])
+
+        validated_file_actions = 0 # counter for the validation
+
+        repo_commit = repo.revparse_single(commit["revision_hash"])
+
+        SIMILARITY_THRESHOLD = 50
+
+        if repo_commit.parents:
+            for parent in repo_commit.parents:
+                diff = repo.diff(parent, repo_commit, context_lines=0,
+                                 interhunk_lines=1)
+                # almost the same as in the normal file_action creation
+                opts = pygit2.GIT_DIFF_FIND_RENAMES | pygit2.GIT_DIFF_FIND_COPIES
+                diff.find_similar(opts, SIMILARITY_THRESHOLD,
+                                  SIMILARITY_THRESHOLD)
+
+                already_checked_file_paths = set()
+                for patch in diff:
+
+                    # Only if the filepath was not processed before, add new file
+                    if patch.delta.new_file.path in already_checked_file_paths:
+                        continue
+
+                    # Check change mode
+                    mode = 'X'
+                    if patch.delta.status == 1:
+                        mode = 'A'
+                    elif patch.delta.status == 2:
+                        mode = 'D'
+                    elif patch.delta.status == 3:
+                        mode = 'M'
+                    elif patch.delta.status == 4:
+                        mode = 'R'
+                    elif patch.delta.status == 5:
+                        mode = 'C'
+                    elif patch.delta.status == 6:
+                        mode = 'I'
+                    elif patch.delta.status == 7:
+                        mode = 'U'
+                    elif patch.delta.status == 8:
+                        mode = 'T'
+
+                    filepath = patch.delta.new_file.path
+
+                    repo_file_action = {
+                        "size_at_commit": patch.delta.new_file.size,
+                        "lines_added": patch.line_stats[1],
+                        "lines_deleted": patch.line_stats[2],
+                        "is_binary": patch.delta.is_binary,
+                        "mode": mode
+                    }
+
+                    already_checked_file_paths.add(patch.delta.new_file.path)
+
+                    for db_file_action in self.db.file.find(
+                            {"commit_id": commit["_id"]}).batch_size(5):
+
+                        db_file = None
+
+                        for file in self.db.file.find({"_id": db_file_action["file_id"]}):
+                            db_file = file
+
+
+                        if filepath == db_file["path"]:
+                            if repo_file_action.items() <= db_file_action.items():
+                                if db_file_action["_id"] in unvalidated_file_actions_ids:
+                                    validated_file_actions += 1
+                                    unvalidated_file_actions_ids.remove(db_file_action["_id"])
+                                else:
+                                    resultModel.text = resultModel.text + "\n File action missing!"
+                                    globalResult = False
+
+        else:
+            diff = repo_commit.tree.diff_to_tree(context_lines=0, interhunk_lines=1)
+
+            for patch in diff:
+
+                filepath = patch.delta.new_file.path
+                filemode = 'A'
+
+                for db_file_action in self.db.file.find(
+                        {"commit_id": commit["_id"]}).batch_size(5):
+
+                    db_file = None
+
+                    for file in self.db.file.find({"_id": db_file_action["file_id"]}).batch_size(
+                            30):
+                        db_file = file
+
+                    # for initial commit file size and lines added never match but checking filepath should be enough
+                    if (filepath != db_file["path"]) or (filemode != db_file_action["mode"]):
+                        validated_file_actions += 1
+                        unvalidated_file_actions_ids.remove(db_file_action["_id"])
+                    else:
+                        resultModel.text = resultModel.text + "\n File action missing!"
+                        globalResult = False
+
+
+        if(len(unvalidated_file_actions_ids) != 0):
+            self.stdout.write("warning: {} file actions found in the database, but not in the repo!".format(len(unvalidated_file_actions_ids)))
+
+        # self.stdout.write("validation of file actions : {} ".format(validated_file_actions))
+        return globalResult
 
     # File level validation
     def validate_coastSHARK(self, path, db_commit, resultModel):
-        resultModel.text = resultModel.text + "+++ coastSHARK +++"
+        resultModel.text = resultModel.text + "\n +++ coastSHARK +++"
         unvalidated_code_entity_state_longnames = []
 
         for db_code_entity_state in db_commit["code_entity_states"]:
@@ -103,7 +213,7 @@ class Command(BaseCommand):
         resultModel.coastSHARK = self.validateOnFileLevel(path,unvalidated_code_entity_state_longnames,resultModel)
 
     def validate_mecoSHARK(self, path, db_commit, resultModel):
-        resultModel.text = resultModel.text + "+++ mecoSHARK +++"
+        resultModel.text = resultModel.text + "\n +++ mecoSHARK +++"
         unvalidated_code_entity_state_longnames = []
 
         for db_code_entity_state in db_commit["code_entity_states"]:
