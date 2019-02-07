@@ -11,11 +11,12 @@ from django.core.files import File
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from bson.objectid import ObjectId
+from django.db.models import Q
 
 from smartshark.common import create_substitutions_for_display, order_plugins, append_success_messages_to_req
 from smartshark.datacollection.executionutils import create_jobs_for_execution
 from smartshark.forms import ProjectForm, get_form, set_argument_values, set_argument_execution_values
-from smartshark.models import Plugin, Project, PluginExecution, Job
+from smartshark.models import Plugin, Project, PluginExecution, Job, JobVerification
 from smartshark.utils import projectUtils
 
 from smartshark.datacollection.pluginmanagementinterface import PluginManagementInterface
@@ -300,12 +301,12 @@ def delete_project_data(request):
     # Create a preview, count collections the schema
     if request.method == 'POST':
         if 'start' in request.POST:
-            projectUtils.deleteOnDependencyTree(schemaProject, ObjectId(project.mongo_id))
+            projectUtils.delete_on_dependency_tree(schemaProject, ObjectId(project.mongo_id))
             return render(request, 'smartshark/project/action_deletion_finish.html', {
                 'project': project
             })
     else:
-        projectUtils.countOnDependencyTree(schemaProject, ObjectId(project.mongo_id))
+        projectUtils.count_on_dependency_tree(schemaProject, ObjectId(project.mongo_id))
 
     return render(request, 'smartshark/project/action_deletion.html', {
         'project': project,
@@ -395,3 +396,70 @@ def installgithub(request):
                   {
                       'plugin_url': plugin_url
                   })
+
+
+def verify_project(request):
+    if request.method == 'POST':
+        if 'cancel' in request.POST:
+            return HttpResponseRedirect('/admin/smartshark/project')
+
+    if not request.user.is_authenticated() or not request.user.has_perm('smartshark.plugin_execution_status'):
+        messages.error(request, 'You are not authorized to perform this action.')
+        return HttpResponseRedirect('/admin/smartshark/project')
+
+    projects = []
+
+    if request.GET.get('ids'):
+        for project_id in request.GET.get('ids', '').split(','):
+            projects.append(get_object_or_404(Project, pk=project_id))
+    else:
+        messages.error(request, 'No project ids were given.')
+        return HttpResponseRedirect('/admin/smartshark/project')
+
+    if(len(projects) != 1):
+        messages.error(request, 'Deletion progress is only supported for one project at the same time.')
+        return HttpResponseRedirect('/admin/smartshark/project')
+
+    project = projects[0]
+
+    results = JobVerification.objects.filter(project_id=project.id).filter(Q(vcsSHARK=False) | Q(mecoSHARK=False) | Q(coastSHARK=False))
+
+    return render(request, 'smartshark/project/verify_project.html', {
+        'results': results,
+        'project': project
+    })
+
+
+def verify_project_details(request):
+    if request.method == 'POST':
+        if 'cancel' in request.POST:
+            return HttpResponseRedirect('/admin/smartshark/project')
+
+    if not request.user.is_authenticated() or not request.user.has_perm('smartshark.plugin_execution_status'):
+        messages.error(request, 'You are not authorized to perform this action.')
+        return HttpResponseRedirect('/admin/smartshark/project')
+
+    projects = []
+
+    if request.GET.get('project_id'):
+        for project_id in request.GET.get('project_id', '').split(','):
+            projects.append(get_object_or_404(Project, pk=project_id))
+    else:
+        messages.error(request, 'No project ids were given.')
+        return HttpResponseRedirect('/admin/smartshark/project')
+
+    if(len(projects) != 1):
+        messages.error(request, 'Deletion progress is only supported for one project at the same time.')
+        return HttpResponseRedirect('/admin/smartshark/project')
+
+    project = projects[0]
+
+    vcs_system = request.GET.get('vcs_system')
+    commit = request.GET.get('commit')
+
+    result = JobVerification.objects.filter(project_id=project.id,vcs_system=vcs_system,commmit=commit)[0]
+
+    return render(request, 'smartshark/project/verify_project_detail.html', {
+        'result': result,
+        'project': project
+    })

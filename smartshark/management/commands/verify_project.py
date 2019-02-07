@@ -49,7 +49,7 @@ class Command(BaseCommand):
                 resultModel = JobVerification()
                 resultModel.project_id = project
                 resultModel.vcs_system = vcsMongo["url"]
-                resultModel.commit = commit
+                resultModel.commmit = str(commit)
                 resultModel.text = ""
 
                 db_commit = self.get_commit_from_database(commit)
