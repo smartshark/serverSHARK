@@ -16,7 +16,7 @@ from smartshark.common import create_substitutions_for_display, order_plugins, a
 from smartshark.datacollection.executionutils import create_jobs_for_execution
 from smartshark.forms import ProjectForm, get_form, set_argument_values, set_argument_execution_values
 from smartshark.models import Plugin, Project, PluginExecution, Job
-from smartshark.utils import projects
+from smartshark.utils import projectUtils
 
 from smartshark.datacollection.pluginmanagementinterface import PluginManagementInterface
 
@@ -289,23 +289,23 @@ def delete_project_data(request):
     # plugin_path = settings.LOCALQUEUE['plugin_installation']
 
     # Collect all schemas
-    schemas = projects.getPlugins()
+    schemas = projectUtils.getPlugins()
 
     # Analyze the schema
     deb = []
-    x = projects.findDependencyOfSchema('project', schemas.values(), [])
-    schemaProject = projects.SchemaReference('project', '_id', x)
+    x = projectUtils.findDependencyOfSchema('project', schemas.values(), [])
+    schemaProject = projectUtils.SchemaReference('project', '_id', x)
     deb.append(schemaProject)
 
     # Create a preview, count collections the schema
     if request.method == 'POST':
         if 'start' in request.POST:
-            projects.deleteOnDependencyTree(schemaProject, ObjectId(project.mongo_id))
+            projectUtils.deleteOnDependencyTree(schemaProject, ObjectId(project.mongo_id))
             return render(request, 'smartshark/project/action_deletion_finish.html', {
                 'project': project
             })
     else:
-        projects.countOnDependencyTree(schemaProject, ObjectId(project.mongo_id))
+        projectUtils.countOnDependencyTree(schemaProject, ObjectId(project.mongo_id))
 
     return render(request, 'smartshark/project/action_deletion.html', {
         'project': project,
