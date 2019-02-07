@@ -7,7 +7,7 @@ from django.core.management.base import BaseCommand
 
 from smartshark.models import Project, JobVerification
 from smartshark.mongohandler import handler
-from smartshark.utils.projects import create_local_repo_for_project, get_all_commits_of_repo
+from smartshark.utils.projectUtils import create_local_repo_for_project, get_all_commits_of_repo
 import pygit2,os
 
 class Command(BaseCommand):

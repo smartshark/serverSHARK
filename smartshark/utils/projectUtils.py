@@ -48,9 +48,13 @@ def count_on_dependency_tree(tree, parent_id):
 
     ids = handler.client.get_database(handler.database).get_collection(tree.collection_name).find({tree.field: parent_id}).distinct('_id')
     count = len(ids)
-
     tree.count = tree.count + count
+    i=0
     for _id in ids:
+        if i%1000==0:
+            if tree.collection_name=='commit':
+                print("commits done: %i / %i" % (i, count))
+        i=i+1
         for deb in tree.dependencys:
             count_on_dependency_tree(deb, _id)
 
@@ -61,38 +65,15 @@ def delete_on_dependency_tree(tree, parent_id):
     count = len(ids)
 
     tree.count = tree.count + count
+    i=0
     for _id in ids:
+        if i%1000==0:
+            if tree.collection_name=='commit':
+                print("commits done: %i / %i" % (i, count))
+        i=i+1
         for deb in tree.dependencys:
             delete_on_dependency_tree(deb, _id)
 
-    handler.client.get_database(handler.database).get_collection(tree.collection_name).delete_many({tree.field: parent_id})
-
-
-def countOnDependencyTree(tree, parent_id):
-    #print(handler.database)
-    query = handler.client.get_database(handler.database).get_collection(tree.collection_name).find({tree.field: parent_id})
-    count = query.count()
-    # print(tree.collection_name)
-    tree.count = tree.count + count
-    for object in query:
-        #print(object)
-        #print(object.get('_id'))
-        for deb in tree.dependencys:
-            countOnDependencyTree(deb,object.get('_id'))
-
-
-def deleteOnDependencyTree(tree, parent_id):
-    query = handler.client.get_database(handler.database).get_collection(tree.collection_name).find({tree.field: parent_id})
-    count = query.count()
-    # print(tree.collection_name)
-    tree.count = tree.count + count
-    for object in query:
-        #print(object)
-        #print(object.get('_id'))
-        for deb in tree.dependencys:
-            deleteOnDependencyTree(deb,object.get('_id'))
-    # Delete finally
-    #if(tree.collection_name != 'project'):
     handler.client.get_database(handler.database).get_collection(tree.collection_name).delete_many({tree.field: parent_id})
 
 def create_local_repo_for_project(vcsMongo, path):

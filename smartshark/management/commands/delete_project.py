@@ -8,7 +8,7 @@ from django.db import connections
 from bson.objectid import ObjectId
 
 from smartshark.models import Project
-from smartshark.utils import projects
+from smartshark.utils import projectUtils
 
 
 class Command(BaseCommand):
@@ -25,21 +25,21 @@ class Command(BaseCommand):
             self.stdout.write(self.style.ERROR('Error loading project: {}'.format(e)))
             sys.exit(-1)
 
-        schemas = projects.getPlugins()
+        schemas = projectUtils.getPlugins()
 
         # Analyze the schema
         deb = []
-        x = projects.findDependencyOfSchema('project', schemas.values(), [])
-        project_schema = projects.SchemaReference('project', '_id', x)
+        x = projectUtils.findDependencyOfSchema('project', schemas.values(), [])
+        project_schema = projectUtils.SchemaReference('project', '_id', x)
         deb.append(project_schema)
 
-        projects.count_on_dependency_tree(project_schema, ObjectId(project.mongo_id))
+        projectUtils.count_on_dependency_tree(project_schema, ObjectId(project.mongo_id))
         self._print_dependency_tree(deb, project)
 
         l = input("Continue with data deletion? (y/n) ")
         if(l == "yes" or l == "y"):
             self.stdout.write('Deleting project from the MongoDB')
-            projects.delete_on_dependency_tree(project_schema, ObjectId(project.mongo_id))
+            projectUtils.delete_on_dependency_tree(project_schema, ObjectId(project.mongo_id))
             self.stdout.write(self.style.SUCCESS('Successfully deleted project from the MongoDB'))
 
             connections['default'].close()
