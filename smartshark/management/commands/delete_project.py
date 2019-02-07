@@ -60,4 +60,3 @@ class Command(BaseCommand):
         for dependency in deb:
             self.stdout.write('{} └── {} ({})'.format('  ' * (depth - 1), dependency.collection_name, dependency.count))
             self._print_sub_dependency(dependency.dependencys, depth + 1)
-            

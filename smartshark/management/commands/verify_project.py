@@ -63,8 +63,7 @@ class Command(BaseCommand):
 
                 # 3. Iterate foreach commit over the files
 
-                self.validate_mecoSHARK(path,db_commit, resultModel)
-                self.validate_coastSHARK(path,db_commit, resultModel)
+                self.validate_Metric(path,db_commit, resultModel)
 
                 # Save the model
                 resultModel.save()
@@ -198,33 +197,36 @@ class Command(BaseCommand):
         return globalResult
 
     # File level validation
-    def validate_coastSHARK(self, path, db_commit, resultModel):
+    def validate_Metric(self, path, db_commit, resultModel):
+        code_entity_state_coastSHARK = []
+        code_entity_state_mecoSHARK = []
+
+        for db_code_entity_state in db_commit["code_entity_states"]:
+            if db_code_entity_state["ce_type"] == 'file':
+                self.validate_coastSHARK(db_code_entity_state, code_entity_state_coastSHARK)
+                self.validate_mecoSHARK(db_code_entity_state, code_entity_state_mecoSHARK)
+
+        # Validate on coastSHARK
         resultModel.text = resultModel.text + "\n +++ coastSHARK +++"
-        unvalidated_code_entity_state_longnames = []
+        resultModel.coastSHARK = self.validateOnFileLevel(path,code_entity_state_coastSHARK,resultModel)
 
-        for db_code_entity_state in db_commit["code_entity_states"]:
-            if db_code_entity_state["ce_type"] == 'file':
-                if "node_count" in db_code_entity_state["metrics"]:
-                    if db_code_entity_state["metrics"]["node_count"] > 0:
-                        unvalidated_code_entity_state_longnames.append(
-                            db_code_entity_state["long_name"])
-
-        # Validate on file level
-        resultModel.coastSHARK = self.validateOnFileLevel(path,unvalidated_code_entity_state_longnames,resultModel)
-
-    def validate_mecoSHARK(self, path, db_commit, resultModel):
+        # Validate mecoSHARK
         resultModel.text = resultModel.text + "\n +++ mecoSHARK +++"
-        unvalidated_code_entity_state_longnames = []
+        resultModel.mecoSHARK = self.validateOnFileLevel(path,code_entity_state_mecoSHARK,resultModel)
 
-        for db_code_entity_state in db_commit["code_entity_states"]:
-            if db_code_entity_state["ce_type"] == 'file':
-                if "McCC" in db_code_entity_state["metrics"]:
-                    if db_code_entity_state["metrics"]["McCC"]:
-                        unvalidated_code_entity_state_longnames.append(
-                            db_code_entity_state["long_name"])
 
-        # Validate on file level
-        resultModel.mecoSHARK = self.validateOnFileLevel(path,unvalidated_code_entity_state_longnames,resultModel)
+    # File level validation
+    def validate_coastSHARK(self, db_code_entity_state, code_entity_state_coastSHARK):
+        if "node_count" in db_code_entity_state["metrics"]:
+            if db_code_entity_state["metrics"]["node_count"] > 0:
+                  code_entity_state_coastSHARK.append(db_code_entity_state["long_name"])
+
+
+    def validate_mecoSHARK(self, db_code_entity_state, code_entity_state_mecoSHARK):
+        if "LOC" in db_code_entity_state["metrics"]:
+            if db_code_entity_state["metrics"]["LOC"]:
+                  code_entity_state_mecoSHARK.append(db_code_entity_state["long_name"])
+
 
     def validateOnFileLevel(self, path, unvalidated_code_entity_state_longnames, resultModel):
         globalResult = True
