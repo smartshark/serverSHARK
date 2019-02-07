@@ -230,7 +230,7 @@ class Command(BaseCommand):
         globalResult = True
         for root, dirs, files in os.walk(path):
             for file in files:
-                if file.endswith('.py') or file.endswith('.java'):
+                if file.endswith('.java'):
 
                     filepath = os.path.join(root, file)
                     filepath = filepath.replace(path + "/", '')
