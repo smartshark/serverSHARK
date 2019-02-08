@@ -208,11 +208,11 @@ class Command(BaseCommand):
 
         # Validate on coastSHARK
         resultModel.text = resultModel.text + "\n +++ coastSHARK +++"
-        resultModel.coastSHARK = self.validateOnFileLevel(path,code_entity_state_coastSHARK,resultModel)
+        resultModel.coastSHARK = self.validate_on_file_level(path,code_entity_state_coastSHARK,resultModel)
 
         # Validate mecoSHARK
         resultModel.text = resultModel.text + "\n +++ mecoSHARK +++"
-        resultModel.mecoSHARK = self.validateOnFileLevel(path,code_entity_state_mecoSHARK,resultModel)
+        resultModel.mecoSHARK = self.validate_on_file_level(path,code_entity_state_mecoSHARK,resultModel)
 
 
     # File level validation
@@ -228,7 +228,7 @@ class Command(BaseCommand):
                   code_entity_state_mecoSHARK.append(db_code_entity_state["long_name"])
 
 
-    def validateOnFileLevel(self, path, unvalidated_code_entity_state_longnames, resultModel):
+    def validate_on_file_level(self, path, unvalidated_code_entity_state_longnames, resultModel):
         globalResult = True
         for root, dirs, files in os.walk(path):
             for file in files:
