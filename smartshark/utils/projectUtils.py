@@ -85,6 +85,8 @@ def create_local_repo_for_project(vcsMongo, path):
 
     repo = pygit2.clone_repository(repo_url, path)
 
+    # this is a workaround for: https://github.com/libgit2/pygit2/issues/818
+    repo = pygit2.Repository(path)
     return repo
 
 def get_all_commits_of_repo(vcsMongo, repo):
