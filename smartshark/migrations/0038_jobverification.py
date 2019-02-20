@@ -14,16 +14,16 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.CreateModel(
-            name='JobVerification',
+            name='CommitVerification',
             fields=[
                 ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('vcs_system', models.CharField(max_length=100)),
-                ('commmit', models.CharField(max_length=250)),
+                ('commit', models.CharField(max_length=250)),
                 ('vcsSHARK', models.BooleanField()),
                 ('mecoSHARK', models.BooleanField()),
                 ('coastSHARK', models.BooleanField()),
                 ('text', models.TextField(blank=True, null=True)),
-                ('project_id', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='smartshark.Project')),
+                ('project', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='smartshark.Project')),
             ],
         ),
     ]

@@ -5,7 +5,7 @@ import sys
 
 from django.core.management.base import BaseCommand
 
-from smartshark.models import Project, JobVerification
+from smartshark.models import Project, CommitVerification
 from smartshark.mongohandler import handler
 from smartshark.utils.projectUtils import create_local_repo_for_project, get_all_commits_of_repo
 import pygit2,os
@@ -33,7 +33,7 @@ class Command(BaseCommand):
 
         l = input("Delete old verification data first? (Y/N)")
         if(l == "y" or l == "Y"):
-            JobVerification.objects.filter(project_id=project).delete()
+            CommitVerification.objects.filter(project_id=project).delete()
             self.stdout.write("Deleted old verification data")
 
         repo = create_local_repo_for_project(vcsMongo, path)
@@ -46,10 +46,10 @@ class Command(BaseCommand):
                 print("Commit " + commit)
 
                 # Add primary keys to the model
-                resultModel = JobVerification()
-                resultModel.project_id = project
+                resultModel = CommitVerification()
+                resultModel.project = project
                 resultModel.vcs_system = vcsMongo["url"]
-                resultModel.commmit = str(commit)
+                resultModel.commit = str(commit)
                 resultModel.text = ""
 
                 db_commit = self.get_commit_from_database(commit, vcsMongo["_id"])

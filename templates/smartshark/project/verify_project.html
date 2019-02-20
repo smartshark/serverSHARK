@@ -15,11 +15,11 @@
 
      {% for result in results %}
   <tr>
-    <td>{{ result.commmit }}</td>
+    <td>{{ result.commit }}</td>
     <td>{% if result.vcsSHARK %} <button type="button" class="btn btn-success">&#x2713;</button> {% else %} <button type="button" class="btn btn-danger">&#x274C;</button> {% endif %} </td>
     <td>{% if result.mecoSHARK %} <button type="button" class="btn btn-success">&#x2713;</button> {% else %} <button type="button" class="btn btn-danger">&#x274C;</button> {% endif %} </td>
     <td>{% if result.coastSHARK %} <button type="button" class="btn btn-success">&#x2713;</button> {% else %} <button type="button" class="btn btn-danger">&#x274C;</button> {% endif %} </td>
-      <td><a href="/smartshark/project/verify_details?project_id={{ project.id }}&vcs_system={{ result.vcs_system }}&commit={{ result.commmit }}">Show details</a></td>
+      <td><a href="/smartshark/project/verify_details?project_id={{ project.id }}&vcs_system={{ result.vcs_system }}&commit={{ result.commit }}">Show details</a></td>
   </tr>
      {% endfor %}
 </table>

@@ -16,7 +16,7 @@ from django.db.models import Q
 from smartshark.common import create_substitutions_for_display, order_plugins, append_success_messages_to_req
 from smartshark.datacollection.executionutils import create_jobs_for_execution
 from smartshark.forms import ProjectForm, get_form, set_argument_values, set_argument_execution_values
-from smartshark.models import Plugin, Project, PluginExecution, Job, JobVerification
+from smartshark.models import Plugin, Project, PluginExecution, Job, CommitVerification
 from smartshark.utils import projectUtils
 
 from smartshark.datacollection.pluginmanagementinterface import PluginManagementInterface
@@ -422,7 +422,7 @@ def verify_project(request):
 
     project = projects[0]
 
-    results = JobVerification.objects.filter(project_id=project.id).filter(Q(vcsSHARK=False) | Q(mecoSHARK=False) | Q(coastSHARK=False))
+    results = CommitVerification.objects.filter(project=project.id).filter(Q(vcsSHARK=False) | Q(mecoSHARK=False) | Q(coastSHARK=False))
 
     return render(request, 'smartshark/project/verify_project.html', {
         'results': results,
@@ -457,7 +457,7 @@ def verify_project_details(request):
     vcs_system = request.GET.get('vcs_system')
     commit = request.GET.get('commit')
 
-    result = JobVerification.objects.filter(project_id=project.id,vcs_system=vcs_system,commmit=commit)[0]
+    result = CommitVerification.objects.filter(project=project.id,vcs_system=vcs_system,commit=commit)[0]
 
     return render(request, 'smartshark/project/verify_project_detail.html', {
         'result': result,
