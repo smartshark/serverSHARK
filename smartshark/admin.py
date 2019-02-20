@@ -14,7 +14,7 @@ from django.utils.safestring import mark_safe
 from smartshark.datacollection.pluginmanagementinterface import PluginManagementInterface
 
 from .views.collection import JobSubmissionThread
-from .models import MongoRole, SmartsharkUser, Plugin, Argument, Project, Job, PluginExecution, ExecutionHistory
+from .models import MongoRole, SmartsharkUser, Plugin, Argument, Project, Job, PluginExecution, ExecutionHistory, CommitVerification
 
 
 admin.site.unregister(User)
@@ -329,6 +329,17 @@ class ProjectAdmin(admin.ModelAdmin):
     delete_data.short_description = 'Delete all data for selected Projects'
 
 
+
+class CommitVerificationAdmin(admin.ModelAdmin):
+    def has_add_permission(self, request, obj=None):
+        return False
+    list_display = ('commit', 'project', 'vcsSHARK', 'mecoSHARK',
+                    'coastSHARK')
+    search_fields = ('commit',)
+    list_filter = ('project__name', 'vcsSHARK', 'mecoSHARK', 'coastSHARK')
+
+
+admin.site.register(CommitVerification, CommitVerificationAdmin)
 admin.site.register(User, MyUserAdmin)
 admin.site.register(SmartsharkUser, SmartsharkUserAdmin)
 admin.site.register(MongoRole, MongoModelAdmin)

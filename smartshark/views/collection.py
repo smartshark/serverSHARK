@@ -11,11 +11,12 @@ from django.core.files import File
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from bson.objectid import ObjectId
+from django.db.models import Q
 
 from smartshark.common import create_substitutions_for_display, order_plugins, append_success_messages_to_req
 from smartshark.datacollection.executionutils import create_jobs_for_execution
 from smartshark.forms import ProjectForm, get_form, set_argument_values, set_argument_execution_values
-from smartshark.models import Plugin, Project, PluginExecution, Job
+from smartshark.models import Plugin, Project, PluginExecution, Job, CommitVerification
 from smartshark.utils import projectUtils
 
 from smartshark.datacollection.pluginmanagementinterface import PluginManagementInterface
@@ -300,12 +301,12 @@ def delete_project_data(request):
     # Create a preview, count collections the schema
     if request.method == 'POST':
         if 'start' in request.POST:
-            projectUtils.deleteOnDependencyTree(schemaProject, ObjectId(project.mongo_id))
+            projectUtils.delete_on_dependency_tree(schemaProject, ObjectId(project.mongo_id))
             return render(request, 'smartshark/project/action_deletion_finish.html', {
                 'project': project
             })
     else:
-        projectUtils.countOnDependencyTree(schemaProject, ObjectId(project.mongo_id))
+        projectUtils.count_on_dependency_tree(schemaProject, ObjectId(project.mongo_id))
 
     return render(request, 'smartshark/project/action_deletion.html', {
         'project': project,
@@ -390,7 +391,7 @@ def installgithub(request):
         plugin["url"] = settings_url
         plugin["name"] = settings_url.replace("https://github.com/smartshark/","").replace("https://www.github.com/smartshark/","")
         plugin_url.append(plugin)
-        
+
     return render(request, 'smartshark/plugin/github/select.html',
                   {
                       'plugin_url': plugin_url

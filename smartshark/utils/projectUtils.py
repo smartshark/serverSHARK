@@ -1,3 +1,4 @@
+import pygit2, os, shutil,datetime
 from smartshark.mongohandler import handler
 
 
@@ -75,6 +76,27 @@ def delete_on_dependency_tree(tree, parent_id):
 
     handler.client.get_database(handler.database).get_collection(tree.collection_name).delete_many({tree.field: parent_id})
 
+def create_local_repo_for_project(vcsMongo, path):
+    url = vcsMongo["url"]
+    # removes the https and replaces it with git
+    repo_url = "git" + url[5:]
+    if os.path.isdir(path):
+        shutil.rmtree(path)
+
+    repo = pygit2.clone_repository(repo_url, path)
+
+    return repo
+
+def get_all_commits_of_repo(vcsMongo, repo):
+    total_commit_hexs = []
+
+    for commit in repo.walk(repo.head.target, pygit2.GIT_SORT_TIME):
+        if commit.hex not in total_commit_hexs:
+            time = datetime.datetime.utcfromtimestamp(commit.commit_time)
+            if time < vcsMongo["last_updated"]:
+                total_commit_hexs.append(commit.hex)
+
+    return total_commit_hexs
 
 class SchemaReference:
 
@@ -89,3 +111,12 @@ class SchemaReference:
 
     def __str__(self):
         return str(self.collection_name) + " --> " + str(self.field) + " Dependencys:" + str(self.dependencys)
+
+    # Get commit form database
+def get_commit_from_database(db, commitHex, vcs_system_id):
+    return db.commit.find_one({"revision_hash": commitHex, 'vcs_system_id': vcs_system_id})
+
+
+    # Get commit form database
+def get_code_entities_from_database(db, list_of_ids):
+    return db.code_entity_state.find({"_id" : {"$in" : list_of_ids}})
