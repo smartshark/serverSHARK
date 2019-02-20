@@ -299,7 +299,7 @@ class ProjectAdmin(admin.ModelAdmin):
     readonly_fields = ('mongo_id', )
     search_fields = ('name', 'mongo_id')
 
-    actions = ['start_collection', 'show_executions', 'delete_data', 'show_verification']
+    actions = ['start_collection', 'show_executions', 'delete_data']
 
     def get_readonly_fields(self, request, obj=None):
         """
@@ -325,14 +325,9 @@ class ProjectAdmin(admin.ModelAdmin):
     def delete_data(self, request, queryset):
         selected = request.POST.getlist(admin.ACTION_CHECKBOX_NAME)
         return HttpResponseRedirect("/smartshark/project/delete/?ids=%s" % (",".join(selected)))
-
-    def show_verification(self, request, queryset):
-        selected = request.POST.getlist(admin.ACTION_CHECKBOX_NAME)
-        return HttpResponseRedirect("/smartshark/project/verify/?ids=%s" % (",".join(selected)))
-
+    
     delete_data.short_description = 'Delete all data for selected Projects'
 
-    show_verification.short_description = 'Show verification results'
 
 
 class CommitVerificationAdmin(admin.ModelAdmin):
