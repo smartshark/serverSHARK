@@ -111,3 +111,12 @@ class SchemaReference:
 
     def __str__(self):
         return str(self.collection_name) + " --> " + str(self.field) + " Dependencys:" + str(self.dependencys)
+
+    # Get commit form database
+def get_commit_from_database(db, commitHex, vcs_system_id):
+    return db.commit.find_one({"revision_hash": commitHex, 'vcs_system_id': vcs_system_id})
+
+
+    # Get commit form database
+def get_code_entities_from_database(db, list_of_ids):
+    return db.code_entity_state.find({"_id" : {"$in" : list_of_ids}})

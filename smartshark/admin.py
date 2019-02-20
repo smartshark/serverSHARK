@@ -325,7 +325,7 @@ class ProjectAdmin(admin.ModelAdmin):
     def delete_data(self, request, queryset):
         selected = request.POST.getlist(admin.ACTION_CHECKBOX_NAME)
         return HttpResponseRedirect("/smartshark/project/delete/?ids=%s" % (",".join(selected)))
-    
+
     delete_data.short_description = 'Delete all data for selected Projects'
 
 

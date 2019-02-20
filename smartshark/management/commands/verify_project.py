@@ -7,7 +7,7 @@ from django.core.management.base import BaseCommand
 
 from smartshark.models import Project, CommitVerification
 from smartshark.mongohandler import handler
-from smartshark.utils.projectUtils import create_local_repo_for_project, get_all_commits_of_repo
+from smartshark.utils.projectUtils import create_local_repo_for_project, get_all_commits_of_repo, get_commit_from_database, get_code_entities_from_database
 import pygit2,os
 
 class Command(BaseCommand):
@@ -52,7 +52,7 @@ class Command(BaseCommand):
                 resultModel.commit = str(commit)
                 resultModel.text = ""
 
-                db_commit = self.get_commit_from_database(commit, vcsMongo["_id"])
+                db_commit = get_commit_from_database(self.db, commit, vcsMongo["_id"])
 
                 # Basic validation wihtout checkout the version
                 resultModel.vcsSHARK = self.validate_vcsSHARK(db_commit, repo, resultModel)
@@ -75,15 +75,6 @@ class Command(BaseCommand):
                 ref.delete()
 
         print("validation complete")
-
-    # Get commit form database
-    def get_commit_from_database(self, commitHex, vcs_system_id):
-        return self.db.commit.find_one({"revision_hash": commitHex, 'vcs_system_id': vcs_system_id})
-
-
-    # Get commit form database
-    def get_code_entities_from_database(self, list_of_ids):
-        return self.db.code_entity_state.find({"_id" : {"$in" : list_of_ids}})
 
     # Plugins validation methods
     def validate_vcsSHARK(self, commit, repo, resultModel):
@@ -203,7 +194,7 @@ class Command(BaseCommand):
         code_entity_state_coastSHARK = []
         code_entity_state_mecoSHARK = []
 
-        list_code_entity = self.get_code_entities_from_database(db_commit["code_entity_states"])
+        list_code_entity = get_code_entities_from_database(self.db, db_commit["code_entity_states"])
 
         for db_code_entity_state in list_code_entity:
             if db_code_entity_state["ce_type"] == 'file':
