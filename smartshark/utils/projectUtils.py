@@ -90,11 +90,23 @@ def create_local_repo_for_project(vcsMongo, path):
 def get_all_commits_of_repo(vcsMongo, repo):
     total_commit_hexs = []
 
-    for commit in repo.walk(repo.head.target, pygit2.GIT_SORT_TIME):
-        if commit.hex not in total_commit_hexs:
-            time = datetime.datetime.utcfromtimestamp(commit.commit_time)
-            if time < vcsMongo["last_updated"]:
-                total_commit_hexs.append(commit.hex)
+    walk_objects = []
+
+    # first get all possible branches
+    for branch in repo.branches:
+        walk_objects.append(repo.branches[branch])
+
+    # then we need tags in cases those are not on any branch (this really happens!)
+    for obj in repo:
+        if repo[obj].type == pygit2.GIT_OBJ_TAG:
+            walk_objects.append(repo[obj])
+
+    for obj in walk_objects:
+        for commit in repo.walk(obj.target, pygit2.GIT_SORT_TIME):
+            if commit.hex not in total_commit_hexs:
+                time = datetime.datetime.utcfromtimestamp(commit.commit_time)
+                if time < vcsMongo["last_updated"]:
+                    total_commit_hexs.append(commit.hex)
 
     return total_commit_hexs
 
