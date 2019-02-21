@@ -2,13 +2,16 @@
 # -*- coding: utf-8 -*-
 
 import sys
+import os
+
+import pygit2
 
 from django.core.management.base import BaseCommand
 
 from smartshark.models import Project, CommitVerification
 from smartshark.mongohandler import handler
 from smartshark.utils.projectUtils import create_local_repo_for_project, get_all_commits_of_repo, get_commit_from_database, get_code_entities_from_database
-import pygit2,os
+
 
 class Command(BaseCommand):
     help = 'Verify a project'
@@ -55,6 +58,9 @@ class Command(BaseCommand):
                 db_commit = get_commit_from_database(self.db, commit, vcsMongo["_id"])
 
                 # Basic validation wihtout checkout the version
+                if not db_commit:
+                    print('commit {} not in database'.format(commit))
+                    continue
                 resultModel.vcsSHARK = self.validate_vcsSHARK(db_commit, repo, resultModel)
 
                 # Checkout, to validate also on file level
@@ -86,7 +92,7 @@ class Command(BaseCommand):
             if db_file_action["_id"] not in unvalidated_file_actions_ids:
                 unvalidated_file_actions_ids.append(db_file_action["_id"])
 
-        validated_file_actions = 0 # counter for the validation
+        validated_file_actions = 0  # counter for the validation
 
         repo_commit = repo.revparse_single(commit["revision_hash"])
 
@@ -147,7 +153,6 @@ class Command(BaseCommand):
                         for file in self.db.file.find({"_id": db_file_action["file_id"]}):
                             db_file = file
 
-
                         if filepath == db_file["path"]:
                             if repo_file_action.items() <= db_file_action.items():
                                 if db_file_action["_id"] in unvalidated_file_actions_ids:
@@ -182,7 +187,6 @@ class Command(BaseCommand):
                         resultModel.text = resultModel.text + "\n File action missing!"
                         globalResult = False
 
-
         if(len(unvalidated_file_actions_ids) != 0):
             self.stdout.write("warning: {} file actions found in the database, but not in the repo!".format(len(unvalidated_file_actions_ids)))
 
@@ -209,18 +213,17 @@ class Command(BaseCommand):
         resultModel.text = resultModel.text + "\n +++ mecoSHARK +++"
         resultModel.mecoSHARK = self.validate_on_file_level(path,code_entity_state_mecoSHARK,resultModel)
 
-
     # File level validation
     def validate_coastSHARK(self, db_code_entity_state, code_entity_state_coastSHARK):
         if "node_count" in db_code_entity_state["metrics"]:
             if db_code_entity_state["metrics"]["node_count"] > 0:
-                  code_entity_state_coastSHARK.append(db_code_entity_state["long_name"])
+                code_entity_state_coastSHARK.append(db_code_entity_state["long_name"])
 
 
     def validate_mecoSHARK(self, db_code_entity_state, code_entity_state_mecoSHARK):
         if "LOC" in db_code_entity_state["metrics"]:
             if db_code_entity_state["metrics"]["LOC"]:
-                  code_entity_state_mecoSHARK.append(db_code_entity_state["long_name"])
+                code_entity_state_mecoSHARK.append(db_code_entity_state["long_name"])
 
 
     def validate_on_file_level(self, path, unvalidated_code_entity_state_longnames, resultModel):
