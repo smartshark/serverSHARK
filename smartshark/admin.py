@@ -360,10 +360,41 @@ class CommitVerificationAdmin(admin.ModelAdmin):
     search_fields = ('commit',)
     list_filter = ('project__name', 'vcsSHARK', 'mecoSHARK', 'coastSHARK', PluginFailedListFilter)
 
-    actions = ['delete_ces_list']
+    actions = ['delete_ces_list', 'check_coast_parse_error']
 
     def has_add_permission(self, request, obj=None):
         return False
+
+    def check_coast_parse_error(self, request, queryset):
+        interface = PluginManagementInterface.find_correct_plugin_manager()
+        
+        for obj in queryset:
+            # split of file for coastSHARK
+            tmp = obj.text
+            collect_state = False
+            coast_files = []
+            for line in tmp.split('\n'):
+                if collect_state:
+                    coast_files.append(line.strip()[1:])
+                if line.strip().startswith('+++ coastSHARK +++'):
+                    collect_state = True
+                if line.strip().startswith('+++ mecoSHARK +++'):
+                    collect_state = False
+
+            # fetch stdout / stderr from last coastSHARK plugin exec
+            pe = PluginExecution.objects.filter(plugin='coastSHARK', project=queryset[0].project).order_by('submitted_at')[0]
+            job = Job.objects.get(plugin_execution=pe, revision_hash=obj.revision)
+            
+            stderr = interface.get_error_log(job)
+            stdout = interface.get_output_log(job)
+
+            new_lines = []
+            for file in coast_files:
+                for match in re.findall('Parser Error in file: [a-z0-9_-/]*{}'.format(file), stdout + stderr):
+                    new_lines.append(match)
+
+            obj.text = '\n'.join(new_lines) + '\n----\n' + obj.text
+            obj.save()
 
     def delete_ces_list(self, request, queryset):
         # show validation with additional information, re-running plugins (mecoSHARK, coastSHARK for XYZ commits)

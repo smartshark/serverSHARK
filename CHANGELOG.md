@@ -3,6 +3,7 @@
 - upgrade django to 1.11.20
 - add commit verification command (thanks Benjamin!)
 - add the ability to re-run collection for commits that had verification problems
+- add the ability to check coastSHARK fails from verification to parse errors in job logs
 
 # 2.0.1
 - vagrantfile now includes maven and gradle for java plugins
