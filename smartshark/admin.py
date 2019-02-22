@@ -377,7 +377,7 @@ class CommitVerificationAdmin(admin.ModelAdmin):
         pe = PluginExecution.objects.filter(plugin__name__startswith='coastSHARK', project=queryset[0].project).order_by('submitted_at')[0]
 
         # die on multiple projects!
-        self._die_on_multiple_projects(queryset)
+        self._die_on_multiple_projects(self, queryset)
 
         for obj in queryset:
             # split of file for coastSHARK
