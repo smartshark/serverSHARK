@@ -365,8 +365,19 @@ class CommitVerificationAdmin(admin.ModelAdmin):
     def has_add_permission(self, request, obj=None):
         return False
 
+    def _die_on_multiple_projects(queryset):
+        project = queryset[0].project
+        for c in queryset:
+            if c.project != project:
+                raise Exception('Queryset contains multiple projects!')
+
     def check_coast_parse_error(self, request, queryset):
         interface = PluginManagementInterface.find_correct_plugin_manager()
+
+        pe = PluginExecution.objects.filter(plugin__name__startswith='coastSHARK', project=queryset[0].project).order_by('submitted_at')[0]
+
+        # die on multiple projects!
+        self._die_on_multiple_projects(queryset)
 
         for obj in queryset:
             # split of file for coastSHARK
@@ -384,18 +395,22 @@ class CommitVerificationAdmin(admin.ModelAdmin):
             # fetch stdout / stderr from last coastSHARK plugin exec
             # we may have outdated old version of plugins that ran
             # plugin = Plugin.objects.get(name='coastSHARK', active=True, installed=True)
-
-            pe = PluginExecution.objects.filter(plugin__name__startswith='coastSHARK', project=queryset[0].project).order_by('submitted_at')[0]
             job = Job.objects.get(plugin_execution=pe, revision_hash=obj.commit)
 
             # stderr = interface.get_error_log(job)
             stdout = interface.get_output_log(job)
 
             new_lines = []
+            parse_error_files = []
             for file in coast_files:
                 for line in stdout:
                     if file in line and line.startswith('Parser Error in file'):
                         new_lines.append(file + ' ({})'.format(line))
+                        parse_error_files.append(file)
+
+
+            if not set(parse_error_files) - set(coast_files):
+                obj.coastSHARK = True
 
             if new_lines:
                 obj.text = '\n'.join(new_lines) + '\n----\n' + obj.text
@@ -428,10 +443,7 @@ class CommitVerificationAdmin(admin.ModelAdmin):
             return HttpResponseRedirect('/smartshark/project/collection/start/?plugins={}&project_id={}&initial_exec_type=rev&initial_revisions={}'.format(plugins, project, revisions))
         else:
             # die on multiple projects!
-            project = queryset[0].project
-            for c in queryset:
-                if c.project != project:
-                    raise Exception('Queryset contains multiple projects!')
+            self._die_on_multiple_projects(queryset)
 
             vcs_system = queryset[0].vcs_system
             for c in queryset:
