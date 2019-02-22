@@ -188,7 +188,7 @@ class MongoHandler(object):
             pass
         return url
 
-    def clear_code_entity_state_list(self, revision_hashes, vcs_system_url):
+    def clear_code_entity_state_lists(self, revision_hashes, vcs_system_url):
         revision_hashes = revision_hashes.split(',')
         vs = self.client.get_database(self.database).get_collection('vcs_system').find_one({'url': vcs_system_url})
         update_result = self.client.get_database(self.database).get_collection('commit').update_many({'revision_hash': {'$in': revision_hashes}, 'vcs_system_id': vs['_id']}, {'$set': {'code_entity_states': []}})

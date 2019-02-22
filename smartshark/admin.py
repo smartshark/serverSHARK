@@ -361,8 +361,7 @@ class CommitVerificationAdmin(admin.ModelAdmin):
                 raise Exception('no revisions selected')
 
             # we could now delete the code_entity_state lists of the commits in revisions
-            mached_count = handler.client.smartshark.clear_code_entity_state_lists(revisions, queryset[0].vcs_system)
-            print('deleted list on {} commits'.format(matched_count))
+            matched_count = handler.clear_code_entity_state_lists(revisions, queryset[0].vcs_system)
 
             # todo: should be via URL
             return HttpResponseRedirect('/smartshark/project/collection/start/?plugins={}&project_id={}&initial_exec_type=rev&initial_revisions={}'.format(plugins, project, revisions))
