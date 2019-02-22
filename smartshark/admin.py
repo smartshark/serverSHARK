@@ -385,7 +385,7 @@ class CommitVerificationAdmin(admin.ModelAdmin):
             plugin = Plugin.objects.get(name='coastSHARK', active=True, installed=True)
 
             pe = PluginExecution.objects.filter(plugin=plugin, project=queryset[0].project).order_by('submitted_at')[0]
-            job = Job.objects.get(plugin_execution=pe, revision_hash=obj.revision)
+            job = Job.objects.get(plugin_execution=pe, revision_hash=obj.commit)
             
             stderr = interface.get_error_log(job)
             stdout = interface.get_output_log(job)
