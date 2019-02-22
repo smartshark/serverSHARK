@@ -386,17 +386,19 @@ class CommitVerificationAdmin(admin.ModelAdmin):
 
             pe = PluginExecution.objects.filter(plugin=plugin, project=queryset[0].project).order_by('submitted_at')[0]
             job = Job.objects.get(plugin_execution=pe, revision_hash=obj.commit)
-            
-            stderr = interface.get_error_log(job)
+
+            # stderr = interface.get_error_log(job)
             stdout = interface.get_output_log(job)
 
             new_lines = []
             for file in coast_files:
-                for match in re.findall('Parser Error in file: [a-z0-9_-/]*{}'.format(file), stdout + stderr):
-                    new_lines.append(match)
+                for line in stdout:
+                    if file in line and line.startswith('Parser Error in file'):
+                        new_lines.append(file + ' ({})'.format(line))
 
-            obj.text = '\n'.join(new_lines) + '\n----\n' + obj.text
-            obj.save()
+            if new_lines:
+                obj.text = '\n'.join(new_lines) + '\n----\n' + obj.text
+                obj.save()
 
     def delete_ces_list(self, request, queryset):
         # show validation with additional information, re-running plugins (mecoSHARK, coastSHARK for XYZ commits)
