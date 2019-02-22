@@ -28,30 +28,16 @@ admin.site.unregister(User)
 
 
 class PluginFailedListFilter(SimpleListFilter):
-    title = _('Plugin Failed')
-
-    # Parameter for the filter that will be used in the URL query.
+    title = 'Plugin Failed'
     parameter_name = 'plugin_failed'
 
     def lookups(self, request, model_admin):
-        """
-        Returns a list of tuples. The first element in each
-        tuple is the coded value for the option that will
-        appear in the URL query. The second element is the
-        human-readable name for the option that will appear
-        in the right sidebar.
-        """
         return (
             ('failure', _('At least one plugin failed')),
             ('success', _('All plugins succeeded')),
         )
 
     def queryset(self, request, queryset):
-        """
-        Returns the filtered queryset based on the value
-        provided in the query string and retrievable via
-        `self.value()`.
-        """
         if self.value() == 'failure':
             return queryset.filter(Q(mecoSHARK=False) | Q(coastSHARK=False))
         else:
