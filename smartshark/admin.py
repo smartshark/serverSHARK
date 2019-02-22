@@ -33,8 +33,8 @@ class PluginFailedListFilter(SimpleListFilter):
 
     def lookups(self, request, model_admin):
         return (
-            ('failure', _('At least one plugin failed')),
-            ('success', _('All plugins succeeded')),
+            ('failure', 'At least one plugin failed'),
+            ('success', 'All plugins succeeded'),
         )
 
     def queryset(self, request, queryset):
