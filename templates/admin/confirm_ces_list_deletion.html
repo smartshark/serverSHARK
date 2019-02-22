@@ -25,12 +25,19 @@
         Re-Run the following Plugins on above commits:<br/>
         <select name="plugins" multiple="multiple">
             {% for plugin in plugins %}
-            <option value="{{plugin.id}}" selected="selected">{{plugin.name}}</option>
+            <option value="{{plugin.id}}" selected="selected">{{plugin.name}}-{{plugin.version}}</option>
             {% endfor %}
         </select><br/>
         <br/>
         On project: {{project.name}}<br/>
         <br/>
+
+        {# these are required for django routing this request to the correct admin action with the correct queryset #}
+        {% for obj in queryset %}
+        <input type="hidden" name="_selected_action" value="{{ obj.pk|unlocalize }}" />
+        {% endfor %}
+        <input type="hidden" name="action" value="delete_ces_list" />
+
         <input type="hidden" name="project" value="{{project.id}}"/>
         <input type="hidden" name="post" value="yes" />
         <input type="submit" value="Confirm" />

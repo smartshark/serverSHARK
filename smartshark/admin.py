@@ -13,6 +13,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.safestring import mark_safe
 
 from smartshark.datacollection.pluginmanagementinterface import PluginManagementInterface
+from smartshark.mongohandler import handler
 
 from .views.collection import JobSubmissionThread
 from .models import MongoRole, SmartsharkUser, Plugin, Argument, Project, Job, PluginExecution, ExecutionHistory, CommitVerification
@@ -346,10 +347,10 @@ class CommitVerificationAdmin(admin.ModelAdmin):
         # show validation with additional information, re-running plugins (mecoSHARK, coastSHARK for XYZ commits)
         if request.POST.get('post'):
 
-            # todo: this should throw validation error and re-display the form
-            plugins = request.POST.get('plugins', None)
+            plugins = request.POST.getlist('plugins', [])
             if not plugins:
                 raise Exception('no plugins selected')
+            plugins = ','.join(plugins)
 
             project = request.POST.get('project', None)
             if not project:
@@ -360,6 +361,8 @@ class CommitVerificationAdmin(admin.ModelAdmin):
                 raise Exception('no revisions selected')
 
             # we could now delete the code_entity_state lists of the commits in revisions
+            mached_count = handler.client.smartshark.clear_code_entity_state_lists(revisions, queryset[0].vcs_system)
+            print('deleted list on {} commits'.format(matched_count))
 
             # todo: should be via URL
             return HttpResponseRedirect('/smartshark/project/collection/start/?plugins={}&project_id={}&initial_exec_type=rev&initial_revisions={}'.format(plugins, project, revisions))
@@ -370,12 +373,18 @@ class CommitVerificationAdmin(admin.ModelAdmin):
                 if c.project != project:
                     raise Exception('Queryset contains multiple projects!')
 
+            vcs_system = queryset[0].vcs_system
+            for c in queryset:
+                if c.vcs_system != vcs_system:
+                    raise Exception('Queryset contains multiple vcs systems')
+
             request.current_app = self.admin_site.name
             context = {
                 **self.admin_site.each_context(request),
                 'opts': self.model._meta,
                 'title': 'Delete CodeEntityState Lists and Re-Run collection',
                 'project': project,
+                'queryset': queryset,
                 'revisions': ','.join([obj.commit for obj in queryset]),
                 'plugins': Plugin.objects.filter(name__in=['mecoSHARK', 'coastSHARK'], active=True, installed=True)
             }
