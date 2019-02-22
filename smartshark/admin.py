@@ -367,7 +367,7 @@ class CommitVerificationAdmin(admin.ModelAdmin):
 
     def check_coast_parse_error(self, request, queryset):
         interface = PluginManagementInterface.find_correct_plugin_manager()
-        
+
         for obj in queryset:
             # split of file for coastSHARK
             tmp = obj.text
@@ -382,7 +382,9 @@ class CommitVerificationAdmin(admin.ModelAdmin):
                     collect_state = False
 
             # fetch stdout / stderr from last coastSHARK plugin exec
-            pe = PluginExecution.objects.filter(plugin='coastSHARK', project=queryset[0].project).order_by('submitted_at')[0]
+            plugin = Plugin.objects.get(name='coastSHARK', active=True, installed=True)
+
+            pe = PluginExecution.objects.filter(plugin=plugin, project=queryset[0].project).order_by('submitted_at')[0]
             job = Job.objects.get(plugin_execution=pe, revision_hash=obj.revision)
             
             stderr = interface.get_error_log(job)
