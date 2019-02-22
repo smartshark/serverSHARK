@@ -51,7 +51,7 @@ def set_argument_execution_values(form_data, plugin_executions):
             exe.save()
 
 
-def get_form(plugins, post, type, project=None):
+def get_form(plugins, post, type, project=None, initial_revisions=None, initial_exec_type=None):
         created_fieldsets = []
         plugin_fields = {}
         EXEC_OPTIONS = (('all', 'Execute on all revisions'), ('error', 'Execute on all revisions with errors'),
@@ -72,8 +72,8 @@ def get_form(plugins, post, type, project=None):
             # Add fields if there are plugins that work on revision level
             rev_plugins = [plugin for plugin in plugins if plugin.plugin_type == 'rev']
             if len(rev_plugins) > 0:
-                plugin_fields['execution'] = forms.ChoiceField(widget=forms.RadioSelect, choices=EXEC_OPTIONS)
-                plugin_fields['revisions'] = forms.CharField(label='Revisions (comma-separated)', required=False)
+                plugin_fields['execution'] = forms.ChoiceField(widget=forms.RadioSelect, choices=EXEC_OPTIONS, initial=initial_exec_type)
+                plugin_fields['revisions'] = forms.CharField(label='Revisions (comma-separated)', required=False, initial=initial_revisions)
                 added_fields.append('execution')
                 added_fields.append('revisions')
 

@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.models import User
 from django.contrib.auth.admin import UserAdmin
+from django.template.response import TemplateResponse
 
 from django.contrib.messages import get_messages
 from django.contrib import messages
@@ -329,15 +330,55 @@ class ProjectAdmin(admin.ModelAdmin):
     delete_data.short_description = 'Delete all data for selected Projects'
 
 
-
 class CommitVerificationAdmin(admin.ModelAdmin):
-    def has_add_permission(self, request, obj=None):
-        return False
+
     list_display = ('commit', 'project', 'vcsSHARK', 'mecoSHARK',
                     'coastSHARK')
     search_fields = ('commit',)
     list_filter = ('project__name', 'vcsSHARK', 'mecoSHARK', 'coastSHARK')
 
+    actions = ['delete_ces_list']
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+    def delete_ces_list(self, request, queryset):
+        # show validation with additional information, re-running plugins (mecoSHARK, coastSHARK for XYZ commits)
+        if request.POST.get('post'):
+
+            # todo: this should throw validation error and re-display the form
+            plugins = request.POST.get('plugins', None)
+            if not plugins:
+                raise Exception('no plugins selected')
+
+            project = request.POST.get('project', None)
+            if not project:
+                raise Exception('no project selected')
+
+            revisions = request.POST.get('revisions', None)
+            if not revisions:
+                raise Exception('no revisions selected')
+
+            # todo: should be via URL
+            return HttpResponseRedirect('/smartshark/project/collection/start/?plugins={}&project_id={}&initial_exec_type=rev&initial_revisions={}'.format(plugins, project, revisions))
+        else:
+            # die on multiple projects!
+            project = queryset[0].project
+            for c in queryset:
+                if c.project != project:
+                    raise Exception('Queryset contains multiple projects!')
+
+            request.current_app = self.admin_site.name
+            context = {
+                **self.admin_site.each_context(request),
+                'opts': self.model._meta,
+                'title': 'Delete CodeEntityState Lists and Re-Run collection',
+                'project': project,
+                'revisions': ','.join([obj.revision for obj in queryset]),
+                'plugins': Plugin.objects.filter(name__in=['mecoSHARK', 'coastSHARK'], active=True, installed=True)
+            }
+
+            return TemplateResponse(request, 'admin/confirm_ces_list_deletion.html', context)
 
 admin.site.register(CommitVerification, CommitVerificationAdmin)
 admin.site.register(User, MyUserAdmin)

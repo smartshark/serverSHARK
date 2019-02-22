@@ -46,7 +46,7 @@ class Command(BaseCommand):
 
             # 2. Iterate over the commits
             for commit in allCommits:
-                print("Commit " + commit)
+                # print("Commit " + commit)
 
                 # Add primary keys to the model
                 resultModel = CommitVerification()
@@ -59,7 +59,7 @@ class Command(BaseCommand):
 
                 # Basic validation wihtout checkout the version
                 if not db_commit:
-                    print('commit {} not in database'.format(commit))
+                    print('commit {} not in database, skipping validation'.format(commit))
                     continue
                 resultModel.vcsSHARK = self.validate_vcsSHARK(db_commit, repo, resultModel)
 
@@ -69,7 +69,7 @@ class Command(BaseCommand):
 
                 # 3. Iterate foreach commit over the files
 
-                self.validate_Metric(path,db_commit, resultModel)
+                self.validate_Metric(path, db_commit, resultModel)
 
                 # Save the model
                 resultModel.save()
@@ -188,7 +188,7 @@ class Command(BaseCommand):
                         globalResult = False
 
         if(len(unvalidated_file_actions_ids) != 0):
-            self.stdout.write("warning: {} file actions found in the database, but not in the repo!".format(len(unvalidated_file_actions_ids)))
+            self.stderr.write("warning: {} file actions found in the database, but not in the repo!".format(len(unvalidated_file_actions_ids)))
 
         # self.stdout.write("validation of file actions : {} ".format(validated_file_actions))
         return globalResult
@@ -207,11 +207,11 @@ class Command(BaseCommand):
 
         # Validate on coastSHARK
         resultModel.text = resultModel.text + "\n +++ coastSHARK +++"
-        resultModel.coastSHARK = self.validate_on_file_level(path,code_entity_state_coastSHARK,resultModel)
+        resultModel.coastSHARK = self.validate_on_file_level(path, code_entity_state_coastSHARK, resultModel)
 
         # Validate mecoSHARK
         resultModel.text = resultModel.text + "\n +++ mecoSHARK +++"
-        resultModel.mecoSHARK = self.validate_on_file_level(path,code_entity_state_mecoSHARK,resultModel)
+        resultModel.mecoSHARK = self.validate_on_file_level(path, code_entity_state_mecoSHARK, resultModel)
 
     # File level validation
     def validate_coastSHARK(self, db_code_entity_state, code_entity_state_coastSHARK):
@@ -219,18 +219,16 @@ class Command(BaseCommand):
             if db_code_entity_state["metrics"]["node_count"] > 0:
                 code_entity_state_coastSHARK.append(db_code_entity_state["long_name"])
 
-
     def validate_mecoSHARK(self, db_code_entity_state, code_entity_state_mecoSHARK):
         if "LOC" in db_code_entity_state["metrics"]:
             if db_code_entity_state["metrics"]["LOC"]:
                 code_entity_state_mecoSHARK.append(db_code_entity_state["long_name"])
 
-
     def validate_on_file_level(self, path, unvalidated_code_entity_state_longnames, resultModel):
         globalResult = True
         for root, dirs, files in os.walk(path):
             for file in files:
-                if file.endswith('.java'):
+                if file.lower().endswith('.java'):
 
                     filepath = os.path.join(root, file)
                     filepath = filepath.replace(path + "/", '')

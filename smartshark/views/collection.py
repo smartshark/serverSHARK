@@ -253,7 +253,10 @@ def start_collection(request):
 
     # if a GET (or any other method) we'll create a blank form
     else:
-        form = get_form(plugins, request.POST or None, 'execute', project)
+        initial_exec_type = request.GET.get('initial_exec_type', None)
+        initial_revisions = request.GET.get('initial_revisions', None)
+
+        form = get_form(plugins, request.POST or None, 'execute', project, initial_exec_type=initial_exec_type, initial_revisions=initial_revisions)
 
     return render(request, 'smartshark/project/execution.html', {
         'form': form,
