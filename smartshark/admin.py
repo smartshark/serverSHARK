@@ -382,9 +382,10 @@ class CommitVerificationAdmin(admin.ModelAdmin):
                     collect_state = False
 
             # fetch stdout / stderr from last coastSHARK plugin exec
-            plugin = Plugin.objects.get(name='coastSHARK', active=True, installed=True)
+            # we may have outdated old version of plugins that ran
+            # plugin = Plugin.objects.get(name='coastSHARK', active=True, installed=True)
 
-            pe = PluginExecution.objects.filter(plugin=plugin, project=queryset[0].project).order_by('submitted_at')[0]
+            pe = PluginExecution.objects.filter(plugin__name__startswith='coastSHARK', project=queryset[0].project).order_by('submitted_at')[0]
             job = Job.objects.get(plugin_execution=pe, revision_hash=obj.commit)
 
             # stderr = interface.get_error_log(job)
