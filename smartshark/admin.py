@@ -359,6 +359,8 @@ class CommitVerificationAdmin(admin.ModelAdmin):
             if not revisions:
                 raise Exception('no revisions selected')
 
+            # we could now delete the code_entity_state lists of the commits in revisions
+
             # todo: should be via URL
             return HttpResponseRedirect('/smartshark/project/collection/start/?plugins={}&project_id={}&initial_exec_type=rev&initial_revisions={}'.format(plugins, project, revisions))
         else:
@@ -374,7 +376,7 @@ class CommitVerificationAdmin(admin.ModelAdmin):
                 'opts': self.model._meta,
                 'title': 'Delete CodeEntityState Lists and Re-Run collection',
                 'project': project,
-                'revisions': ','.join([obj.revision for obj in queryset]),
+                'revisions': ','.join([obj.commit for obj in queryset]),
                 'plugins': Plugin.objects.filter(name__in=['mecoSHARK', 'coastSHARK'], active=True, installed=True)
             }
 
