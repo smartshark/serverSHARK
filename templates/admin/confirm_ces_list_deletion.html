@@ -18,14 +18,14 @@
 
 <form action="" method="post">{% csrf_token %}
     <div>
-        Delete CodeEntityState Lists for the following commits:<br/>
+        Delete CodeEntityState Lists for the following ({{num_revisions}}) commits:<br/>
         <input type="text" name="revisions" value="{{revisions}}"/><br/>
         <br/>
 
         Re-Run the following Plugins on above commits:<br/>
         <select name="plugins" multiple="multiple">
             {% for plugin in plugins %}
-            <option value="{{plugin.id}}" selected="selected">{{plugin.name}}-{{plugin.version}}</option>
+            <option value="{{plugin.id}}" selected="selected">{{plugin.name}}_{{plugin.version}}</option>
             {% endfor %}
         </select><br/>
         <br/>

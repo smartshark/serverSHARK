@@ -1,3 +1,5 @@
+import logging
+
 from django.contrib import admin
 from django.contrib.auth.models import User
 from django.contrib.auth.admin import UserAdmin
@@ -18,6 +20,7 @@ from smartshark.mongohandler import handler
 from .views.collection import JobSubmissionThread
 from .models import MongoRole, SmartsharkUser, Plugin, Argument, Project, Job, PluginExecution, ExecutionHistory, CommitVerification
 
+logger = logging.getLogger('django')
 
 admin.site.unregister(User)
 
@@ -360,8 +363,11 @@ class CommitVerificationAdmin(admin.ModelAdmin):
             if not revisions:
                 raise Exception('no revisions selected')
 
+            logger.info('Re-Run collection for project_id: {}, plugin_ids: {}'.format(project, plugins))
+            logger.info('Setting code_entity_states to an empty list for these commits: {}'.format(revisions))
             # we could now delete the code_entity_state lists of the commits in revisions
             matched_count = handler.clear_code_entity_state_lists(revisions, queryset[0].vcs_system)
+            logger.info('Deleted code_entity_states_list for {} commits'.format(matched_count))
 
             # todo: should be via URL
             return HttpResponseRedirect('/smartshark/project/collection/start/?plugins={}&project_id={}&initial_exec_type=rev&initial_revisions={}'.format(plugins, project, revisions))
@@ -385,6 +391,7 @@ class CommitVerificationAdmin(admin.ModelAdmin):
                 'project': project,
                 'queryset': queryset,
                 'revisions': ','.join([obj.commit for obj in queryset]),
+                'num_revisions': len(queryset),
                 'plugins': Plugin.objects.filter(name__in=['mecoSHARK', 'coastSHARK'], active=True, installed=True)
             }
 
