@@ -7,12 +7,14 @@ from django.template.response import TemplateResponse
 
 from django.contrib.messages import get_messages
 from django.contrib import messages
+from django.contrib.admin import SimpleListFilter
 
 from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
 from django.http import HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.safestring import mark_safe
+from django.db.models import Q
 
 from smartshark.datacollection.pluginmanagementinterface import PluginManagementInterface
 from smartshark.mongohandler import handler
@@ -23,6 +25,37 @@ from .models import MongoRole, SmartsharkUser, Plugin, Argument, Project, Job, P
 logger = logging.getLogger('django')
 
 admin.site.unregister(User)
+
+
+class PluginFailedListFilter(SimpleListFilter):
+    title = _('Plugin Failed')
+
+    # Parameter for the filter that will be used in the URL query.
+    parameter_name = 'plugin_failed'
+
+    def lookups(self, request, model_admin):
+        """
+        Returns a list of tuples. The first element in each
+        tuple is the coded value for the option that will
+        appear in the URL query. The second element is the
+        human-readable name for the option that will appear
+        in the right sidebar.
+        """
+        return (
+            ('failure', _('At least one plugin failed')),
+            ('success', _('All plugins succeeded')),
+        )
+
+    def queryset(self, request, queryset):
+        """
+        Returns the filtered queryset based on the value
+        provided in the query string and retrievable via
+        `self.value()`.
+        """
+        if self.value() == 'failure':
+            return queryset.filter(Q(mecoSHARK=False) | Q(coastSHARK=False))
+        else:
+            return queryset.all()
 
 
 class JobAdmin(admin.ModelAdmin):
@@ -339,7 +372,7 @@ class CommitVerificationAdmin(admin.ModelAdmin):
     list_display = ('commit', 'project', 'vcsSHARK', 'mecoSHARK',
                     'coastSHARK')
     search_fields = ('commit',)
-    list_filter = ('project__name', 'vcsSHARK', 'mecoSHARK', 'coastSHARK')
+    list_filter = ('project__name', 'vcsSHARK', 'mecoSHARK', 'coastSHARK', PluginFailedListFilter)
 
     actions = ['delete_ces_list']
 

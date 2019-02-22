@@ -1,6 +1,8 @@
 # 2.0.2 (in progress)
 - add search field for name and mongo_id to projects in admin.py
-- upgrade django to 1.11.18
+- upgrade django to 1.11.20
+- add commit verification command (thanks Benjamin!)
+- add the ability to re-run collection for commits that had verification problems
 
 # 2.0.1
 - vagrantfile now includes maven and gradle for java plugins
