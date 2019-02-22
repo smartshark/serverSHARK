@@ -245,9 +245,9 @@ def start_collection(request):
                 # Set execution history with execution values for the plugin execution
                 set_argument_execution_values(form.cleaned_data, plugin_executions)
 
-                # Create jobs and execute them in a separate thread
-                thread = JobSubmissionThread(project, plugin_executions)
-                thread.start()
+            # Create jobs and execute them in a separate thread
+            thread = JobSubmissionThread(project, plugin_executions)
+            thread.start()
 
             return HttpResponseRedirect('/admin/smartshark/project')
 
