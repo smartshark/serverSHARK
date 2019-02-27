@@ -383,11 +383,11 @@ class CommitVerificationAdmin(admin.ModelAdmin):
         if request.POST.get('post'):
             
             project_id = request.POST.get('project_id', None)
-            if not project:
+            if not project_id:
                 raise Exception('no project selected')
 
             plugin_id = request.POST.get('plugin_id', None)
-            if not project:
+            if not plugin_id:
                 raise Exception('no plugin selected')
 
             revisions = request.POST.get('revisions', None)
