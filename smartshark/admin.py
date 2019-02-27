@@ -360,7 +360,7 @@ class CommitVerificationAdmin(admin.ModelAdmin):
     search_fields = ('commit',)
     list_filter = ('project__name', 'vcsSHARK', 'mecoSHARK', 'coastSHARK', PluginFailedListFilter)
 
-    actions = ['delete_ces_list', 'check_coast_parse_error']
+    actions = ['delete_ces_list', 'check_coast_parse_error', 'restart_coast', 'restart_meco']
 
     def has_add_permission(self, request, obj=None):
         return False
@@ -371,9 +371,53 @@ class CommitVerificationAdmin(admin.ModelAdmin):
             if c.project != project:
                 raise Exception('Queryset contains multiple projects!')
 
+    def restart_meco(self, request, queryset):
+        return self._restart_plugin(request, queryset, 'mecoSHARK')
+
+    def restart_coast(self, request, queryset):
+        return self._restart_plugin(request, queryset, 'coastSHARK')
+
+    def _restart_plugin(self, request, queryset, plugin_name):
+        self._die_on_multiple_projects(queryset)
+
+        if request.POST.get('post'):
+            
+            project_id = request.POST.get('project_id', None)
+            if not project:
+                raise Exception('no project selected')
+
+            plugin_id = request.POST.get('plugin_id', None)
+            if not project:
+                raise Exception('no plugin selected')
+
+            revisions = request.POST.get('revisions', None)
+            if not revisions:
+                raise Exception('no revisions selected')
+
+            return HttpResponseRedirect('/smartshark/project/collection/start/?plugins={}&project_id={}&initial_exec_type=rev&initial_revisions={}'.format(plugin_id, project_id, revisions))
+
+        else:
+            project = queryset[0].project
+            plugins = Plugin.objects.filter(name=plugin_name, active=True, installed=True)
+
+            request.current_app = self.admin_site.name
+            context = {
+                **self.admin_site.each_context(request),
+                'opts': self.model._meta,
+                'title': 'Restart Plugin ' + plugin_name,
+                'project': project,
+                'queryset': queryset,
+                'revisions': ','.join([obj.commit for obj in queryset]),
+                'num_revisions': len(queryset),
+                'plugins': plugins,
+            }
+
+            return TemplateResponse(request, 'admin/confirm_restart_plugin.html', context)
+
     def check_coast_parse_error(self, request, queryset):
         interface = PluginManagementInterface.find_correct_plugin_manager()
 
+        # last plugin execution for logs (this may not always be sufficient, we could have commits which were mined in earlier PluginExecutions)
         pe = PluginExecution.objects.filter(plugin__name__startswith='coastSHARK', project=queryset[0].project).order_by('submitted_at')[0]
 
         # die on multiple projects!
@@ -417,33 +461,29 @@ class CommitVerificationAdmin(admin.ModelAdmin):
                 obj.save()
 
     def delete_ces_list(self, request, queryset):
+        # die on multiple projects!
+        self._die_on_multiple_projects(queryset)
+
         # show validation with additional information, re-running plugins (mecoSHARK, coastSHARK for XYZ commits)
         if request.POST.get('post'):
-
-            plugins = request.POST.getlist('plugins', [])
-            if not plugins:
-                raise Exception('no plugins selected')
-            plugins = ','.join(plugins)
-
-            project = request.POST.get('project', None)
-            if not project:
-                raise Exception('no project selected')
 
             revisions = request.POST.get('revisions', None)
             if not revisions:
                 raise Exception('no revisions selected')
 
-            logger.info('Re-Run collection for project_id: {}, plugin_ids: {}'.format(project, plugins))
+            logger.info('Re-Run collection for project_id: {}, plugin_ids: {}'.format(project_id, plugins))
             logger.info('Setting code_entity_states to an empty list for these commits: {}'.format(revisions))
             # we could now delete the code_entity_state lists of the commits in revisions
             matched_count = handler.clear_code_entity_state_lists(revisions, queryset[0].vcs_system)
-            logger.info('Deleted code_entity_states_list for {} commits'.format(matched_count))
+            logger.info('Deleted code_entity_states list for {} commits'.format(matched_count))
 
-            # todo: should be via URL
-            return HttpResponseRedirect('/smartshark/project/collection/start/?plugins={}&project_id={}&initial_exec_type=rev&initial_revisions={}'.format(plugins, project, revisions))
+            messages.info(request, 'Deleted code_entity_states list for {} commits'.format(matched_count))
+
+            # todo: we could try to retain the query_string here
+            return HttpResponseRedirect('/admin/smartshark/commitverification/')
+
         else:
-            # die on multiple projects!
-            self._die_on_multiple_projects(queryset)
+            project = queryset[0].project
 
             vcs_system = queryset[0].vcs_system
             for c in queryset:
