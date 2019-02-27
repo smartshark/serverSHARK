@@ -471,7 +471,6 @@ class CommitVerificationAdmin(admin.ModelAdmin):
             if not revisions:
                 raise Exception('no revisions selected')
 
-            logger.info('Re-Run collection for project_id: {}, plugin_ids: {}'.format(project_id, plugins))
             logger.info('Setting code_entity_states to an empty list for these commits: {}'.format(revisions))
             # we could now delete the code_entity_state lists of the commits in revisions
             matched_count = handler.clear_code_entity_state_lists(revisions, queryset[0].vcs_system)
