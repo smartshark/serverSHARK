@@ -22,13 +22,6 @@
         <input type="text" name="revisions" value="{{revisions}}"/><br/>
         <br/>
 
-        Re-Run the following plugins on above commits:<br/>
-        <select name="plugins" multiple="multiple">
-            {% for plugin in plugins %}
-            <option value="{{plugin.id}}" selected="selected">{{plugin.name}}_{{plugin.version}}</option>
-            {% endfor %}
-        </select><br/>
-        <br/>
         On project: {{project.name}}<br/>
         <br/>
 

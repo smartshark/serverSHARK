@@ -494,12 +494,11 @@ class CommitVerificationAdmin(admin.ModelAdmin):
             context = {
                 **self.admin_site.each_context(request),
                 'opts': self.model._meta,
-                'title': 'Delete CodeEntityState Lists and Re-Run collection',
+                'title': 'Delete CodeEntityState lists',
                 'project': project,
                 'queryset': queryset,
                 'revisions': ','.join([obj.commit for obj in queryset]),
-                'num_revisions': len(queryset),
-                'plugins': Plugin.objects.filter(name__in=['mecoSHARK', 'coastSHARK'], active=True, installed=True)
+                'num_revisions': len(queryset)
             }
 
             return TemplateResponse(request, 'admin/confirm_ces_list_deletion.html', context)
