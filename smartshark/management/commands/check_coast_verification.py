@@ -43,6 +43,7 @@ class Command(BaseCommand):
                 if line.strip().startswith('+++ mecoSHARK +++'):
                     collect_state = False
 
+            # this dies if we are on the wrong plugin execution
             job = Job.objects.get(plugin_execution=pe, revision_hash=obj.commit)
 
             stdout = interface.get_output_log(job)

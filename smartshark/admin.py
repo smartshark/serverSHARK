@@ -452,7 +452,6 @@ class CommitVerificationAdmin(admin.ModelAdmin):
                         new_lines.append(file + ' ({})'.format(line))
                         parse_error_files.append(file)
 
-
             if not set(parse_error_files) - set(coast_files):
                 obj.coastSHARK = True
 
@@ -478,7 +477,7 @@ class CommitVerificationAdmin(admin.ModelAdmin):
 
             messages.info(request, 'Deleted code_entity_states list for {} commits'.format(matched_count))
 
-            # todo: we could try to retain the query_string here
+            # todo: we could try to retain the query_string here (also from the form)
             return HttpResponseRedirect('/admin/smartshark/commitverification/')
 
         else:
