@@ -3,6 +3,7 @@
 
 import sys
 import os
+import tempfile
 
 import pygit2
 
@@ -29,56 +30,64 @@ class Command(BaseCommand):
             self.stdout.write(self.style.ERROR('Error loading project: {}'.format(e)))
             sys.exit(-1)
 
-        path = "../tmp-repo"
-        projectMongo = self.db.project.find_one({"name": project.name})
-        print(projectMongo["_id"])
-        vcsMongo = self.db.vcs_system.find_one({"project_id": projectMongo["_id"]})
+        # add ability to request run without memeshark (which will be the default at one time in the future)
+        self.use_meme = True
+        l2 = input('did memeSHARK run for project {}? (Y/n)'.format(project.name))
+        if l2.lower() == 'n':
+            self.use_meme = False
+        self.stdout.write('Assuming memeSHARK {}'.format(self.use_meme))
 
-        l = input("Delete old verification data first? (Y/N)")
-        if(l == "y" or l == "Y"):
-            CommitVerification.objects.filter(project_id=project).delete()
-            self.stdout.write("Deleted old verification data")
+        # path = "../tmp-repo"
+        with tempfile.TemporaryDirectory() as path:
+            projectMongo = self.db.project.find_one({"name": project.name})
+            print(projectMongo["_id"])
+            vcsMongo = self.db.vcs_system.find_one({"project_id": projectMongo["_id"]})
 
-        repo = create_local_repo_for_project(vcsMongo, path)
-        if not repo.is_empty:
-            allCommits = get_all_commits_of_repo(vcsMongo, repo)
-            self.stdout.write("Found {} commits for the project".format(len(allCommits)))
+            l = input("Delete old verification data first? (y/N)")
+            if l.lower() == 'y':
+                CommitVerification.objects.filter(project=project).delete()
+                self.stdout.write("Deleted old verification data")
 
-            # 2. Iterate over the commits
-            for commit in allCommits:
-                # print("Commit " + commit)
+            repo = create_local_repo_for_project(vcsMongo, path)
+            if not repo.is_empty:
+                allCommits = get_all_commits_of_repo(vcsMongo, repo)
+                self.stdout.write("Found {} commits for the project".format(len(allCommits)))
 
-                # Add primary keys to the model
-                resultModel = CommitVerification()
-                resultModel.project = project
-                resultModel.vcs_system = vcsMongo["url"]
-                resultModel.commit = str(commit)
-                resultModel.text = ""
+                # 2. Iterate over the commits
+                for commit in allCommits:
+                    # print("Commit " + commit)
 
-                db_commit = get_commit_from_database(self.db, commit, vcsMongo["_id"])
+                    # Add primary keys to the model
+                    resultModel = CommitVerification()
+                    resultModel.project = project
+                    resultModel.vcs_system = vcsMongo["url"]
+                    resultModel.commit = str(commit)
+                    resultModel.text = ""
 
-                # Basic validation wihtout checkout the version
-                if not db_commit:
-                    print('commit {} not in database, skipping validation'.format(commit))
-                    continue
-                resultModel.vcsSHARK = self.validate_vcsSHARK(db_commit, repo, resultModel)
+                    db_commit = get_commit_from_database(self.db, commit, vcsMongo["_id"])
 
-                # Checkout, to validate also on file level
-                ref = repo.create_reference('refs/tags/temp', commit)
-                repo.checkout(ref)
+                    # Basic validation wihtout checkout the version
+                    if not db_commit:
+                        print('commit {} not in database, skipping validation'.format(commit))
+                        continue
+                    resultModel.vcsSHARK = self.validate_vcsSHARK(db_commit, repo, resultModel)
 
-                # 3. Iterate foreach commit over the files
+                    # Checkout, to validate also on file level
+                    ref = repo.create_reference('refs/tags/temp', commit)
+                    repo.checkout(ref)
 
-                self.validate_Metric(path, db_commit, resultModel)
+                    # 3. Iterate foreach commit over the files
 
-                # Save the model
-                resultModel.save()
-                #if(resultModel.vcsSHARK == False):
-                #    print(resultModel.text)
+                    self.validate_Metric(path, db_commit, resultModel)
 
-                # Reset repo to iterate over all commits
-                repo.reset(repo.head.target.hex, pygit2.GIT_RESET_HARD)
-                ref.delete()
+                    # Save the model
+                    resultModel.save()
+                    #if(resultModel.vcsSHARK == False):
+                    #    print(resultModel.text)
+
+                    # Reset repo to iterate over all commits
+                    repo.reset(repo.head.target.hex, pygit2.GIT_RESET_HARD)
+                    ref.delete()
 
         print("validation complete")
 
@@ -198,7 +207,7 @@ class Command(BaseCommand):
         code_entity_state_coastSHARK = []
         code_entity_state_mecoSHARK = []
 
-        list_code_entity = get_code_entities_from_database(self.db, db_commit["code_entity_states"])
+        list_code_entity = get_code_entities_from_database(self.db, db_commit, self.use_meme)
 
         for db_code_entity_state in list_code_entity:
             if db_code_entity_state["ce_type"] == 'file':
