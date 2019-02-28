@@ -415,14 +415,18 @@ class CommitVerificationAdmin(admin.ModelAdmin):
             return TemplateResponse(request, 'admin/confirm_restart_plugin.html', context)
 
     def check_coast_parse_error(self, request, queryset):
-        interface = PluginManagementInterface.find_correct_plugin_manager()
-
-        # last plugin execution for logs (this may not always be sufficient, we could have commits which were mined in earlier PluginExecutions)
-        pe = PluginExecution.objects.filter(plugin__name__startswith='coastSHARK', project=queryset[0].project).order_by('submitted_at')[0]
-
         # die on multiple projects!
         self._die_on_multiple_projects(queryset)
 
+        interface = PluginManagementInterface.find_correct_plugin_manager()
+
+        # we need to get the most current job for each commit (because of repetitions for coastSHARK runs)
+        jobs = {}
+        for pe in PluginExecution.objects.filter(plugin__name__startswith='coastSHARK', project=queryset[0].project).order_by('submitted_at'):
+            for obj in queryset:
+                jobs[obj.commit] = Job.objects.get(plugin_execution=pe, revision_hash=obj.commit)
+
+        modified = 0
         for obj in queryset:
             # split of file for coastSHARK
             tmp = obj.text
@@ -436,12 +440,7 @@ class CommitVerificationAdmin(admin.ModelAdmin):
                 if line.strip().startswith('+++ mecoSHARK +++'):
                     collect_state = False
 
-            # fetch stdout / stderr from last coastSHARK plugin exec
-            # we may have outdated old version of plugins that ran
-            # plugin = Plugin.objects.get(name='coastSHARK', active=True, installed=True)
-            job = Job.objects.get(plugin_execution=pe, revision_hash=obj.commit)
-
-            # stderr = interface.get_error_log(job)
+            job = jobs[obj.commit]
             stdout = interface.get_output_log(job)
 
             new_lines = []
@@ -456,8 +455,10 @@ class CommitVerificationAdmin(admin.ModelAdmin):
                 obj.coastSHARK = True
 
             if new_lines:
+                modified += 1
                 obj.text = '\n'.join(new_lines) + '\n----\n' + obj.text
                 obj.save()
+        messages.info('Changed coastSHARK verification to True on {} of {} commits.'.format(modified, len(queryset)))
 
     def delete_ces_list(self, request, queryset):
         # die on multiple projects!
