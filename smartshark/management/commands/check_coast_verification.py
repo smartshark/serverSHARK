@@ -1,10 +1,15 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import logging
+
 from smartshark.models import Job, Project, PluginExecution, CommitVerification
 from smartshark.datacollection.pluginmanagementinterface import PluginManagementInterface
 
 from django.core.management.base import BaseCommand
+
+
+logger = logging.getLogger('django')
 
 
 class Command(BaseCommand):
@@ -23,11 +28,14 @@ class Command(BaseCommand):
 
         project = Project.objects.get(name__iexact=options['project_name'])
 
-        # last plugin execution for logs (this may not always be sufficient, we could have commits which were mined in earlier PluginExecutions)
-        pe = PluginExecution.objects.filter(plugin__name__startswith='coastSHARK', project=project).order_by('submitted_at')[0]
-
-        # 1. get failed commits from CommitVerification where coastSHARK failed
+        # get failed commits from CommitVerification where coastSHARK failed
         commits = CommitVerification.objects.filter(project=project, coastSHARK=False)
+
+        # we need to get the most current job for each commit (because of repetitions for coastSHARK runs)
+        jobs = {}
+        for pe in PluginExecution.objects.filter(plugin__name__startswith='coastSHARK', project=project).order_by('submitted_at'):
+            for obj in commits:
+                jobs[obj.commit] = Job.objects.get(plugin_execution=pe, revision_hash=obj.commit)
 
         modified = 0
         for obj in commits:
@@ -43,9 +51,8 @@ class Command(BaseCommand):
                 if line.strip().startswith('+++ mecoSHARK +++'):
                     collect_state = False
 
-            # this dies if we are on the wrong plugin execution
-            job = Job.objects.get(plugin_execution=pe, revision_hash=obj.commit)
-
+            # get job from our precalculated dict and fetch its stdout log
+            job = jobs[obj.commit]
             stdout = interface.get_output_log(job)
 
             new_lines = []
