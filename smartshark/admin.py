@@ -458,7 +458,7 @@ class CommitVerificationAdmin(admin.ModelAdmin):
                 modified += 1
                 obj.text = '\n'.join(new_lines) + '\n----\n' + obj.text
                 obj.save()
-        messages.info('Changed coastSHARK verification to True on {} of {} commits.'.format(modified, len(queryset)))
+        messages.info(request, 'Changed coastSHARK verification to True on {} of {} commits.'.format(modified, len(queryset)))
 
     def delete_ces_list(self, request, queryset):
         # die on multiple projects!
