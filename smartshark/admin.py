@@ -424,7 +424,10 @@ class CommitVerificationAdmin(admin.ModelAdmin):
         jobs = {}
         for pe in PluginExecution.objects.filter(plugin__name__startswith='coastSHARK', project=queryset[0].project).order_by('submitted_at'):
             for obj in queryset:
-                jobs[obj.commit] = Job.objects.get(plugin_execution=pe, revision_hash=obj.commit)
+                try:
+                    jobs[obj.commit] = Job.objects.get(plugin_execution=pe, revision_hash=obj.commit)
+                except Job.DoesNotExist:
+                    pass
 
         modified = 0
         for obj in queryset:
