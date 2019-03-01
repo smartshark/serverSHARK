@@ -136,7 +136,11 @@ def get_commit_from_database(db, commitHex, vcs_system_id):
 
 def get_code_entities_from_database(db, db_commit, use_meme):
     if use_meme:
-        list_of_ids = db_commit["code_entity_states"]
-        return db.code_entity_state.find({"_id": {"$in": list_of_ids}})
+        try:
+            list_of_ids = db_commit["code_entity_states"]
+            return db.code_entity_state.find({"_id": {"$in": list_of_ids}})
+        except KeyError:
+            # this can happen on commits without code_entity_states (i.e. only non-code files)
+            return []
     else:
         return db.code_entity_state.find({"commit_id": db_commit['_id']})
