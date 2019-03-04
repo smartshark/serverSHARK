@@ -39,6 +39,8 @@ class Command(BaseCommand):
                     jobs[obj.commit] = Job.objects.get(plugin_execution=pe, revision_hash=obj.commit)
                 except Job.DoesNotExist:
                     pass
+                except Job.MultipleObjectsReturned:
+                    jobs[obj.commit] = Job.objects.filter(plugin_execution=pe, revision_hash=obj.commit)[-1]
 
         modified = 0
         for obj in commits:
