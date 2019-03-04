@@ -377,7 +377,7 @@ class CommitVerificationAdmin(admin.ModelAdmin):
     search_fields = ('commit',)
     list_filter = ('project__name', 'vcsSHARK', 'mecoSHARK', 'coastSHARK', PluginFailedListFilter, CoastRecheckListFilter)
 
-    actions = ['delete_ces_list', 'check_coast_parse_error', 'restart_coast', 'restart_meco']
+    actions = ['delete_ces_list', 'check_coast_parse_error', 'restart_coast', 'restart_meco', 'recheck_coast_parse_error']
 
     def has_add_permission(self, request, obj=None):
         return False
@@ -430,6 +430,55 @@ class CommitVerificationAdmin(admin.ModelAdmin):
             }
 
             return TemplateResponse(request, 'admin/confirm_restart_plugin.html', context)
+
+    def recheck_coast_parse_error(self, request, queryset):
+        # die on multiple projects!
+        self._die_on_multiple_projects(queryset)
+
+        interface = PluginManagementInterface.find_correct_plugin_manager()
+
+        # we need to get the most current job for each commit (because of repetitions for coastSHARK runs)
+        jobs = {}
+        for pe in PluginExecution.objects.filter(plugin__name__startswith='coastSHARK', project=queryset[0].project).order_by('submitted_at'):
+            for obj in queryset:
+                try:
+                    jobs[obj.commit] = Job.objects.get(plugin_execution=pe, revision_hash=obj.commit)
+                except Job.DoesNotExist:
+                    pass
+
+        modified = 0
+        not_modified = []
+        for obj in queryset:
+            # split of file for coastSHARK
+            tmp = obj.text
+            collect_state = False
+            coast_files = []
+            for line in tmp.split('\n'):
+                if collect_state and not line.strip().startswith('+++ mecoSHARK +++'):
+                    coast_files.append(line.strip()[1:])
+                if line.strip().startswith('+++ coastSHARK +++'):
+                    collect_state = True
+                if line.strip().startswith('+++ mecoSHARK +++'):
+                    collect_state = False
+
+            job = jobs[obj.commit]
+            stdout = interface.get_output_log(job)
+
+            new_lines = []
+            parse_error_files = []
+            for file in coast_files:
+                for line in stdout:
+                    if file in line and line.startswith('Parser Error in file'):
+                        new_lines.append(file + ' ({})'.format(line))
+                        parse_error_files.append(file)
+
+            if set(parse_error_files) == set(coast_files):
+                modified += 1
+            else:
+                not_modified.append(obj.commit)
+
+        logger.info('no change to True on following commits: {}'.format(not_modified))
+        messages.info(request, 'Would fix coastSHARK verification on {} of {} commits.'.format(modified, len(queryset)))
 
     def check_coast_parse_error(self, request, queryset):
         # die on multiple projects!
