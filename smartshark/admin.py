@@ -55,7 +55,7 @@ class CoastRecheckListFilter(SimpleListFilter):
 
     def queryset(self, request, queryset):
         if self.value() == 'recheck':
-            return queryset.filter(coastSHARK=True, text__contains='Parser Error in file')
+            return queryset.filter(text__contains='Parser Error in file')
         else:
             return queryset.all()
 
