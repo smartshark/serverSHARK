@@ -454,7 +454,7 @@ class CommitVerificationAdmin(admin.ModelAdmin):
                         new_lines.append(file + ' ({})'.format(line))
                         parse_error_files.append(file)
 
-            if not set(parse_error_files) - set(coast_files):
+            if set(parse_error_files) == set(coast_files):
                 obj.coastSHARK = True
 
             if new_lines:
