@@ -43,6 +43,23 @@ class PluginFailedListFilter(SimpleListFilter):
         else:
             return queryset.all()
 
+class CoastRecheckListFilter(SimpleListFilter):
+    title = 'coastSHARK re-checked'
+    parameter_name = 'coast_recheck'
+
+    def lookups(self, request, model_admin):
+        return (
+            ('recheck', 'CoastSHARK recheck ran'),
+            ('no_recheck', 'No recheck ran'),
+        )
+
+    def queryset(self, request, queryset):
+        if self.value() == 'recheck':
+            return queryset.filter(coastSHARK=True, text__contains='Parser Error in file')
+        else:
+            return queryset.all()
+
+
 
 class JobAdmin(admin.ModelAdmin):
     list_display = ('job_id', 'plugin_execution', 'status', 'revision_hash')
@@ -358,7 +375,7 @@ class CommitVerificationAdmin(admin.ModelAdmin):
     list_display = ('commit', 'project', 'vcsSHARK', 'mecoSHARK',
                     'coastSHARK')
     search_fields = ('commit',)
-    list_filter = ('project__name', 'vcsSHARK', 'mecoSHARK', 'coastSHARK', PluginFailedListFilter)
+    list_filter = ('project__name', 'vcsSHARK', 'mecoSHARK', 'coastSHARK', PluginFailedListFilter, CoastRecheckListFilter)
 
     actions = ['delete_ces_list', 'check_coast_parse_error', 'restart_coast', 'restart_meco']
 
