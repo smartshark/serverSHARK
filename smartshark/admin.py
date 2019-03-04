@@ -473,9 +473,9 @@ class CommitVerificationAdmin(admin.ModelAdmin):
 
             if set(parse_error_files) == set(coast_files):
                 obj.coastSHARK = True
+                modified += 1
 
             if new_lines:
-                modified += 1
                 obj.text = '\n'.join(new_lines) + '\n----\n' + obj.text
                 obj.save()
         messages.info(request, 'Changed coastSHARK verification to True on {} of {} commits.'.format(modified, len(queryset)))
