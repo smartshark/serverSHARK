@@ -453,7 +453,7 @@ class CommitVerificationAdmin(admin.ModelAdmin):
             collect_state = False
             coast_files = []
             for line in tmp.split('\n'):
-                if collect_state:
+                if collect_state and not line.strip().startswith('+++ mecoSHARK +++'):
                     coast_files.append(line.strip()[1:])
                 if line.strip().startswith('+++ coastSHARK +++'):
                     collect_state = True
