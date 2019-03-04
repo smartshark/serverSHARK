@@ -211,7 +211,7 @@ class MongoHandler(object):
 
         # delete code_entity_states
         update_result = self.client.get_database(self.database).get_collection('commit').update_many({'revision_hash': {'$in': revision_hashes}, 'vcs_system_id': vs['_id']}, {'$set': {'code_entity_states': []}})
-        return update_result.matched_count, changed_commit_ids
+        return update_result.matched_count, changed_commit_ids, len(childs)
 
 
 handler = MongoHandler()
