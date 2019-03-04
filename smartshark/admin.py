@@ -476,10 +476,10 @@ class CommitVerificationAdmin(admin.ModelAdmin):
 
             logger.info('Setting code_entity_states to an empty list for these commits: {}'.format(revisions))
             # we could now delete the code_entity_state lists of the commits in revisions
-            matched_count = handler.clear_code_entity_state_lists(revisions, queryset[0].vcs_system)
-            logger.info('Deleted code_entity_states list for {} commits'.format(matched_count))
+            del_list_count, changed_commit_id_count = handler.clear_code_entity_state_lists(revisions, queryset[0].vcs_system)
+            logger.info('Deleted code_entity_states list for {} commits, changed commit_id on {} code entity states'.format(del_list_count, changed_commit_id_count))
 
-            messages.info(request, 'Deleted code_entity_states list for {} commits'.format(matched_count))
+            messages.info(request, 'Deleted code_entity_states list for {} commits, changed commit_id on {} code entity states'.format(del_list_count, changed_commit_id_count))
 
             # todo: we could try to retain the query_string here (also from the form)
             return HttpResponseRedirect('/admin/smartshark/commitverification/')

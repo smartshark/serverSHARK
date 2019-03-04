@@ -191,7 +191,27 @@ class MongoHandler(object):
     def clear_code_entity_state_lists(self, revision_hashes, vcs_system_url):
         revision_hashes = revision_hashes.split(',')
         vs = self.client.get_database(self.database).get_collection('vcs_system').find_one({'url': vcs_system_url})
+
+        # new changes
+        # 1. find all childs where the parent is in the list that are not themselves contained in the list
+        # 2. for each child get the CES from the list and check if the commit_id is in the list of commits where we delete the code_entity_states
+        # 3. if yes change the commit_id to the childs id
+
+        # 1
+        childs = self.client.get_database(self.database).get_collection('commit').find({'vcs_system_id': ObjectId(vs['_id']), 'parents': {'$in': revision_hashes}, 'revision_hash': {'$nin': revision_hashes}})
+
+        # prefetch the commit_ids for our revision_hashes for 2,3
+        commit_ids = [ObjectId(c['_id']) for c in self.client.get_database(self.database).get_collection('commit').find({'vcs_system_id': ObjectId(vs['_id']), 'revision_hash': {'$in': revision_hashes}}, {'_id': 1})]
+
+        # 2, 3
+        changed_commit_ids = 0
+        for c in childs:
+            update_result_commit = self.client.get_database(self.database).get_collection('code_entity_state').update_many({'_id': {'$in': c['code_entity_states']}, 'commit_id': {'$in': commit_ids}}, {'$set': {'commit_id': c['_id']}})
+            changed_commit_ids += update_result_commit.matched_count
+
+        # delete code_entity_states
         update_result = self.client.get_database(self.database).get_collection('commit').update_many({'revision_hash': {'$in': revision_hashes}, 'vcs_system_id': vs['_id']}, {'$set': {'code_entity_states': []}})
-        return update_result.matched_count
+        return update_result.matched_count, changed_commit_ids
+
 
 handler = MongoHandler()
