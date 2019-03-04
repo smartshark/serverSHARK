@@ -205,13 +205,15 @@ class MongoHandler(object):
 
         # 2, 3
         changed_commit_ids = 0
+        num_childs = 0
         for c in childs:
             update_result_commit = self.client.get_database(self.database).get_collection('code_entity_state').update_many({'_id': {'$in': c['code_entity_states']}, 'commit_id': {'$in': commit_ids}}, {'$set': {'commit_id': c['_id']}})
             changed_commit_ids += update_result_commit.matched_count
+            num_childs += 1
 
         # delete code_entity_states
         update_result = self.client.get_database(self.database).get_collection('commit').update_many({'revision_hash': {'$in': revision_hashes}, 'vcs_system_id': vs['_id']}, {'$set': {'code_entity_states': []}})
-        return update_result.matched_count, changed_commit_ids, len(childs)
+        return update_result.matched_count, changed_commit_ids, num_childs
 
 
 handler = MongoHandler()
