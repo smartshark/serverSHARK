@@ -3,6 +3,7 @@ from collections import OrderedDict
 from pymongo import MongoClient
 from bson.objectid import ObjectId
 from pymongo.errors import OperationFailure
+from pycoshark.utils import get_code_entity_state_identifier
 
 import server.settings
 
@@ -207,7 +208,12 @@ class MongoHandler(object):
         changed_commit_ids = 0
         num_childs = 0
         for c in childs:
-            update_result_commit = self.client.get_database(self.database).get_collection('code_entity_state').update_many({'_id': {'$in': c['code_entity_states']}, 'commit_id': {'$in': commit_ids}}, {'$set': {'commit_id': c['_id']}})
+            # update_result_commit = self.client.get_database(self.database).get_collection('code_entity_state').update_many({'_id': {'$in': c['code_entity_states']}, 'commit_id': {'$in': commit_ids}}, {'$set': {'commit_id': c['_id']}})
+
+            # change commit_id and shard key
+            for ces in self.client.get_database(self.database).get_collection('code_entity_state').find({'_id': {'$in': c['code_entity_states']}, 'commit_id': {'$in': commit_ids}}, {'_id': 1, 'long_name': 1}):
+                s_key = get_code_entity_state_identifier(ces['long_name'], c['_id'])
+                update_result_commit = self.client.get_database(self.database).get_collection('code_entity_state').update_one({'_id': ces['_id']}, {'$set': {'commit_id': c['_id'], 's_key': s_key}})
             changed_commit_ids += update_result_commit.matched_count
             num_childs += 1
 
