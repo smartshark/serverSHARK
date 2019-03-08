@@ -65,6 +65,7 @@ class HPCConnector(PluginManagementInterface, BaseConnector):
         self.tunnel_port = HPC['ssh_tunnel_port']
         self.use_tunnel = HPC['ssh_use_tunnel']
         self.cores_per_job = HPC['cores_per_job']
+        self.use_local_logs = HPC['use_local_logs']
 
     @property
     def identifier(self):
@@ -162,6 +163,28 @@ class HPCConnector(PluginManagementInterface, BaseConnector):
         self.execute_command('rm -rf %s' % os.path.join(self.log_path, str(plugin_execution.id)))
 
     def get_output_log(self, job):
+        if self.use_local_logs:
+            return self._get_log_local(job, log_type='out')
+        else:
+            return self._get_output_log_ssh(job)
+
+    def get_error_log(self, job):
+        if self.use_local_logs:
+            return self._get_log_local(job, log_type='err')
+        else:
+            return self._get_error_log_ssh(job)
+
+    def _get_log_local(self, job, log_type='out'):
+        output = []
+
+        file_path = os.path.join(self.log_path, str(job.plugin_execution.id), str(job.id) + '_' + log_type + '.txt')
+
+        with open(file_path, 'r') as f:
+            output = [line.strip() for line in f.readlines()]
+
+        return output
+
+    def _get_output_log_ssh(self, job):
         with ShellHandler(self.host, self.username, self.password, self.port, self.tunnel_host,
                           self.tunnel_username, self.tunnel_password, self.tunnel_port, self.use_tunnel, 10021) as handler:
             sftp_client = handler.get_ssh_client().open_sftp()
@@ -180,7 +203,7 @@ class HPCConnector(PluginManagementInterface, BaseConnector):
 
         return output
 
-    def get_error_log(self, job):
+    def _get_error_log_ssh(self, job):
         with ShellHandler(self.host, self.username, self.password, self.port, self.tunnel_host,
                           self.tunnel_username, self.tunnel_password, self.tunnel_port, self.use_tunnel, 10022) as handler:
             sftp_client = handler.get_ssh_client().open_sftp()
