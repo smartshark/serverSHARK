@@ -32,7 +32,7 @@ HPC = {
     'ssh_tunnel_port': '',
     'ssh_use_tunnel': '',
     'cores_per_job': 4,
-    'use_local_logs': False
+    'local_log_path': ''
 }
 
 AZURE = {
