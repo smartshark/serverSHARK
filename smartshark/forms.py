@@ -73,7 +73,7 @@ def get_form(plugins, post, type, project=None, initial_revisions=None, initial_
             rev_plugins = [plugin for plugin in plugins if plugin.plugin_type == 'rev']
             if len(rev_plugins) > 0:
                 plugin_fields['execution'] = forms.ChoiceField(widget=forms.RadioSelect, choices=EXEC_OPTIONS, initial=initial_exec_type)
-                plugin_fields['revisions'] = forms.CharField(label='Revisions (comma-separated)', required=False, initial=initial_revisions)
+                plugin_fields['revisions'] = forms.TextField(label='Revisions (comma-separated)', required=False, initial=initial_revisions)
                 added_fields.append('execution')
                 added_fields.append('revisions')
 

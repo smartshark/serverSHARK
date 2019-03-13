@@ -19,7 +19,7 @@
 <form action="" method="post">{% csrf_token %}
     <div>
         Delete CodeEntityState lists for the following ({{num_revisions}}) commits:<br/>
-        <input type="text" name="revisions" value="{{revisions}}"/><br/>
+        <textarea name="revisions">{{revisions}}</textarea><br/>
         <br/>
 
         On project: {{project.name}}<br/>
