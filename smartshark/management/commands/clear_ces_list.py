@@ -7,6 +7,7 @@ from django.core.management.base import BaseCommand
 
 from smartshark.models import Project, CommitVerification
 from smartshark.mongohandler import handler
+from django.db.models import Q
 
 logger = logging.getLogger('django')
 

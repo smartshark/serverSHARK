@@ -5,8 +5,14 @@ from collections import defaultdict
 import pygit2
 import re
 
-from smartshark.models import Job
+from django.db.models import Q
+
+from smartshark.models import Job, CommitVerification
 from smartshark.mongohandler import handler
+
+
+def get_revisions_for_failed_verification(project):
+    return [cv.commit for cv in CommitVerification.objects.filter(project=project).filter(Q(mecoSHARK=False) | Q(coastSHARK=False))]
 
 
 def get_revisions_for_failed_plugins(plugins, project):
@@ -142,6 +148,9 @@ def create_jobs_for_execution(project, plugin_executions):
                 revisions = get_revisions_for_failed_plugins([plugin_execution.plugin], plugin_execution.project)
                 for revision in revisions:
                     revisions_to_execute_plugin_on.append(revision)
+
+            elif plugin_execution.execution_type == 'ver':
+                revisions_to_execute_plugin_on = get_revisions_for_failed_verification(plugin_execution.project)
 
             # Create command
             for revision in revisions_to_execute_plugin_on:

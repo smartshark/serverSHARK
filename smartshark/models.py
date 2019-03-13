@@ -276,6 +276,7 @@ class PluginExecution(models.Model):
         ('new', 'Executed on new revisions'),
         ('rev', 'Executed on specified revisions'),
         ('error', 'Executed on revisions that previously threw an error'),
+        ('ver', 'Execute on all revisions where verification failed for one Plugin'),
     )
 
     STATUS_CHOICES = (
@@ -321,8 +322,7 @@ class PluginExecution(models.Model):
             if job.status == 'EXIT':
                 exits += 1
 
-
-        return (done,exits)
+        return (done, exits)
 
     def get_sorted_argument(self):
         arguments = OrderedDict()

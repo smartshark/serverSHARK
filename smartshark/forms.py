@@ -55,7 +55,7 @@ def get_form(plugins, post, type, project=None, initial_revisions=None, initial_
         created_fieldsets = []
         plugin_fields = {}
         EXEC_OPTIONS = (('all', 'Execute on all revisions'), ('error', 'Execute on all revisions with errors'),
-                        ('new', 'Execute on new revisions'), ('rev', 'Execute on following revisions:'))
+                        ('new', 'Execute on new revisions'), ('rev', 'Execute on following revisions:'), ('ver', 'Execute on all revisions where verification failed for one Plugin'))
 
         # we need to get the correct pluginmanager for this information because that depends on selected queue
         interface = PluginManagementInterface.find_correct_plugin_manager()
