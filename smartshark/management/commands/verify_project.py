@@ -73,7 +73,7 @@ class Command(BaseCommand):
                     # print("Commit " + commit)
 
                     # Add primary keys to the model
-                    resultModel = CommitVerification.objects.get_or_create(project=project, vcs_system=vcsMongo['url'], commit=str(commit))
+                    resultModel, created = CommitVerification.objects.get_or_create(project=project, vcs_system=vcsMongo['url'], commit=str(commit))
                     resultModel.text = ""
 
                     db_commit = get_commit_from_database(self.db, commit, vcsMongo["_id"])
