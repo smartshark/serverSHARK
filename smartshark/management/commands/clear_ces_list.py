@@ -5,9 +5,9 @@ import logging
 
 from django.core.management.base import BaseCommand
 
-from smartshark.models import Project, CommitVerification
+from smartshark.models import Project
 from smartshark.mongohandler import handler
-from django.db.models import Q
+from smartshark.datacollection.executionutils import get_revisions_for_failed_verification
 
 logger = logging.getLogger('django')
 
@@ -27,7 +27,8 @@ class Command(BaseCommand):
         project = Project.objects.get(name__iexact=options['project_name'])
 
         # get commits where at least one plugin failed
-        commits = CommitVerification.objects.filter(project=project).filter(Q(mecoSHARK=False) | Q(coastSHARK=False))
+        commits = get_revisions_for_failed_verification(project)
+        # commits = CommitVerification.objects.filter(project=project).filter(Q(mecoSHARK=False) | Q(coastSHARK=False))
 
         if len(commits) == 0:
             self.stderr.write('No verification data!')

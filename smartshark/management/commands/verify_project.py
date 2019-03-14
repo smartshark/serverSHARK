@@ -12,6 +12,7 @@ from django.core.management.base import BaseCommand
 from smartshark.models import Project, CommitVerification
 from smartshark.mongohandler import handler
 from smartshark.utils.projectUtils import create_local_repo_for_project, get_all_commits_of_repo, get_commit_from_database, get_code_entities_from_database
+from smartshark.datacollection.executionutils import get_revisions_for_failed_verification
 
 
 class Command(BaseCommand):
@@ -37,31 +38,42 @@ class Command(BaseCommand):
             self.use_meme = False
         self.stdout.write('Assuming memeSHARK {}'.format(self.use_meme))
 
+        # add ability to request run on only previously failed commit verifications
+        self.only_failed = False
+        l3 = input('only re-check previously failed commits? (y/N)')
+        if l3.lower() == 'y':
+            self.only_failed = True
+            self.stdout.write('Only checking previously failed commits')
+
         # path = "../tmp-repo"
         with tempfile.TemporaryDirectory() as path:
             projectMongo = self.db.project.find_one({"name": project.name})
             print(projectMongo["_id"])
             vcsMongo = self.db.vcs_system.find_one({"project_id": projectMongo["_id"]})
 
-            l = input("Delete old verification data first? (y/N)")
-            if l.lower() == 'y':
-                CommitVerification.objects.filter(project=project).delete()
-                self.stdout.write("Deleted old verification data")
+            if not self.only_failed:
+                l = input("Delete old verification data first? (y/N)")
+                if l.lower() == 'y':
+                    CommitVerification.objects.filter(project=project).delete()
+                    self.stdout.write("Deleted old verification data")
 
             repo = create_local_repo_for_project(vcsMongo, path)
             if not repo.is_empty:
-                allCommits = get_all_commits_of_repo(vcsMongo, repo)
-                self.stdout.write("Found {} commits for the project".format(len(allCommits)))
+
+                if not self.only_failed:
+                    allCommits = get_all_commits_of_repo(vcsMongo, repo)
+                    self.stdout.write("Found {} commits for the project".format(len(allCommits)))
+                else:
+                    allCommits = get_revisions_for_failed_verification(project)
+                    self.stdout.write('Found {} commits that previously failed'.format(len(allCommits)))
+                    self.stdout.write('Overwriting commit verification data for {} previously failed commits'.format(len(allCommits)))
 
                 # 2. Iterate over the commits
                 for commit in allCommits:
                     # print("Commit " + commit)
 
                     # Add primary keys to the model
-                    resultModel = CommitVerification()
-                    resultModel.project = project
-                    resultModel.vcs_system = vcsMongo["url"]
-                    resultModel.commit = str(commit)
+                    resultModel = CommitVerification.objects.get_or_create(project=project, vcs_system=vcsMongo['url'], commit=str(commit))
                     resultModel.text = ""
 
                     db_commit = get_commit_from_database(self.db, commit, vcsMongo["_id"])
