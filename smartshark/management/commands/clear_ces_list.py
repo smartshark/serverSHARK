@@ -5,7 +5,7 @@ import logging
 
 from django.core.management.base import BaseCommand
 
-from smartshark.models import Project
+from smartshark.models import Project, CommitVerification
 from smartshark.mongohandler import handler
 from smartshark.datacollection.executionutils import get_revisions_for_failed_verification
 
@@ -38,20 +38,11 @@ class Command(BaseCommand):
         if l.lower() != 'y':
             return
 
-        revisions = []
-        vcs = commits[0].vcs_system
-
-        for cv in commits:
-            if cv.vcs_system != vcs:
-                self.stderr.write('Multiple VCS Systems found!')
-                return
-
-            revisions.append(cv.commit)
-
-        revisions = ','.join(revisions)
+        cv = CommitVerification.objects.get(project=project, commit=commits[0])
+        revisions = ','.join(commits)
 
         logger.info('Setting code_entity_states to an empty list for these commits: {}'.format(revisions))
-        del_list_count, changed_commit_id_count, should_change_commit_ids, childs = handler.clear_code_entity_state_lists(revisions, cv[0].vcs_system)
+        del_list_count, changed_commit_id_count, should_change_commit_ids, childs = handler.clear_code_entity_state_lists(revisions, cv.vcs_system)
         logger.info('Deleted code_entity_states list for {} commits, changed commit_id on {}/{} code entity states for {} childs'.format(del_list_count, changed_commit_id_count, should_change_commit_ids, childs))
 
         self.stdout.write('Deleted code_entity_states list for {} commits, changed commit_id on {}/{} code entity states for {} childs'.format(del_list_count, changed_commit_id_count, should_change_commit_ids, childs))
