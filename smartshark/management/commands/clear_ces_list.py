@@ -55,4 +55,7 @@ class Command(BaseCommand):
         logger.info('Deleted code_entity_states list for {} commits, changed commit_id on {}/{} code entity states for {} childs'.format(del_list_count, changed_commit_id_count, should_change_commit_ids, childs))
 
         self.stdout.write('Deleted code_entity_states list for {} commits, changed commit_id on {}/{} code entity states for {} childs'.format(del_list_count, changed_commit_id_count, should_change_commit_ids, childs))
+
+        with open('./revisions_to_change', 'w') as f:
+            f.write(revisions)
         self.stdout.write(revisions)
