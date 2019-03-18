@@ -8,6 +8,7 @@ import tempfile
 import pygit2
 
 from django.core.management.base import BaseCommand
+from django.db import connections
 
 from smartshark.models import Project, CommitVerification
 from smartshark.mongohandler import handler
@@ -67,6 +68,9 @@ class Command(BaseCommand):
                     allCommits = get_revisions_for_failed_verification(project)
                     self.stdout.write('Found {} commits that previously failed'.format(len(allCommits)))
                     self.stdout.write('Overwriting commit verification data for {} previously failed commits'.format(len(allCommits)))
+
+                # close connection because the above may take a long time
+                connections['default'].close()
 
                 # 2. Iterate over the commits
                 for commit in allCommits:

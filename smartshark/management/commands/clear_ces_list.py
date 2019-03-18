@@ -28,7 +28,6 @@ class Command(BaseCommand):
 
         # get commits where at least one plugin failed
         commits = get_revisions_for_failed_verification(project)
-        # commits = CommitVerification.objects.filter(project=project).filter(Q(mecoSHARK=False) | Q(coastSHARK=False))
 
         if len(commits) == 0:
             self.stderr.write('No verification data!')
@@ -49,4 +48,5 @@ class Command(BaseCommand):
 
         with open('./revisions_to_change', 'w') as f:
             f.write(revisions)
-        self.stdout.write(revisions)
+
+        self.stdout.write('Revisions written to file ./revisions_to_change')
