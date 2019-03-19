@@ -223,6 +223,45 @@ class HPCConnector(PluginManagementInterface, BaseConnector):
         return output
 
     def get_job_stati(self, jobs):
+        if self.local_log_path:
+            return self._get_job_stati_local(jobs)
+        else:
+            return self._get_job_stati_ssh(jobs)
+
+    def _get_job_stati_local(self, jobs):
+        if not jobs:
+            return []
+
+        job_status_list = []
+        plugin_execution_output_path = os.path.join(self.local_log_path, str(jobs[0].plugin_execution.id))
+
+        for job in jobs:
+            error_path = os.path.join(plugin_execution_output_path, str(job.id) + '_err.txt')
+            out_path = os.path.join(plugin_execution_output_path, str(job.id) + '_out.txt')
+
+            # file not present, job is not finished
+            if not os.path.isfile(out_path):
+                job_status_list.append('WAIT')
+                continue
+
+            # we have error logs something is wrong
+            if os.path.getsize(error_path) > 0:
+                job_status_list.append('EXIT')
+                continue
+
+            # last, we check the state
+            try:
+                with open(out_path, 'r') as f:
+                    head = [next(f) for x in range(2)]
+
+                if head[1].strip().endswith(' Done'):
+                    job_status_list.append('DONE')
+            except StopIteration:
+                job_status_list.append('EXIT')
+
+        return job_status_list
+
+    def _get_job_stati_ssh(self, jobs):
         if not jobs:
             return []
 
