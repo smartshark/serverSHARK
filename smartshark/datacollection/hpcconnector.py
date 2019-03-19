@@ -240,7 +240,7 @@ class HPCConnector(PluginManagementInterface, BaseConnector):
             out_path = os.path.join(plugin_execution_output_path, str(job.id) + '_out.txt')
 
             # file not present, job is not finished
-            if not os.path.isfile(out_path):
+            if not os.path.isfile(out_path) or not os.path.isfile(error_path):
                 job_status_list.append('WAIT')
                 continue
 
