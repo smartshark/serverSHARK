@@ -62,7 +62,7 @@ class CoastRecheckListFilter(SimpleListFilter):
 
 
 class JobAdmin(admin.ModelAdmin):
-    list_display = ('job_id', 'plugin_execution', 'status', 'revision_hash')
+    list_display = ('id', 'plugin_execution', 'status', 'revision_hash')
     list_filter = ('plugin_execution__project', 'plugin_execution__plugin', 'status', 'plugin_execution__execution_type')
     search_fields = ('revision_hash',)
 
