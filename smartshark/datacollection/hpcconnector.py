@@ -257,7 +257,10 @@ class HPCConnector(PluginManagementInterface, BaseConnector):
                 if head[1].strip().endswith(' Done'):
                     job_status_list.append('DONE')
             except StopIteration:
-                job_status_list.append('EXIT')
+                pass
+
+            # either the exception happened or there is no Done
+            job_status_list.append('EXIT')
 
         return job_status_list
 
