@@ -254,13 +254,15 @@ class HPCConnector(PluginManagementInterface, BaseConnector):
                 with open(out_path, 'r') as f:
                     head = [next(f) for x in range(2)]
 
+                # either we are Done or otherwise killed
                 if head[1].strip().endswith(' Done'):
                     job_status_list.append('DONE')
-            except StopIteration:
-                pass
+                else:
+                    job_status_list.append('EXIT')
 
-            # either the exception happened or there is no Done
-            job_status_list.append('EXIT')
+            # this happens if we do not have 2 lines in the file
+            except StopIteration:
+                job_status_list.append('EXIT')
 
         return job_status_list
 
