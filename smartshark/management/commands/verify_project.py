@@ -96,7 +96,9 @@ class Command(BaseCommand):
 
                     # Checkout, to validate also on file level
                     ref = repo.create_reference('refs/tags/temp', commit)
-                    repo.checkout(ref)
+
+                    # pygit2.GIT_CHECKOUT_FORCE | pygit2.GIT_CHECKOUT_RECREATE_MISSING
+                    repo.checkout(ref, strategy=pygit2.GIT_CHECKOUT_FORCE | pygit2.GIT_CHECKOUT_RECREATE_MISSING)
 
                     # 3. Iterate foreach commit over the files
 
