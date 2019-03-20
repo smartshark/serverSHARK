@@ -495,7 +495,7 @@ class CommitVerificationAdmin(admin.ModelAdmin):
                 except Job.DoesNotExist:
                     pass
                 except Job.MultipleObjectsReturned:
-                    job_ids = [job.id for job in Job.objects.filter(plugin_execution=pe, revision_has=obj.commit)]
+                    job_ids = [job.id for job in Job.objects.filter(plugin_execution=pe, revision_hash=obj.commit)]
                     messages.warning(request, 'Commit: {} has more than one Job, ignoring it, job_ids ({})'.format(obj.commit, ','.join(job_ids)))
 
         modified = 0
