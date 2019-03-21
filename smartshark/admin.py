@@ -468,7 +468,7 @@ class CommitVerificationAdmin(admin.ModelAdmin):
             parse_error_files = []
             for file in coast_files:
                 for line in stdout:
-                    if file in line and line.startswith('Parser Error in file'):
+                    if file in line and line.startswith(('Parser Error in file', 'Lexer Error in file')):
                         new_lines.append(file + ' ({})'.format(line))
                         parse_error_files.append(file)
 
@@ -519,7 +519,7 @@ class CommitVerificationAdmin(admin.ModelAdmin):
             parse_error_files = []
             for file in coast_files:
                 for line in stdout:
-                    if file in line and line.startswith(['Parser Error in file', 'Lexer Error in file']):
+                    if file in line and line.startswith(('Parser Error in file', 'Lexer Error in file')):
                         new_lines.append(file + ' ({})'.format(line))
                         parse_error_files.append(file)
 
