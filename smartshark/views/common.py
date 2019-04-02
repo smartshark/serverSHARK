@@ -130,6 +130,10 @@ def plugin_execution_status(request, id):
     job_filter = JobExecutionFilter(request.GET, queryset=Job.objects.all().filter(plugin_execution=plugin_execution))
 
     rev = [exitjob.revision_hash for exitjob in job_filter.qs.filter(status='EXIT')]
+    exit_job_revisions = ''
+    if rev:
+        exit_job_revisions = ','.join(rev)
+
     # Set up pagination
     paginator = Paginator(job_filter.qs, 10)
     page = request.GET.get('page')
@@ -151,7 +155,7 @@ def plugin_execution_status(request, id):
         'done_jobs': len(job_filter.qs.filter(status='DONE')),
         'exit_jobs': len(rev),
         'waiting_jobs': len(job_filter.qs.filter(status='WAIT')),
-        'exit_job_revisions': ','.join(rev)
+        'exit_job_revisions': exit_job_revisions
     })
 
 
