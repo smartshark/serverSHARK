@@ -129,6 +129,7 @@ def plugin_execution_status(request, id):
 
     job_filter = JobExecutionFilter(request.GET, queryset=Job.objects.all().filter(plugin_execution=plugin_execution))
 
+    rev = [exitjob.revision_hash for exitjob in job_filter.qs.filter(status='EXIT')]
     # Set up pagination
     paginator = Paginator(job_filter.qs, 10)
     page = request.GET.get('page')
@@ -140,8 +141,6 @@ def plugin_execution_status(request, id):
     except EmptyPage:
         # If page is out of range (e.g. 9999), deliver last page of results.
         jobs = paginator.page(paginator.num_pages)
-
-        rev = [exitjob.revision_hash for exitjob in job_filter.qs.filter(status='EXIT')]
 
     return render(request, 'smartshark/project/plugin_execution_status.html', {
         'plugin_execution': plugin_execution,
