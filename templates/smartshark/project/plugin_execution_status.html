@@ -33,32 +33,36 @@
 {% block content %}
     <h1>Plugin Status for Project {{ plugin_execution.project.name }} and Plugin {{ plugin_execution.plugin.name }}</h1>
     <div id="{{ project.name }}_container">
-            <form action="" method="get">
-                <div class="row-fluid">
-                    <div class="span3">
-                            {{ filter.form.status.errors }}
-                            {{ filter.form.status.label_tag }}
-                            {{ filter.form.status }}
-                    </div>
-                    <div class="span3">
-                            {{ filter.form.revision_hash.errors }}
-                            {{ filter.form.revision_hash.label_tag }}
-                            {{ filter.form.revision_hash }}
-                    </div>
-                </div>
-                <input class="btn btn-info" type="submit" />
-            </form>
+        <form action="" method="get">
             <div class="row-fluid">
-                <div class="span6">
-                    <strong>DONE</strong>: {{ done_jobs }}, <strong>EXIT</strong>: {{ exit_jobs }}, <strong>WAITING</strong>: {{ waiting_jobs }}
+                <div class="span3">
+                        {{ filter.form.status.errors }}
+                        {{ filter.form.status.label_tag }}
+                        {{ filter.form.status }}
                 </div>
-
-                <div class="span6" align="right">
-                    <span class="current">
-                        Page {{ jobs.number }} of {{ jobs.paginator.num_pages }}. Overall: {{ overall }}
-                    </span>
+                <div class="span3">
+                        {{ filter.form.revision_hash.errors }}
+                        {{ filter.form.revision_hash.label_tag }}
+                        {{ filter.form.revision_hash }}
                 </div>
             </div>
+            <input class="btn btn-info" type="submit" />
+        </form>
+        <div class="row-fluid">
+            <div class="span6">
+                <strong>DONE</strong>: {{ done_jobs }}, <strong>EXIT</strong>: {{ exit_jobs }}, <strong>WAITING</strong>: {{ waiting_jobs }}
+                {% if exit_job_revisions %}
+                <br/>
+                <strong>Exit revisions: <textarea cols="5", rows="1">{{exit_job_revisions}}</textarea>
+                {% endif %}
+            </div>
+
+            <div class="span6" align="right">
+                <span class="current">
+                    Page {{ jobs.number }} of {{ jobs.paginator.num_pages }}. Overall: {{ overall }}
+                </span>
+            </div>
+        </div>
         <table id="execution_list" class="table table-striped table-bordered table-hover table-condensed">
             <thead>
                 <th scope="col">

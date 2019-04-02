@@ -44,6 +44,12 @@ class Command(BaseCommand):
 
         modified = 0
         for obj in commits:
+
+            # we have not found a previous job with this commit, we can not check for parse error
+            if obj.commit not in jobs.keys():
+                self.stdout.write('could not find revision {} in previous jobs, skipping'.format(obj.commit))
+                continue
+
             # split of file for coastSHARK
             tmp = obj.text
             collect_state = False

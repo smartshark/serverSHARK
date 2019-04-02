@@ -76,8 +76,15 @@ class Command(BaseCommand):
 
                     with open(output_file, 'w') as f:
                         f.write(res.stdout.decode('utf-8'))
+                    
                     with open(error_file, 'w') as f:
                         f.write(res.stderr.decode('utf-8'))
+
+                    # analogous to the HPC Jobs we set the job to exit if we have output to stderr
+                    if res.stderr:
+                        job.status = 'EXIT'
+                        job.save()
+
                 self.stdout.write('{} jobs left in queue'.format(self.con.llen(self.job_queue)))
 
     def handle(self, *args, **options):
