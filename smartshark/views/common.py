@@ -129,7 +129,7 @@ def plugin_execution_status(request, id):
 
     job_filter = JobExecutionFilter(request.GET, queryset=Job.objects.all().filter(plugin_execution=plugin_execution))
 
-    rev = [exitjob.revision_hash for exitjob in job_filter.qs.filter(status='EXIT')]
+    rev = [exitjob.revision_hash if exitjob.revision_hash else '' for exitjob in job_filter.qs.filter(status='EXIT')]
     exit_job_revisions = ''
     if rev:
         exit_job_revisions = ','.join(rev)
