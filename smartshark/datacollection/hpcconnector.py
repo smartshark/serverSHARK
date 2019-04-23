@@ -225,11 +225,14 @@ class HPCConnector(PluginManagementInterface, BaseConnector):
 
         possible formats and job states: https://slurm.schedmd.com/sacct.html
         """
+        results = []
         job_ids = [str(job.id) for job in jobs]
         job_names = ','.join(job_ids)
         command = '/opt/slurm/bin/sacct --name {} --format="JobName,State"'.format(job_names)
 
         # new slurm style
+        if not job_ids:
+            return results
         stdout = self.execute_command(command, ignore_errors=False)
 
         # get job states for each name
@@ -239,7 +242,6 @@ class HPCConnector(PluginManagementInterface, BaseConnector):
             if len(m) == 2:
                 states[m[0]] = m[1]
 
-        results = []
         for jid in job_ids:
             if states[jid].lower() == 'completed':
                 results.append('DONE')
