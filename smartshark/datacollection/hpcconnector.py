@@ -230,11 +230,11 @@ class HPCConnector(PluginManagementInterface, BaseConnector):
         command = ['sacct --name {} --format="JobName,State"'.format(job_names)]
 
         # new slurm style
-        output = self.send_and_execute_file(command, True)
+        stdout, stderr = self.send_and_execute_file(command, True)
 
         # get job states for each name
         states = {}
-        for line in output.split('\n')[1:]:
+        for line in stdout[1:]:
             m = list(re.findall(r'\S+', line))  # split on any number of consecutive whitespaces
             if len(m) == 2:
                 states[m[0]] = m[1]
