@@ -227,22 +227,15 @@ class HPCConnector(PluginManagementInterface, BaseConnector):
         """
         results = []
         job_ids = [str(job.id) for job in jobs]
-        job_names = ','.join(job_ids)
-        command = '/opt/slurm/bin/sacct --name {} --format="JobName,State"'.format(job_names)
-
-        # new slurm style
-        if not job_ids:
-            return results
-        stdout = self.execute_command(command, ignore_errors=False)
-
-        # get job states for each name
-        states = {}
-        for line in stdout[1:]:
-            m = list(re.findall(r'\S+', line))  # split on any number of consecutive whitespaces
-            if len(m) == 2:
-                states[m[0]] = m[1]
 
         for jid in job_ids:
+            command = '/opt/slurm/bin/sacct --name {} --format="JobName,State"'.format(jid)
+            stdout = self.execute_command(command, ignore_errors=False)
+            states = {}
+            for line in stdout[1:]:
+                m = list(re.findall(r'\S+', line))  # split on any number of consecutive whitespaces
+                if len(m) == 2:
+                    states[m[0]] = m[1]
             if states[jid].lower() == 'completed':
                 results.append('DONE')
             elif states[jid].lower() in ['pending', 'running', 'requeued', 'resizing', 'suspended']:
