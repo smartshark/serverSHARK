@@ -1,4 +1,5 @@
 import os
+import re
 import string
 import subprocess
 import threading
@@ -55,7 +56,7 @@ class HPCConnector(PluginManagementInterface, BaseConnector):
         self.host = HPC['host']
         self.port = HPC['port']
         self.queue = HPC['queue']
-        self.node_properties = HPC['node_properties']
+        self.hosts_per_job = HPC['hosts_per_job']
         self.plugin_path = os.path.join(HPC['root_path'], 'plugins')
         self.project_path = os.path.join(HPC['root_path'], 'projects')
         self.log_path = HPC['log_path']
@@ -90,8 +91,8 @@ class HPCConnector(PluginManagementInterface, BaseConnector):
         if job.plugin_execution.queue:
             queue = job.plugin_execution.queue
 
-        bsub_command = 'bsub -n %s -W 48:00 -q %s -o %s -e %s -J "%s" ' % (cores_per_job, queue,
-                                                                           output_path, error_path, job.id)
+        # bsub_command = 'bsub -n %s -W 48:00 -q %s -o %s -e %s -J "%s" ' % (cores_per_job, queue, output_path, error_path, job.id)
+        bsub_command = 'sbatch -n %s -t 2-00:00:00 -p %s -o %s -e %s -N %s -J "%s" ' % (cores_per_job, queue, output_path, error_path, self.hosts_per_job, job.id)
 
         req_jobs = job.requires.all()
         if req_jobs:
@@ -101,9 +102,6 @@ class HPCConnector(PluginManagementInterface, BaseConnector):
 
             bsub_command = bsub_command[:-4]
             bsub_command += "' "
-
-        for node_property in self.node_properties:
-            bsub_command += "-R %s " % node_property
 
         command = string.Template(plugin_command).safe_substitute({
             'path': os.path.join(self.project_path, job.plugin_execution.project.name),
@@ -223,73 +221,106 @@ class HPCConnector(PluginManagementInterface, BaseConnector):
         return output
 
     def get_job_stati(self, jobs):
-        if self.local_log_path:
-            return self._get_job_stati_local(jobs)
-        else:
-            return self._get_job_stati_ssh(jobs)
+        """Use slurms sacct to fetch the job status for the given list of jobs.
 
-    def _get_job_stati_local(self, jobs):
-        if not jobs:
-            return []
+        possible formats and job states: https://slurm.schedmd.com/sacct.html
+        """
+        job_ids = [str(job.id) for job in jobs]
+        job_names = ','.join(job_ids)
+        command = ['sacct --name {} --format="JobName,State"'.format(job_names)]
 
-        job_status_list = []
-        plugin_execution_output_path = os.path.join(self.local_log_path, str(jobs[0].plugin_execution.id))
+        # new slurm style
+        output = self.send_and_execute_file(command, True)
 
-        for job in jobs:
-            error_path = os.path.join(plugin_execution_output_path, str(job.id) + '_err.txt')
-            out_path = os.path.join(plugin_execution_output_path, str(job.id) + '_out.txt')
+        # get job states for each name
+        states = {}
+        for line in output.split('\n')[1:]:
+            m = list(re.findall(r'\S+', line))  # split on any number of consecutive whitespaces
+            if len(m) == 2:
+                states[m[0]] = m[1]
 
-            # file not present, job is not finished
-            if not os.path.isfile(out_path) or not os.path.isfile(error_path):
-                job_status_list.append('WAIT')
-                continue
-
-            # we have error logs something is wrong
-            if os.path.getsize(error_path) > 0:
-                job_status_list.append('EXIT')
-                continue
-
-            # last, we check the state
-            try:
-                with open(out_path, 'r') as f:
-                    head = [next(f) for x in range(2)]
-
-                # either we are Done or otherwise killed
-                if head[1].strip().endswith(' Done'):
-                    job_status_list.append('DONE')
-                else:
-                    job_status_list.append('EXIT')
-
-            # this happens if we do not have 2 lines in the file
-            except StopIteration:
-                job_status_list.append('EXIT')
-
-        return job_status_list
-
-    def _get_job_stati_ssh(self, jobs):
-        if not jobs:
-            return []
-
-        job_status_list = []
-        commands = []
-        plugin_execution_output_path = os.path.join(self.log_path, str(jobs[0].plugin_execution.id))
-        for job in jobs:
-            error_path = os.path.join(plugin_execution_output_path, str(job.id) + '_err.txt')
-            commands.append("wc -c < %s" % error_path)
-
-        out = self.send_and_execute_file(commands, True)
-        logger.debug(out)
-        for out_line in out:
-            out_line = out_line.strip()
-            if out_line == '0':
-                job_status_list.append('DONE')
-            elif 'No such file or directory' in out_line:
-                job_status_list.append('WAIT')
+        results = []
+        for jid in job_ids:
+            if states[jid].lower() == 'completed':
+                results.append('DONE')
+            elif states[jid].lower() in ['pending', 'running', 'requeued', 'resizing', 'suspended']:
+                results.append('WAIT')
             else:
-                job_status_list.append('EXIT')
+                results.append('EXIT')
 
-        logger.debug(job_status_list)
-        return job_status_list
+        return results
+
+    # old lsf style
+    # def get_job_stati(self, jobs):
+    #     old lsf style
+    #     if self.local_log_path:
+    #         return self._get_job_stati_local(jobs)
+    #     else:
+    #         return self._get_job_stati_ssh(jobs)
+
+    # old lsf style
+    # def _get_job_stati_local(self, jobs):
+    #     if not jobs:
+    #         return []
+
+    #     job_status_list = []
+    #     plugin_execution_output_path = os.path.join(self.local_log_path, str(jobs[0].plugin_execution.id))
+
+    #     for job in jobs:
+    #         error_path = os.path.join(plugin_execution_output_path, str(job.id) + '_err.txt')
+    #         out_path = os.path.join(plugin_execution_output_path, str(job.id) + '_out.txt')
+
+    #         # file not present, job is not finished
+    #         if not os.path.isfile(out_path) or not os.path.isfile(error_path):
+    #             job_status_list.append('WAIT')
+    #             continue
+
+    #         # we have error logs something is wrong
+    #         if os.path.getsize(error_path) > 0:
+    #             job_status_list.append('EXIT')
+    #             continue
+
+    #         # last, we check the state
+    #         try:
+    #             with open(out_path, 'r') as f:
+    #                 head = [next(f) for x in range(2)]
+
+    #             # either we are Done or otherwise killed
+    #             if head[1].strip().endswith(' Done'):
+    #                 job_status_list.append('DONE')
+    #             else:
+    #                 job_status_list.append('EXIT')
+
+    #         # this happens if we do not have 2 lines in the file
+    #         except StopIteration:
+    #             job_status_list.append('EXIT')
+
+    #     return job_status_list
+
+    # def _get_job_stati_ssh(self, jobs):
+    #     if not jobs:
+    #         return []
+
+    #     job_status_list = []
+    #     commands = []
+    #     plugin_execution_output_path = os.path.join(self.log_path, str(jobs[0].plugin_execution.id))
+    #     for job in jobs:
+    #         error_path = os.path.join(plugin_execution_output_path, str(job.id) + '_err.txt')
+    #         commands.append("wc -c < %s" % error_path)
+
+    #     out = self.send_and_execute_file(commands, True)
+    #     logger.debug(out)
+    #     for out_line in out:
+    #         out_line = out_line.strip()
+    #         if out_line == '0':
+    #             job_status_list.append('DONE')
+    #         elif 'No such file or directory' in out_line:
+    #             job_status_list.append('WAIT')
+    #         else:
+    #             job_status_list.append('EXIT')
+
+    #     logger.debug(job_status_list)
+    #     return job_status_list
 
     def delete_plugins(self, plugins):
         for plugin in plugins:

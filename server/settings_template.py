@@ -15,7 +15,7 @@ ALLOWED_HOSTS = []
 SECRET_KEY = 'xxxx'
 
 # Token for (limited) remote access
-API_KEY =None
+API_KEY = None
 
 HPC = {
     'username': 'xxx',
@@ -23,7 +23,7 @@ HPC = {
     'host': 'xxx',
     'port': 22,
     'queue': 'xx',
-    'node_properties': [],
+    'tasks_per_node': [],
     'root_path': 'xxx',
     'log_path': 'xxx',
     'ssh_tunnel_username': '',
