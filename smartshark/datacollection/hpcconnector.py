@@ -230,7 +230,7 @@ class HPCConnector(PluginManagementInterface, BaseConnector):
         command = ['sacct --name {} --format="JobName,State"'.format(job_names)]
 
         # new slurm style
-        stdout, stderr = self.send_and_execute_file(command, True)
+        stdout = self.send_and_execute_file(command, True)
 
         # get job states for each name
         states = {}
