@@ -92,7 +92,7 @@ class HPCConnector(PluginManagementInterface, BaseConnector):
             queue = job.plugin_execution.queue
 
         # bsub_command = 'bsub -n %s -W 48:00 -q %s -o %s -e %s -J "%s" ' % (cores_per_job, queue, output_path, error_path, job.id)
-        bsub_command = 'sbatch -n %s -t 2-00:00:00 -p %s -o %s -e %s -N %s -J "%s" ' % (cores_per_job, queue, output_path, error_path, self.hosts_per_job, job.id)
+        bsub_command = '/opt/slurm/bin/sbatch -n %s -t 2-00:00:00 -p %s -o %s -e %s -N %s -J "%s" ' % (cores_per_job, queue, output_path, error_path, self.hosts_per_job, job.id)
 
         req_jobs = job.requires.all()
         if req_jobs:
@@ -227,10 +227,10 @@ class HPCConnector(PluginManagementInterface, BaseConnector):
         """
         job_ids = [str(job.id) for job in jobs]
         job_names = ','.join(job_ids)
-        command = 'sacct --name {} --format="JobName,State"'.format(job_names)
+        command = '/opt/slurm/bin/sacct --name {} --format="JobName,State"'.format(job_names)
 
         # new slurm style
-        stdout = self.execute_command(command, True)
+        stdout = self.execute_command(command, ignore_errors=False)
 
         # get job states for each name
         states = {}
