@@ -227,10 +227,10 @@ class HPCConnector(PluginManagementInterface, BaseConnector):
         """
         job_ids = [str(job.id) for job in jobs]
         job_names = ','.join(job_ids)
-        command = ['sacct --name {} --format="JobName,State"'.format(job_names)]
+        command = 'sacct --name {} --format="JobName,State"'.format(job_names)
 
         # new slurm style
-        stdout = self.send_and_execute_file(command, True)
+        stdout = self.execute_command(command, True)
 
         # get job states for each name
         states = {}
