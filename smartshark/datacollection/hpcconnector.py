@@ -227,26 +227,25 @@ class HPCConnector(PluginManagementInterface, BaseConnector):
         """
         results = []
         job_ids = [str(job.id) for job in jobs]
-        commands = []
 
-        for jid in job_ids:
-            command = '/opt/slurm/bin/sacct --name {} --format="JobName,State"'.format(jid)
-            commands.append(command)
+        # 1. create job id batches
+        for chunk in range(0, len(job_ids), 3000):
+            command = '/opt/slurm/bin/sacct --name {} --format="JobName,State"'.format(','.join(chunk))
+            stdout = self.execute_command(command)
 
-        stdout = self.send_and_execute_file(commands, True)
-        states = {}
-        for line in stdout[1:]:
-            m = list(re.findall(r'\S+', line))  # split on any number of consecutive whitespaces
-            if len(m) == 2:
-                states[m[0]] = m[1]
+            states = {}
+            for line in stdout[1:]:
+                m = list(re.findall(r'\S+', line))  # split on any number of consecutive whitespaces
+                if len(m) == 2:
+                    states[m[0]] = m[1]
 
-        for jid in job_ids:
-            if states[jid].lower() == 'completed':
-                results.append('DONE')
-            elif states[jid].lower() in ['pending', 'running', 'requeued', 'resizing', 'suspended']:
-                results.append('WAIT')
-            else:
-                results.append('EXIT')
+            for jid in chunk:
+                if states[jid].lower() == 'completed':
+                    results.append('DONE')
+                elif states[jid].lower() in ['pending', 'running', 'requeued', 'resizing', 'suspended']:
+                    results.append('WAIT')
+                else:
+                    results.append('EXIT')
 
         return results
 
