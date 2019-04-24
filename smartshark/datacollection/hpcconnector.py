@@ -229,7 +229,8 @@ class HPCConnector(PluginManagementInterface, BaseConnector):
         job_ids = [str(job.id) for job in jobs]
 
         # 1. create job id batches
-        for chunk in range(0, len(job_ids), 3000):
+        for start in range(0, len(job_ids), 3000):
+            chunk = job_ids[start:start + 3000]
             command = '/opt/slurm/bin/sacct -S 2019-01-01 --name {} --format="JobName,State"'.format(','.join(chunk))
             stdout = self.execute_command(command)
 
