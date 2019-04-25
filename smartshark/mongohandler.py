@@ -198,9 +198,6 @@ class MongoHandler(object):
         # 2. for each child get the CES from the list and check if the commit_id is in the list of commits where we delete the code_entity_states
         # 3. if yes change the commit_id to the childs id
 
-        # 1
-        childs = self.client.get_database(self.database).get_collection('commit').find({'vcs_system_id': ObjectId(vs['_id']), 'parents': {'$in': revision_hashes}, 'revision_hash': {'$nin': revision_hashes}})
-
         # prefetch the commit_ids for our revision_hashes for 2,3
         commit_ids = [ObjectId(c['_id']) for c in self.client.get_database(self.database).get_collection('commit').find({'vcs_system_id': ObjectId(vs['_id']), 'revision_hash': {'$in': revision_hashes}}, {'_id': 1})]
 
@@ -208,11 +205,11 @@ class MongoHandler(object):
         changed_commit_ids = 0
         num_childs = 0
         should_change_commit_ids = 0
-        for c in childs:
+        for c in self.client.get_database(self.database).get_collection('commit').find({'vcs_system_id': ObjectId(vs['_id']), 'parents': {'$in': revision_hashes}, 'revision_hash': {'$nin': revision_hashes}}, no_cursor_timeout=True):
             # update_result_commit = self.client.get_database(self.database).get_collection('code_entity_state').update_many({'_id': {'$in': c['code_entity_states']}, 'commit_id': {'$in': commit_ids}}, {'$set': {'commit_id': c['_id']}})
 
             # change commit_id and shard key
-            for ces in self.client.get_database(self.database).get_collection('code_entity_state').find({'_id': {'$in': c['code_entity_states']}, 'commit_id': {'$in': commit_ids}}, {'_id': 1, 'long_name': 1, 'file_id': 1}):
+            for ces in self.client.get_database(self.database).get_collection('code_entity_state').find({'_id': {'$in': c['code_entity_states']}, 'commit_id': {'$in': commit_ids}}, {'_id': 1, 'long_name': 1, 'file_id': 1}, no_cursor_timeout=True):
                 s_key = get_code_entity_state_identifier(ces['long_name'], c['_id'], ces['file_id'])
                 update_result_commit = self.client.get_database(self.database).get_collection('code_entity_state').update_one({'_id': ces['_id']}, {'$set': {'commit_id': c['_id'], 's_key': s_key}})
                 changed_commit_ids += update_result_commit.matched_count
