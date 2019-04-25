@@ -242,7 +242,7 @@ class HPCConnector(PluginManagementInterface, BaseConnector):
 
             for jid in chunk:
                 if jid not in states.keys():
-                    continue
+                    results.append('WAIT')
                 if states[jid].lower() == 'completed':
                     results.append('DONE')
                 elif states[jid].lower() in ['pending', 'running', 'requeued', 'resizing', 'suspended']:
