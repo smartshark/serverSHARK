@@ -32,7 +32,7 @@ HPC = {
     'ssh_use_tunnel': '',
     'cores_per_job': 1,
     'local_log_path': '',
-    'hosts_per_jobs': 1
+    'hosts_per_job': 1
 }
 
 
