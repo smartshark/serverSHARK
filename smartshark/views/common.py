@@ -77,13 +77,16 @@ def documentation(request):
     items = {}
     data = []
 
-    for schema in handler.get_plugin_schemas():
-        
-        plugin_name = ''
-        if 'plugin' in schema.keys():
-            plugin_name = schema['plugin']
+    active_plugins = []
+    for p in Plugin.objects.all().filter(active=True):
+        active_plugins.append(p.name + '_' + p.version)
 
-        if 'collections' not in schema.keys():
+    for schema in handler.get_plugin_schemas():
+
+        plugin_name = schema['plugin']
+
+        # only active plugins as the json gets too big otherwise
+        if plugin_name not in active_plugins:
             continue
 
         for mongo_collection in schema['collections']:
