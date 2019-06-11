@@ -78,21 +78,32 @@ def documentation(request):
     data = []
 
     for schema in handler.get_plugin_schemas():
-        plugin_name = schema['plugin']
+        
+        plugin_name = ''
+        if 'plugin' in schema.keys():
+            plugin_name = schema['plugin']
+
+        if 'collections' not in schema.keys():
+            continue
+
         for mongo_collection in schema['collections']:
 
             desc = ''
             if 'desc' in mongo_collection.keys():
                 desc = mongo_collection['desc']
 
-            collection = Item(mongo_collection['collection_name'], mongo_collection['collection_name'], desc={'desc': desc, 'plugin': ' '.join(plugin_name.split('_'))})
+            collection_name = ''
+            if 'collection_name' in mongo_collection.keys():
+                collection_name = mongo_collection['collection_name']
+
+            collection = Item(collection_name, collection_name, desc={'desc': desc, 'plugin': ' '.join(plugin_name.split('_'))})
             if collection.id in items:
                 stored_collection = items[collection.id]
                 stored_collection.add_description({'desc': desc, 'plugin': ' '.join(plugin_name.split('_'))})
             else:
                 items[collection.id] = collection
 
-            recursion(mongo_collection, mongo_collection['collection_name'], plugin_name, items)
+            recursion(mongo_collection, collection_name, plugin_name, items)
 
     for item_id, item_data in items.items():
         json_collection = {
