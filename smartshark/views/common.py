@@ -80,11 +80,15 @@ def documentation(request):
     for schema in handler.get_plugin_schemas():
         plugin_name = schema['plugin']
         for mongo_collection in schema['collections']:
-            print(mongo_collection)
-            collection = Item(mongo_collection['collection_name'], mongo_collection['collection_name'], desc={'desc': mongo_collection['desc'], 'plugin': ' '.join(plugin_name.split('_'))})
+
+            desc = ''
+            if 'desc' in mongo_collection.keys():
+                desc = mongo_collection['desc']
+
+            collection = Item(mongo_collection['collection_name'], mongo_collection['collection_name'], desc={'desc': desc, 'plugin': ' '.join(plugin_name.split('_'))})
             if collection.id in items:
                 stored_collection = items[collection.id]
-                stored_collection.add_description({'desc': mongo_collection['desc'], 'plugin': ' '.join(plugin_name.split('_'))})
+                stored_collection.add_description({'desc': desc, 'plugin': ' '.join(plugin_name.split('_'))})
             else:
                 items[collection.id] = collection
 
