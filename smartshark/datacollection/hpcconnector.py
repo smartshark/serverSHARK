@@ -94,14 +94,15 @@ class HPCConnector(PluginManagementInterface, BaseConnector):
         # bsub_command = 'bsub -n %s -W 48:00 -q %s -o %s -e %s -J "%s" ' % (cores_per_job, queue, output_path, error_path, job.id)
         bsub_command = '/opt/slurm/bin/sbatch -n %s -t 2-00:00:00 -p %s -o %s -e %s -N %s -J "%s" ' % (cores_per_job, queue, output_path, error_path, self.hosts_per_job, job.id)
 
-        req_jobs = job.requires.all()
-        if req_jobs:
-            bsub_command += "-w '"
-            for req_job in req_jobs:
-                bsub_command += 'ended("%s") && ' % str(req_job.id)
+        # required jobs no longer used
+        # req_jobs = job.requires.all()
+        # if req_jobs:
+        #     bsub_command += "-w '"
+        #     for req_job in req_jobs:
+        #         bsub_command += 'ended("%s") && ' % str(req_job.id)
 
-            bsub_command = bsub_command[:-4]
-            bsub_command += "' "
+        #     bsub_command = bsub_command[:-4]
+        #     bsub_command += "' "
 
         command = string.Template(plugin_command).safe_substitute({
             'path': os.path.join(self.project_path, job.plugin_execution.project.name),
