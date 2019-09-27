@@ -46,7 +46,6 @@ class Command(BaseCommand):
             self.only_failed = True
             self.stdout.write('Only checking previously failed commits')
 
-        # path = "../tmp-repo"
         with tempfile.TemporaryDirectory() as path:
             projectMongo = self.db.project.find_one({"name": project.name})
             print(projectMongo["_id"])
