@@ -66,6 +66,9 @@ class Command(BaseCommand):
                         resultModel.commit = str(commit)
 
                     resultModel.text = ""
+                    resultModel.vcsSHARK = False
+                    resultModel.mecoSHARK = False
+                    resultModel.coastSHARK = False
 
                     db_commit = get_commit_from_database(self.db, commit, vcsMongo["_id"])
 
