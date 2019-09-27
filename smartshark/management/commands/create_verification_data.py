@@ -39,11 +39,10 @@ class Command(BaseCommand):
             projectMongo = self.db.project.find_one({"name": project.name})
             vcsMongo = self.db.vcs_system.find_one({"project_id": projectMongo["_id"]})
 
-            if not self.only_failed:
-                l = input("Delete old verification data first? (y/N)")
-                if l.lower() == 'y':
-                    CommitVerification.objects.filter(project=project).delete()
-                    self.stdout.write("Deleted old verification data")
+            l = input("Delete old verification data first? (y/N)")
+            if l.lower() == 'y':
+                CommitVerification.objects.filter(project=project).delete()
+                self.stdout.write("Deleted old verification data")
 
             repo = create_local_repo_for_project(vcsMongo, path)
             if not repo.is_empty:
