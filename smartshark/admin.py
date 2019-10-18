@@ -109,6 +109,15 @@ class JobAdmin(admin.ModelAdmin):
             new_plugin_execution = PluginExecution.objects.get(pk=old_pk)
             new_plugin_execution.pk = None
             new_plugin_execution.status = 'WAIT'
+
+            # if we restart one or multiple jobs we need to set the plugin execution type to that
+            # otherwise we would have a full plugin_execution on one or multiple jobs instead of a
+            # plugin execution for specific revisions
+            new_plugin_execution.execution_type = 'rev'
+
+            # create comma separated list of job revision_hashes from selected jobs
+            new_plugin_execution.revisions = ','.join([Job.objects.get(pk=j.pk).revision_hash for j in jobs])
+
             new_plugin_execution.save()
 
             # create new execution history objects based on the old
@@ -118,6 +127,7 @@ class JobAdmin(admin.ModelAdmin):
                 new_eh.plugin_execution = new_plugin_execution
                 new_eh.save()
 
+            # create new jobs from old jobs
             for old_job in jobs:
                 new_job = Job.objects.get(pk=old_job.pk)
                 new_job.pk = None
