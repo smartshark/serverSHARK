@@ -91,7 +91,11 @@ class Command(BaseCommand):
                     if not db_commit:
                         print('commit {} not in database, skipping validation'.format(commit))
                         continue
-                    resultModel.vcsSHARK = self.validate_vcsSHARK(db_commit, repo, resultModel)
+                    try:
+                        resultModel.vcsSHARK = self.validate_vcsSHARK(db_commit, repo, resultModel)
+                    except KeyError:
+                        print('commit {} in database but not in repository, skipping validation'.format(commit))
+                        continue
 
                     # Checkout, to validate also on file level
                     ref = repo.create_reference('refs/tags/temp', commit)
