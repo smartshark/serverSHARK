@@ -90,12 +90,12 @@ class Command(BaseCommand):
 
                     # Basic validation wihtout checkout the version
                     if not db_commit:
-                        print('commit {} not in database, skipping validation'.format(commit))
+                        self.stdout.write('commit {} not in database, skipping validation'.format(commit))
                         continue
                     try:
                         resultModel.vcsSHARK = self.validate_vcsSHARK(db_commit, repo, resultModel)
                     except KeyError:
-                        print('commit {} in database but not in repository, skipping validation'.format(commit))
+                        self.stdout.write('commit {} in database but not in repository, skipping validation'.format(commit))
                         continue
 
                     # Checkout, to validate also on file level
@@ -117,7 +117,7 @@ class Command(BaseCommand):
                     repo.reset(repo.head.target.hex, pygit2.GIT_RESET_HARD)
                     ref.delete()
 
-        print("validation complete")
+        self.stdout.write("validation complete")
 
     # Plugins validation methods
     def validate_vcsSHARK(self, commit, repo, resultModel):
