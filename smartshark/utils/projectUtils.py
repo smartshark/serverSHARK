@@ -91,7 +91,15 @@ def create_local_repo_for_project(vcsMongo, path, project_name):
     # check if we have the project file locally (HPC SYSTEM ONLY!)
     hpc_path = '/mnt/jgrabow1/bin/projects/{}'.format(project_name)
     if os.path.isdir(hpc_path):
-        shutil.copytree(hpc_path, path)
+        # shutil.copytree(hpc_path, path)
+        # workaround because our tmpdir path exists already
+        for item in os.listdir(hpc_path):
+            s = os.path.join(hpc_path, item)
+            d = os.path.join(path, item)
+            if os.path.isdir(s):
+                shutil.copytree(s, d)
+            else:
+                shutil.copy2(s, d)
     else:
         repo = pygit2.clone_repository(repo_url, path)
 
