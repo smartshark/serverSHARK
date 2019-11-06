@@ -92,7 +92,7 @@ def create_local_repo_for_project(vcsMongo, path, project_name):
     hpc_path = '/mnt/jgrabow1/bin/projects/{}'.format(project_name)
     if os.path.isdir(hpc_path):
         # shutil.copytree(hpc_path, path)
-        # workaround because our tmpdir path exists already
+        # workaround because our tmpdir path exists already, adopted from: https://stackoverflow.com/a/12514470
         for item in os.listdir(hpc_path):
             s = os.path.join(hpc_path, item)
             d = os.path.join(path, item)
@@ -100,11 +100,18 @@ def create_local_repo_for_project(vcsMongo, path, project_name):
                 shutil.copytree(s, d)
             else:
                 shutil.copy2(s, d)
+
+        # complete path
+        if not path.endswith('.git'):
+            if not path.endswith('/'):
+                path += '/'
+            path += '.git'
+        repo = pygit2.Repository(path)
     else:
         repo = pygit2.clone_repository(repo_url, path)
+        # this is a workaround for: https://github.com/libgit2/pygit2/issues/818
+        repo = pygit2.Repository(path)
 
-    # this is a workaround for: https://github.com/libgit2/pygit2/issues/818
-    repo = pygit2.Repository(path)
     return repo
 
 
@@ -115,7 +122,8 @@ def get_all_commits_of_repo(vcsMongo, repo):
 
     # first get all possible branches
     for branch in repo.branches:
-        walk_objects.append(repo.branches[branch])
+        if type(branch) == str:
+            walk_objects.append(repo.branches[branch])
 
     # then we need tags in cases those are not on any branch (this really happens!)
     for obj in repo:
