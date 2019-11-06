@@ -12,7 +12,10 @@ from smartshark.mongohandler import handler
 
 
 def get_revisions_for_failed_verification(project):
-    return [cv.commit for cv in CommitVerification.objects.filter(project=project).filter(Q(mecoSHARK=False) | Q(coastSHARK=False))]
+    # we ensure that commits missing vcsSHARK are first
+    vcs = [cv.commit for cv in CommitVerification.objects.filter(project=project).filter(vcsSHARK=False)]
+    plugins = [cv.commit for cv in CommitVerification.objects.filter(project=project).filter(Q(mecoSHARK=False) | Q(coastSHARK=False)).filter(vcsSHARK=True)]
+    return vcs + plugins
 
 
 def get_revisions_for_failed_plugins(plugins, project):

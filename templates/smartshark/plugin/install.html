@@ -1,5 +1,25 @@
 {% extends "admin/base_site.html" %}
 
+{% block breadcrumbs %}
+    <ul class="breadcrumb">
+      <li>
+        <a href="/admin/">Home</a>
+        <span class="divider">&raquo;</span>
+      </li>
+      <li>
+        <a href="/admin/smartshark/">SmartSHARK</a>
+        <span class="divider">&raquo;</span>
+      </li>
+      <li>
+        <a href="/admin/smartshark/plugin">Plugins</a>
+        <span class="divider">&raquo;</span>
+      </li>
+      <li class="active">
+        Plugin installation
+      </li>
+    </ul>
+{% endblock %}
+
 {% block content %}
     <h1>Choose Plugins for Installation</h1>
     <h2>You have chosen the following plugins for installation:</h2>

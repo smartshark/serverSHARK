@@ -58,6 +58,7 @@ class Command(BaseCommand):
                     self.stdout.write("Deleted old verification data")
 
             repo = create_local_repo_for_project(vcsMongo, path)
+            print('created local repo')
             if not repo.is_empty:
 
                 if not self.only_failed:

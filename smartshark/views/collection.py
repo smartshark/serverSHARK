@@ -331,10 +331,8 @@ def installgithub(request):
             url = request.POST.get('repo_url')
         if 'select' in request.POST:
             url = url.replace('https://www.github.com/', 'https://api.github.com/repos/')
-            url = url.replace('https://github.com/','https://api.github.com/repos/')
+            url = url.replace('https://github.com/', 'https://api.github.com/repos/')
             url = url + '/releases'
-
-        print(url)
 
         webURL = urllib.request.urlopen(url)
         html = webURL.read()
@@ -382,7 +380,7 @@ def installgithub(request):
         return render(request, 'smartshark/plugin/github/select.html',
         {
             'versions': versions,
-            'status': 'Installation successful',
+            'status': 'Plugin download successful',
             'url': url,
             'success': True
         })

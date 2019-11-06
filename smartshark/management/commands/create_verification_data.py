@@ -44,7 +44,7 @@ class Command(BaseCommand):
                 CommitVerification.objects.filter(project=project).delete()
                 self.stdout.write("Deleted old verification data")
 
-            repo = create_local_repo_for_project(vcsMongo, path)
+            repo = create_local_repo_for_project(vcsMongo, path, project.name)
             if not repo.is_empty:
 
                 allCommits = get_all_commits_of_repo(vcsMongo, repo)

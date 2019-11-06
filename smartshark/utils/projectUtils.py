@@ -1,4 +1,8 @@
-import pygit2, os, shutil, datetime
+import pygit2
+import os
+import shutil
+import datetime
+
 from smartshark.mongohandler import handler
 
 
@@ -77,14 +81,19 @@ def delete_on_dependency_tree(tree, parent_id):
     handler.client.get_database(handler.database).get_collection(tree.collection_name).delete_many({tree.field: parent_id})
 
 
-def create_local_repo_for_project(vcsMongo, path):
+def create_local_repo_for_project(vcsMongo, path, project_name):
     url = vcsMongo["url"]
     # removes the https and replaces it with git
     repo_url = "git" + url[5:]
     # if os.path.isdir(path):
     #     shutil.rmtree(path)
 
-    repo = pygit2.clone_repository(repo_url, path)
+    # check if we have the project file locally (HPC SYSTEM ONLY!)
+    hpc_path = '/mnt/jgrabow1/bin/projects/{}'.format(project_name)
+    if os.path.isdir(hpc_path):
+        shutil.copytree(hpc_path, path)
+    else:
+        repo = pygit2.clone_repository(repo_url, path)
 
     # this is a workaround for: https://github.com/libgit2/pygit2/issues/818
     repo = pygit2.Repository(path)

@@ -1,5 +1,25 @@
 {% extends "admin/base_site.html" %}
 
+{% block breadcrumbs %}
+    <ul class="breadcrumb">
+      <li>
+        <a href="/admin/">Home</a>
+        <span class="divider">&raquo;</span>
+      </li>
+      <li>
+        <a href="/admin/smartshark/">SmartSHARK</a>
+        <span class="divider">&raquo;</span>
+      </li>
+      <li>
+        <a href="/admin/smartshark/plugin">Plugins</a>
+        <span class="divider">&raquo;</span>
+      </li>
+      <li class="active">
+        Plugin Download
+      </li>
+    </ul>
+{% endblock %}
+
 {% block content %}
     {% if status %}
         <h1>{{ status }}</h1>
@@ -9,7 +29,7 @@
             <a href="javascript:window.history.back();" class="btn btn-default">Go back</a>
         {% endif %}
     {% else %}
-        <h1>Select plugin to install</h1>
+        <h1>Select plugin to download</h1>
         <form action="" method="post">
 
             {% csrf_token %}
