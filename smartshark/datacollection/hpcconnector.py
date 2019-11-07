@@ -6,6 +6,8 @@ import threading
 import uuid
 import logging
 
+from pycoshark.mongomodels import VCSSystem
+
 from server.settings import HPC
 
 from smartshark.utils.connector import BaseConnector
@@ -51,6 +53,7 @@ class HPCConnector(PluginManagementInterface, BaseConnector):
 
     """
     def __init__(self):
+        super(HPCConnector, self).__init__()
         self.username = HPC['username']
         self.password = HPC['password']
         self.host = HPC['host']
@@ -147,16 +150,37 @@ class HPCConnector(PluginManagementInterface, BaseConnector):
         return None
 
     def prepare_project(self, plugin_executions):
-        # As all plugin executions need to have the same repository url, we just look if we find a execution with a
-        # set repository url
-        found_plugin_execution = self.get_plugin_execution_where_repository_url_is_set(plugin_executions)
 
-        if found_plugin_execution is not None:
+        # TODO: Fails on multiple repositories for one project in the same plugin_execution list
+        # Check if vcsshark is executed
+        found_plugin_execution = self.get_plugin_execution_where_repository_url_is_set(plugin_executions)
+        project_folder = os.path.join(self.project_path, found_plugin_execution.project.name)
+        if any('vcsshark' == plugin_exec.plugin.name.lower() for plugin_exec in plugin_executions):
             # Create project folder
-            git_clone_target = os.path.join(self.project_path, found_plugin_execution.project.name)
-            self.execute_command('rm -rf %s' % git_clone_target, ignore_errors=True)
-            self.execute_command('git clone %s %s ' % (found_plugin_execution.repository_url, git_clone_target),
+            self.execute_command('rm -rf %s' % project_folder, ignore_errors=True)
+            self.execute_command('git clone %s %s ' % (found_plugin_execution.repository_url, project_folder),
                                  ignore_errors=True)
+        else:
+            # If there is a plugin that needs the repository folder and it is not existent,
+            # we need to get it from the gridfs
+            if found_plugin_execution is not None and not os.path.isdir(project_folder):
+                repository = VCSSystem.objects.get(url=found_plugin_execution.repository_url).repository_file
+
+                if repository.grid_id is None:
+                    logger.error("Execute vcsshark first!")
+                    raise Exception("VCSShark need to be executed first!")
+
+                # Read tar_gz and copy it to temporary file
+                tmp_tar_gz = 'tmp.tar.gz'
+                with open(tmp_tar_gz, 'wb') as repository_tar_gz:
+                    repository_tar_gz.write(repository.read())
+
+                # Copy and extract tar on HPC system
+                self.copy_project_tar()
+
+                # Delete temporary tar_gz
+                os.remove(tmp_tar_gz)
+
 
     def delete_output_for_plugin_execution(self, plugin_execution):
         self.execute_command('rm -rf %s' % os.path.join(self.log_path, str(plugin_execution.id)))
@@ -363,6 +387,21 @@ class HPCConnector(PluginManagementInterface, BaseConnector):
 
         # Delete tar
         self.execute_command('rm -f ~/%s' % (plugin.get_name_of_archive()))
+
+    def copy_project_tar(self):
+        with ShellHandler(self.host, self.username, self.password, self.port, self.tunnel_host,
+                          self.tunnel_username, self.tunnel_password, self.tunnel_port, self.use_tunnel, 10023) as handler:
+            scp = SCPClient(handler.get_ssh_client().get_transport())
+
+            # Copy plugin
+            scp.put('tmp.tar.gz', remote_path=b'~')
+
+        # Untar plugin
+        self.execute_command('mkdir %s' % self.project_path)
+        self.execute_command('tar -C %s -xvf ~/tmp.tar.gz' % self.project_path)
+
+        # Delete tar
+        self.execute_command('rm -f ~/tmp.tar.gz')
 
     def execute_install(self, plugin):
         # Build parameter for install script.
