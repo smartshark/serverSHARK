@@ -121,8 +121,8 @@ def get_all_commits_of_repo(vcsMongo, repo):
     walk_objects = []
 
     # first get all possible branches
-    for branch in repo.branches:
-        if type(branch) == str:
+    for branch in list(repo.branches):
+        if branch.lower() != 'origin/head':
             walk_objects.append(repo.branches[branch])
 
     # then we need tags in cases those are not on any branch (this really happens!)
