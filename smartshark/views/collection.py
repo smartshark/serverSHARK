@@ -355,7 +355,7 @@ def installgithub(request):
             for data in jsonData:
                 if version == data["tag_name"]:
 
-                    if(data["assets"] == None or data["assets"][0] == None):
+                    if(data["assets"] is None or len(data["assets"]) == 0):
                         return render(request, 'smartshark/plugin/github/select.html',
                                       {
                                           'versions': versions,
