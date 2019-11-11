@@ -8,7 +8,7 @@ The LocalQueueConnector puts the work items into the queue.
 
 This can be used for local debugging for plugin development.
 """
-
+import tarfile
 import logging
 import os
 import string
@@ -17,6 +17,7 @@ import json
 import redis
 
 from django.conf import settings
+from pycoshark.mongomodels import VCSSystem
 
 from smartshark.utils.connector import BaseConnector
 from smartshark.models import Job
@@ -33,6 +34,9 @@ class LocalQueueConnector(PluginManagementInterface, BaseConnector):
 
     def __init__(self):
         """Set some basic stuff, logging and the paths used for plugin execution."""
+
+        super(LocalQueueConnector, self).__init__()
+
         self._log = logging.getLogger('localqueueconnector')
         self.redis_url = settings.LOCALQUEUE['redis_url']
         self.job_queue = settings.LOCALQUEUE['job_queue']
@@ -43,8 +47,8 @@ class LocalQueueConnector(PluginManagementInterface, BaseConnector):
         self.project_path = os.path.join(settings.LOCALQUEUE['root_path'], 'projects')
 
         self._debug = settings.LOCALQUEUE['debug']
-
         self.con = redis.from_url(self.redis_url)
+
 
     @property
     def identifier(self):
@@ -68,13 +72,35 @@ class LocalQueueConnector(PluginManagementInterface, BaseConnector):
             project_name = 'all'
             all_projects = True
 
-        # prepare project with this information
         # TODO: Fails on multiple repositories for one project in the same plugin_execution list
-        if not all_projects:
-            git_clone_target = os.path.join(self.project_path, project_name)
-            self._delete_sanity_check(git_clone_target)
-            self._execute_command({'shell': 'rm -rf {}'.format(git_clone_target)})
-            self._execute_command({'shell': 'git clone {} {}'.format(pe.repository_url, git_clone_target)})
+        # Check if vcsshark is executed
+        project_folder = os.path.join(self.project_path, project_name)
+        if any('vcsshark' == plugin_exec.plugin.name.lower() for plugin_exec in plugin_executions):
+            # Clone to update
+            self._delete_sanity_check(project_folder)
+            self._execute_command({'shell': 'rm -rf {}'.format(project_folder)})
+            self._execute_command({'shell': 'git clone {} {}'.format(pe.repository_url, project_folder)})
+        else:
+            # If there is a plugin that needs the repository folder and it is not existent,
+            # we need to get it from the gridfs
+            if not all_projects and not os.path.isdir(project_folder):
+                repository = VCSSystem.objects.get(url=pe.repository_url).repository_file
+
+                if repository.grid_id is None:
+                    self._log.error("Execute vcsshark first!")
+                    raise Exception("VCSShark need to be executed first!")
+
+                # Read tar_gz and copy it to temporary file
+                tmp_tar_gz = os.path.join(self.project_path, 'tmp.tar.gz')
+                with open(tmp_tar_gz, 'wb') as repository_tar_gz:
+                    repository_tar_gz.write(repository.read())
+
+                # Extract it
+                with tarfile.open(tmp_tar_gz, "r:gz") as tar_gz:
+                    tar_gz.extractall(self.project_path)
+
+                # Delete temporary tar_gz
+                os.remove(tmp_tar_gz)
 
         for plugin_execution in plugin_executions:
             plugin_command = self._generate_plugin_execution_command(self.plugin_path, plugin_execution)
@@ -90,6 +116,7 @@ class LocalQueueConnector(PluginManagementInterface, BaseConnector):
 
                 # in addition to the shell command we are passing ids so that the worker can write back to the database if the job was successful.
                 self._execute_command({'shell': command, 'job_id': job.pk, 'plugin_execution_id': plugin_execution.pk})
+
 
     def _delete_sanity_check(self, path):
         """At least dont allow rm -rf /."""

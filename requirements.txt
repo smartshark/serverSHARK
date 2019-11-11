@@ -13,3 +13,4 @@ sshtunnel
 pygit2 == 0.26.2
 redis
 pycoshark
+mongoengine

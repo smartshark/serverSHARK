@@ -9,12 +9,14 @@ from bson.objectid import ObjectId
 
 from smartshark.models import Project
 from smartshark.utils import projectUtils
+from smartshark.utils.projectUtils import delete_file_from_gridfs_for_project
 
 
 class Command(BaseCommand):
     help = 'Deletes all data of a project'
 
     def handle(self, *args, **options):
+
         for p in Project.objects.all():
             self.stdout.write(p.name)
         try:
@@ -39,6 +41,10 @@ class Command(BaseCommand):
         l = input("Continue with data deletion? (y/n) ")
         if(l == "yes" or l == "y"):
             self.stdout.write('Deleting project from the MongoDB')
+
+            # Before everything else we need to delete the file from the gridfs
+            delete_file_from_gridfs_for_project(ObjectId(project.mongo_id))
+
             projectUtils.delete_on_dependency_tree(project_schema, ObjectId(project.mongo_id))
             self.stdout.write(self.style.SUCCESS('Successfully deleted project from the MongoDB'))
 

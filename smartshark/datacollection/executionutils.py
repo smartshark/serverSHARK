@@ -33,45 +33,6 @@ def get_all_revisions(plugin_execution):
     return revisions
 
 
-def get_all_revisions_clone(plugin_execution):
-    """Return all revisions via live cloning the repository url."""
-    revisions = set()
-    path_to_repo = os.path.join(os.path.dirname(__file__), 'temp', plugin_execution.project.name)
-
-    # Clone project
-    subprocess.run(['git', 'clone', plugin_execution.repository_url, path_to_repo])
-
-    discovered_repo = pygit2.discover_repository(path_to_repo)
-    repository = pygit2.Repository(discovered_repo)
-
-    # Get all references (branches, tags)
-    references = set(repository.listall_references())
-
-    # Get all tags
-    regex = re.compile('^refs/tags')
-    tags = set(filter(lambda r: regex.match(r), repository.listall_references()))
-
-    # Get all branches
-    branches = references - tags
-
-    for branch in branches:
-        commit = repository.lookup_reference(branch).peel()
-        # Walk through every child
-        for child in repository.walk(commit.id, pygit2.GIT_SORT_TIME | pygit2.GIT_SORT_TOPOLOGICAL):
-            revisions.add(str(child.id))
-
-    # Walk through every tag and put the information in the dictionary via the addtag method
-    for tag in tags:
-        tagged_commit = repository.lookup_reference(tag).peel()
-        revisions.add(str(tagged_commit.id))
-        for child in repository.walk(tagged_commit.id, pygit2.GIT_SORT_TIME | pygit2.GIT_SORT_TOPOLOGICAL):
-            revisions.add(str(child.id))
-
-    subprocess.run(['rm', '-rf', path_to_repo])
-
-    return revisions
-
-
 def find_required_jobs(plugin_execution, all_jobs):
     job_list = []
     required_plugins = plugin_execution.plugin.requires.all()
