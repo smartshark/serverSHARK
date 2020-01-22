@@ -173,9 +173,9 @@ def get_code_entities_from_database(db, db_commit, use_meme):
     if use_meme:
         try:
             list_of_ids = db_commit["code_entity_states"]
-            return db.code_entity_state.find({"_id": {"$in": list_of_ids}})
+            return db.code_entity_state.find({"_id": {"$in": list_of_ids}, 'ce_type': 'file'})
         except KeyError:
             # this can happen on commits without code_entity_states (i.e. only non-code files)
             return []
     else:
-        return db.code_entity_state.find({"commit_id": db_commit['_id']})
+        return db.code_entity_state.find({"commit_id": db_commit['_id'], 'ce_type': 'file'})
