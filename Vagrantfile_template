@@ -94,7 +94,6 @@ Vagrant.configure("2") do |config|
     # access used by visualSHARK
     sed -i 's/bind_ip = 127\.0\.0\.1/bind_ip = 0\.0\.0\.0/g' /etc/mongodb.conf
 
-    service mongodb restart
     #mongo admin --eval "db.getSiblingDB('smartshark').addUser('root', '#{mongopass}')"
     mongo admin --eval "db.getSiblingDB('smartshark').createUser({user:'root', pwd:'#{mongopass}',roles:[{role:'dbOwner', db:'smartshark'}]})"
 
@@ -111,6 +110,7 @@ Vagrant.configure("2") do |config|
     source bin/activate
     pip install wheel
     pip install -r requirements.txt
+    service mongodb restart
   SHELL
   
   config.vm.provision "file", source: "./server/settings_vagrant.py", destination: "~/settings.py"
