@@ -116,7 +116,7 @@ def create_jobs_for_execution(project, plugin_executions):
 
             elif plugin_execution.execution_type == 'ver':
                 revisions_to_execute_plugin_on = get_revisions_for_failed_verification(plugin_execution.project)
-                
+
                 # close connection because the above may take a long time
                 connections['default'].close()
 

@@ -3,6 +3,7 @@
 
 import logging
 
+from django.db import connections
 from django.core.management.base import BaseCommand
 
 from smartshark.models import Project, CommitVerification
@@ -37,6 +38,7 @@ class Command(BaseCommand):
         if l.lower() != 'y':
             return
 
+        connections['default'].close()
         cv = CommitVerification.objects.get(project=project, commit=commits[0])
         revisions = ','.join(commits)
 

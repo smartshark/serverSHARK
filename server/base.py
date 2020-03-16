@@ -188,6 +188,10 @@ LOGGING = {
             'handlers': ['console', 'file_debug', 'file_info', 'file_error'],
             'level': 'DEBUG',
         },
+        'localqueueconnector': {
+            'handlers': ['console', 'file_debug', 'file_info', 'file_error'],
+            'level': 'DEBUG',
+        },
         'django': {
             'handlers': ['console', 'file_debug', 'file_info', 'file_error'],
         },

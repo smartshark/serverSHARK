@@ -45,7 +45,7 @@ def findDependencyOfSchema(name, schemas, ground_dependencys=[]):
                 for field in collection['fields']:
                     if('reference_to' in field and field['reference_to'] == name):
                         ground_dependencys.append(collection['collection_name'])
-                        dependencys.append(SchemaReference(collection['collection_name'],field['field_name'], findDependencyOfSchema(collection['collection_name'],schemas, ground_dependencys)))
+                        dependencys.append(SchemaReference(collection['collection_name'], field['field_name'], findDependencyOfSchema(collection['collection_name'],schemas, ground_dependencys)))
 
     return dependencys
 

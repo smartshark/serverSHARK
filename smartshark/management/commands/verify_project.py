@@ -73,8 +73,14 @@ class Command(BaseCommand):
                 connections['default'].close()
 
                 # 2. Iterate over the commits
+                num_commits = len(allCommits)
+                i = 0
                 for commit in allCommits:
                     # print("Commit " + commit)
+
+                    i += 1
+                    print("Commit (" + str(commit) + ") " + str(i) + '/' + str(num_commits), end='')
+                    connections['default'].ensure_connection()
 
                     try:
                         resultModel = CommitVerification.objects.get(project=project, vcs_system=vcsMongo['url'], commit=str(commit))
@@ -109,6 +115,7 @@ class Command(BaseCommand):
                     self.validate_Metric(path, db_commit, resultModel)
 
                     # Save the model
+                    connections['default'].ensure_connection()
                     resultModel.save()
                     #if(resultModel.vcsSHARK == False):
                     #    print(resultModel.text)
@@ -116,6 +123,8 @@ class Command(BaseCommand):
                     # Reset repo to iterate over all commits
                     repo.reset(repo.head.target.hex, pygit2.GIT_RESET_HARD)
                     ref.delete()
+
+                    print(' verification results: vcs ({}), coast ({}), meco ({})'.format(resultModel.vcsSHARK, resultModel.coastSHARK, resultModel.mecoSHARK))
 
         self.stdout.write("validation complete")
 

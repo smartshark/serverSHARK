@@ -84,11 +84,15 @@ class LocalQueueConnector(PluginManagementInterface, BaseConnector):
             # If there is a plugin that needs the repository folder and it is not existent,
             # we need to get it from the gridfs
             if not all_projects and not os.path.isdir(project_folder):
+                self._log.info('fetching project from gridfs')
                 repository = VCSSystem.objects.get(url=pe.repository_url).repository_file
 
                 if repository.grid_id is None:
                     self._log.error("Execute vcsshark first!")
                     raise Exception("VCSShark need to be executed first!")
+
+                # make sure we have the directories
+                os.makedirs(self.project_path)
 
                 # Read tar_gz and copy it to temporary file
                 tmp_tar_gz = os.path.join(self.project_path, 'tmp.tar.gz')
