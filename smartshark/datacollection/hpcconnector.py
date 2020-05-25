@@ -165,7 +165,7 @@ class HPCConnector(PluginManagementInterface, BaseConnector):
         else:
             # If there is a plugin that needs the repository folder and it is not existent,
             # we need to get it from the gridfs
-            if found_plugin_execution is not None and not os.path.isdir(project_folder):
+            if found_plugin_execution is not None and not os.path.isdir(project_folder.replace('/usr/users/', '/mnt/')):
                 logger.info('local project {} does not exist, fetching project from gridfs'.format(project_folder))
                 repository = VCSSystem.objects.get(url=found_plugin_execution.repository_url).repository_file
 
