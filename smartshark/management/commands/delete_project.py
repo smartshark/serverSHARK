@@ -38,23 +38,28 @@ class Command(BaseCommand):
         projectUtils.count_on_dependency_tree(project_schema, ObjectId(project.mongo_id))
         self._print_dependency_tree(deb, project)
 
-        l = input("Continue with data deletion? (y/n) ")
-        if(l == "yes" or l == "y"):
-            self.stdout.write('Deleting project from the MongoDB')
+        while True:
+            l = input("Continue with data deletion? (y/n) ")
+            if l=="yes" or l=="y":
+                self.stdout.write('Deleting project from the MongoDB')
 
-            # Before everything else we need to delete the file from the gridfs
-            delete_file_from_gridfs_for_project(ObjectId(project.mongo_id))
+                # Before everything else we need to delete the file from the gridfs
+                delete_file_from_gridfs_for_project(ObjectId(project.mongo_id))
 
-            projectUtils.delete_on_dependency_tree(project_schema, ObjectId(project.mongo_id))
-            self.stdout.write(self.style.SUCCESS('Successfully deleted project from the MongoDB'))
+                projectUtils.delete_on_dependency_tree(project_schema, ObjectId(project.mongo_id))
+                self.stdout.write(self.style.SUCCESS('Successfully deleted project from the MongoDB'))
 
-            connections['default'].close()
+                connections['default'].close()
 
-            self.stdout.write('Deleting project from the serverSHARK')
-            project.delete()
-            self.stdout.write(self.style.SUCCESS('Successfully deleted project from the serverSHARK'))
-        else:
-            self.stdout.write(self.style.ERROR('No data deleted'))
+                self.stdout.write('Deleting project from the serverSHARK')
+                project.delete()
+                self.stdout.write(self.style.SUCCESS('Successfully deleted project from the serverSHARK'))
+                break
+            elif l=="no" or l=="n":
+                self.stdout.write(self.style.ERROR('No data deleted'))
+                break
+            else:
+                self.stdout.write(self.style.ERROR('Only (y)es and (n)o accepted'))
 
     def _print_dependency_tree(self, deb, project):
         self.stdout.write("Project data of {}".format(project.name))
