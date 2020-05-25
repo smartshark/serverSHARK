@@ -36,7 +36,7 @@ class JobSubmissionThread(threading.Thread):
 
     def run(self):
         with ShellHandler(self.host, self.username, self.password, self.port, self.tunnel_host,
-                          self.tunnel_username, self.tunnel_password, self.tunnel_port, self.use_tunnel, 10020) as handler:
+                          self.tunnel_username, self.tunnel_password, self.tunnel_port, self.use_tunnel, 10020, self.ssh_key_path) as handler:
             out, err = handler.execute_file(self.remote_file, False)
             logger.debug(out)
             logger.debug(err)
@@ -70,6 +70,7 @@ class HPCConnector(PluginManagementInterface, BaseConnector):
         self.use_tunnel = HPC['ssh_use_tunnel']
         self.cores_per_job = HPC['cores_per_job']
         self.local_log_path = HPC['local_log_path']
+        self.ssh_key_path = HPC['ssh_key_path']
 
     @property
     def identifier(self):
@@ -157,6 +158,7 @@ class HPCConnector(PluginManagementInterface, BaseConnector):
         project_folder = os.path.join(self.project_path, found_plugin_execution.project.name)
         if any('vcsshark' == plugin_exec.plugin.name.lower() for plugin_exec in plugin_executions):
             # Create project folder
+            logger.info('vcsshark is executed, remove old dir and clone new')
             self.execute_command('rm -rf %s' % project_folder, ignore_errors=True)
             self.execute_command('git clone %s %s ' % (found_plugin_execution.repository_url, project_folder),
                                  ignore_errors=True)
@@ -164,6 +166,7 @@ class HPCConnector(PluginManagementInterface, BaseConnector):
             # If there is a plugin that needs the repository folder and it is not existent,
             # we need to get it from the gridfs
             if found_plugin_execution is not None and not os.path.isdir(project_folder):
+                logger.info('local project {} does not exist, fetching project from gridfs'.format(project_folder))
                 repository = VCSSystem.objects.get(url=found_plugin_execution.repository_url).repository_file
 
                 if repository.grid_id is None:
@@ -209,7 +212,7 @@ class HPCConnector(PluginManagementInterface, BaseConnector):
 
     def _get_output_log_ssh(self, job):
         with ShellHandler(self.host, self.username, self.password, self.port, self.tunnel_host,
-                          self.tunnel_username, self.tunnel_password, self.tunnel_port, self.use_tunnel, 10021) as handler:
+                          self.tunnel_username, self.tunnel_password, self.tunnel_port, self.use_tunnel, 10021, self.ssh_key_path) as handler:
             sftp_client = handler.get_ssh_client().open_sftp()
             plugin_execution_output_path = os.path.join(self.log_path, str(job.plugin_execution.id))
             try:
@@ -228,7 +231,7 @@ class HPCConnector(PluginManagementInterface, BaseConnector):
 
     def _get_error_log_ssh(self, job):
         with ShellHandler(self.host, self.username, self.password, self.port, self.tunnel_host,
-                          self.tunnel_username, self.tunnel_password, self.tunnel_port, self.use_tunnel, 10022) as handler:
+                          self.tunnel_username, self.tunnel_password, self.tunnel_port, self.use_tunnel, 10022, self.ssh_key_path) as handler:
             sftp_client = handler.get_ssh_client().open_sftp()
             plugin_execution_output_path = os.path.join(self.log_path, str(job.plugin_execution.id))
             try:
@@ -370,7 +373,7 @@ class HPCConnector(PluginManagementInterface, BaseConnector):
 
     def copy_plugin(self, plugin):
         with ShellHandler(self.host, self.username, self.password, self.port, self.tunnel_host,
-                          self.tunnel_username, self.tunnel_password, self.tunnel_port, self.use_tunnel, 10023) as handler:
+                          self.tunnel_username, self.tunnel_password, self.tunnel_port, self.use_tunnel, 10023, self.ssh_key_path) as handler:
             scp = SCPClient(handler.get_ssh_client().get_transport())
 
             # Copy plugin
@@ -390,14 +393,14 @@ class HPCConnector(PluginManagementInterface, BaseConnector):
 
     def copy_project_tar(self):
         with ShellHandler(self.host, self.username, self.password, self.port, self.tunnel_host,
-                          self.tunnel_username, self.tunnel_password, self.tunnel_port, self.use_tunnel, 10023) as handler:
+                          self.tunnel_username, self.tunnel_password, self.tunnel_port, self.use_tunnel, 10023, self.ssh_key_path) as handler:
             scp = SCPClient(handler.get_ssh_client().get_transport())
 
             # Copy plugin
             scp.put('tmp.tar.gz', remote_path=b'~')
 
         # Untar plugin
-        self.execute_command('mkdir %s' % self.project_path)
+        self.execute_command('mkdir -p %s' % self.project_path)
         self.execute_command('tar -C %s -xvf ~/tmp.tar.gz' % self.project_path)
 
         # Delete tar
@@ -428,7 +431,7 @@ class HPCConnector(PluginManagementInterface, BaseConnector):
         logger.info('Execute command: %s' % command)
 
         with ShellHandler(self.host, self.username, self.password, self.port, self.tunnel_host,
-                          self.tunnel_username, self.tunnel_password, self.tunnel_port, self.use_tunnel, 10024) as handler:
+                          self.tunnel_username, self.tunnel_password, self.tunnel_port, self.use_tunnel, 10024, self.ssh_key_path) as handler:
             (stdout, stderr) = handler.execute(command)
 
             logger.debug('Output: %s' % ' '.join(stdout))
@@ -451,7 +454,7 @@ class HPCConnector(PluginManagementInterface, BaseConnector):
 
         # Copy Shell file with jobs to execute
         with ShellHandler(self.host, self.username, self.password, self.port, self.tunnel_host,
-                          self.tunnel_username, self.tunnel_password, self.tunnel_port, self.use_tunnel, 10025) as handler:
+                          self.tunnel_username, self.tunnel_password, self.tunnel_port, self.use_tunnel, 10025, self.ssh_key_path) as handler:
             scp = SCPClient(handler.get_ssh_client().get_transport())
             scp.put(path_to_sh_file, remote_path=b'%s' % str.encode(path_to_remote_sh_file))
 
@@ -465,7 +468,7 @@ class HPCConnector(PluginManagementInterface, BaseConnector):
         logger.info("Execute command: %s" % path_to_remote_sh_file)
         if blocking:
             with ShellHandler(self.host, self.username, self.password, self.port, self.tunnel_host,
-                              self.tunnel_username, self.tunnel_password, self.tunnel_port, self.use_tunnel, 10026) as handler:
+                              self.tunnel_username, self.tunnel_password, self.tunnel_port, self.use_tunnel, 10026, self.ssh_key_path) as handler:
                 out = handler.execute_file(path_to_remote_sh_file, True)
                 logger.debug('Output: %s' % ' '.join(out))
                 return out

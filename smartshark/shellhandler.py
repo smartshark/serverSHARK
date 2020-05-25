@@ -9,7 +9,7 @@ from sshtunnel import SSHTunnelForwarder, HandlerSSHTunnelForwarderError
 class ShellHandler:
 
     def __init__(self, host, user, psw, port, tunnel_host, tunnel_user, tunnel_psw, tunnel_port, use_tunnel,
-                 bind_port=10020):
+                 bind_port=10020, key_path=None):
         self.host = host
         self.user = user
         self.psw = psw
@@ -22,6 +22,7 @@ class ShellHandler:
         self.ssh = None
         self.server = None
         self.bind_port = bind_port
+        self.key_path = key_path
 
     def __enter__(self):
         if self.use_tunnel:
@@ -43,7 +44,7 @@ class ShellHandler:
                     self.ssh = paramiko.SSHClient()
                     self.ssh.load_system_host_keys()
                     self.ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-                    self.ssh.connect('127.0.0.1', self.bind_port, username=self.user, password=self.psw)
+                    self.ssh.connect('127.0.0.1', self.bind_port, key_filename=self.key_path)  # username=self.user, password=self.psw)
                     not_connected = False
                 except (HandlerSSHTunnelForwarderError, SSHException) as e:
                     self.bind_port = self.bind_port + 1
@@ -51,7 +52,7 @@ class ShellHandler:
             self.ssh = paramiko.SSHClient()
             self.ssh.load_system_host_keys()
             self.ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            self.ssh.connect(self.host, self.port, username=self.user, password=self.psw)
+            self.ssh.connect(self.host, self.port, key_filename=self.key_path)  # username=self.user, password=self.psw)
 
         return self
 

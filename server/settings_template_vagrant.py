@@ -30,6 +30,7 @@ HPC = {
     'ssh_tunnel_host': '',
     'ssh_tunnel_port': '',
     'ssh_use_tunnel': '',
+    'ssh_key_path': '',
     'cores_per_job': 1,
     'local_log_path': '',
     'hosts_per_job': 1
