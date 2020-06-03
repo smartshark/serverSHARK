@@ -23,6 +23,7 @@ class ShellHandler:
         self.server = None
         self.bind_port = bind_port
         self.key_path = key_path
+        self.p = paramiko.ecdsakey.ECDSAKey.from_private_key_file(key_path)
 
     def __enter__(self):
         if self.use_tunnel:
@@ -44,7 +45,7 @@ class ShellHandler:
                     self.ssh = paramiko.SSHClient()
                     self.ssh.load_system_host_keys()
                     self.ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-                    self.ssh.connect('127.0.0.1', self.bind_port, key_filename=self.key_path)  # username=self.user, password=self.psw)
+                    self.ssh.connect('127.0.0.1', self.bind_port, pkey=self.p)  # username=self.user, password=self.psw)
                     not_connected = False
                 except (HandlerSSHTunnelForwarderError, SSHException) as e:
                     self.bind_port = self.bind_port + 1
@@ -52,7 +53,7 @@ class ShellHandler:
             self.ssh = paramiko.SSHClient()
             self.ssh.load_system_host_keys()
             self.ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            self.ssh.connect(self.host, self.port, key_filename=self.key_path)  # username=self.user, password=self.psw)
+            self.ssh.connect(self.host, self.port, pkey=self.p)  # username=self.user, password=self.psw)
 
         return self
 
