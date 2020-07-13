@@ -21,7 +21,7 @@ logger = logging.getLogger('hpcconnector')
 
 class JobSubmissionThread(threading.Thread):
     def __init__(self, path_to_remote_file, host, username, password, port, tunnel_host, tunnel_username,
-                 tunnel_password, tunnel_port, use_tunnel):
+                 tunnel_password, tunnel_port, use_tunnel, ssh_key_path):
         threading.Thread.__init__(self)
         self.remote_file = path_to_remote_file
         self.host = host
@@ -33,6 +33,7 @@ class JobSubmissionThread(threading.Thread):
         self.tunnel_password = tunnel_password
         self.tunnel_port = tunnel_port
         self.use_tunnel = use_tunnel
+        self.ssh_key_path = ssh_key_path
 
     def run(self):
         with ShellHandler(self.host, self.username, self.password, self.port, self.tunnel_host,
@@ -150,12 +151,19 @@ class HPCConnector(PluginManagementInterface, BaseConnector):
 
         return None
 
+    def get_project_name(self, plugin_executions):
+        for plugin_execution in plugin_executions:
+            if plugin_execution.project is not None:
+                return plugin_execution.project.name
+
+        raise Exception('no project found!')
+
     def prepare_project(self, plugin_executions):
 
         # TODO: Fails on multiple repositories for one project in the same plugin_execution list
         # Check if vcsshark is executed
         found_plugin_execution = self.get_plugin_execution_where_repository_url_is_set(plugin_executions)
-        project_folder = os.path.join(self.project_path, found_plugin_execution.project.name)
+        project_folder = os.path.join(self.project_path, self.get_project_name(plugin_executions))
         if any('vcsshark' == plugin_exec.plugin.name.lower() for plugin_exec in plugin_executions):
             # Create project folder
             logger.info('vcsshark is executed, remove old dir and clone new')
@@ -475,6 +483,6 @@ class HPCConnector(PluginManagementInterface, BaseConnector):
         else:
             thread = JobSubmissionThread(path_to_remote_sh_file, self.host, self.username, self.password, self.port,
                                          self.tunnel_host, self.tunnel_username, self.tunnel_password, self.tunnel_port,
-                                         self.use_tunnel)
+                                         self.use_tunnel, self.ssh_key_path)
             thread.start()
             return None
