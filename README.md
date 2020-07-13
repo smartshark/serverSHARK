@@ -51,7 +51,7 @@ If you deploy serverSHARK on a bigger machine you could also run multiple worker
 
 After installing the serverSHARK and making sure that the worker and the serverSHARK processes are running the serverSHARK needs plugins to collect data.
 Plugins are basically command line executables that are zipped which can be installed on the serverSHARK. Depending on the setup they are then orchestrated to run in a HPC-Cluster, local queue like described above or other multi-worker setups.
-Information about plugins can be accessed here [dev resources](https://smartshark.github.io/fordevs/).
+Information about plugins can be accessed [here](https://smartshark.github.io/fordevs/).
 
 Most plugins can be directly installed via their releases on Github via the serverSHARK administration. To do this just select plugins in the serversHARK administration then the add plugin from github button in the top right corner.
 The dropdown contains the available Plugins, after clicking on the select button you can chose a version and click on add plugin. This loads the plugin from Github into the serverSHARK.
@@ -87,3 +87,4 @@ Usually this collects a massive amount of data which can then be compacted using
 
 After that you can collect refactoring information using the refSHARK and the rSHARK which utilize different refactoring detection implementations.
 
+For a full list of available Plugins check [our Github](https://github.com/smartshark/) and our [website](https://smartshark.github.io/plugins/).
