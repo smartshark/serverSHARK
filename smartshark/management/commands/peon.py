@@ -34,6 +34,9 @@ class Command(BaseCommand):
             if not el:
                 continue
             data = json.loads(el[1].decode('utf-8'))
+
+            # we have an ugly distinction for jobs here, if a job_id is set we save the result into the db
+            # if not we have an intermediate step, e.g., create a directory for which we do not persist the result into the datbaase
             job_id = None
             if 'job_id' in data.keys():
                 job_id = data['job_id']
@@ -46,44 +49,62 @@ class Command(BaseCommand):
 
                 # close db connection because we may have long running jobs
                 connections['default'].close()
-                res = subprocess.run(data['shell'].split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                if job_id:
+                    # The peon writes these files as they are asynchronly directly accessed over PluginManagement, this is set to change in the future
+                    job = Job.objects.get(pk=data['job_id'])
+                    plugin_execution_output_path = os.path.join(self.output_path, str(job.plugin_execution.pk))
+                    subprocess.run(['mkdir', '-p', plugin_execution_output_path])
+                    output_file = os.path.join(plugin_execution_output_path, str(job_id) + '_out.txt')
+                    error_file = os.path.join(plugin_execution_output_path, str(job_id) + '_err.txt')
 
-                end = timeit.default_timer() - start
-                self.stdout.write('finished in {:.5f}s '.format(end), ending=b'')
+                    success = False
+                    with open(output_file, 'w') as out:
+                        with open(error_file, 'w') as err:
+                            try:
+                                success = True
+                                subprocess.run(data['shell'].split(), stdout=out, stderr=err, check=True, universal_newlines=True)
+                            except subprocess.CalledProcessError:
+                                success = False
 
-                if res.returncode > 0:
-                    self.stdout.write(self.style.ERROR('[ERROR]'))
-                    self.stderr.write(res.stderr.decode('utf-8'))
-                else:
-                    self.stdout.write(self.style.SUCCESS('[OK]'))
-
-                if 'job_id' in data.keys():
+                    end = timeit.default_timer() - start
+                    self.stdout.write('finished in {:.5f}s '.format(end), ending=b'')
 
                     # TODO: backchannel for results (for job_id this should be possible, everything else not at the moment)
                     # self.con.rpush(self.result_queue, json.dumps({'job_id': data['job_id'], 'result': 'DONE'}))
                     job = Job.objects.get(pk=data['job_id'])
-                    if res.returncode == 0:
+                    if success:
                         job.status = 'DONE'
                     else:
                         job.status = 'EXIT'
                     job.save()
 
-                    # The peon writes these files as they are asynchronly directly accessed over PluginManagement, this is set to change in the future
-                    plugin_execution_output_path = os.path.join(self.output_path, str(job.plugin_execution.pk))
-                    subprocess.run(['mkdir', '-p', plugin_execution_output_path])
-                    output_file = os.path.join(plugin_execution_output_path, str(job.pk) + '_out.txt')
-                    error_file = os.path.join(plugin_execution_output_path, str(job.pk) + '_err.txt')
+                    # analogous to the HPC jobs we set the job to exit if we have output to stderr
+                    error_text = ''
+                    with open(error_file, 'r') as err:
+                        error_text = err.read()
+                        if len(error_text) > 0:
+                            job.status = 'EXIT'
+                            job.save()
+                            success = False
 
-                    with open(output_file, 'w') as f:
-                        f.write(res.stdout.decode('utf-8'))
-                    
-                    with open(error_file, 'w') as f:
-                        f.write(res.stderr.decode('utf-8'))
+                    if success:
+                        self.stdout.write(self.style.SUCCESS('[OK]'))
+                    else:
+                        self.stdout.write(self.style.ERROR('[ERROR]'))
+                        # self.stderr.write(res.stderr.decode('utf-8'))
+                        self.stderr.write(error_text)
 
-                    # analogous to the HPC Jobs we set the job to exit if we have output to stderr
-                    if res.stderr:
-                        job.status = 'EXIT'
-                        job.save()
+                else:  # no job_id, intermediate step
+                    res = subprocess.run(data['shell'].split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+                    end = timeit.default_timer() - start
+                    self.stdout.write('finished in {:.5f}s '.format(end), ending=b'')
+
+                    if res.returncode > 0:
+                        self.stdout.write(self.style.ERROR('[ERROR]'))
+                        self.stderr.write(res.stderr.decode('utf-8'))
+                    else:
+                        self.stdout.write(self.style.SUCCESS('[OK]'))
 
                 self.stdout.write('{} jobs left in queue'.format(self.con.llen(self.job_queue)))
 
