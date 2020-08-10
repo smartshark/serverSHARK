@@ -17,6 +17,23 @@ def index(request):
     return render(request, 'smartshark/frontend/index.html')
 
 
+def is_first_higher(semver1, semver2):
+    """Check if first semVer is higher than the second."""
+    sv1 = semver1.split('.')
+    sv2 = semver2.split('.')
+
+    if int(sv1[0]) > int(sv2[0]):
+        return True
+
+    if int(sv1[1]) > int(sv2[1]):
+        return True
+
+    if len(sv1) > 2 and len(sv2) > 2:
+        if int(sv1[2]) > int(sv2[2]):
+            return True
+    return False
+
+
 class Item(object):
     def __init__(self, id, name, desc=None, sub_fields=None, parent='#', logical_types=None, reference_to=None):
         self.id = id
@@ -36,13 +53,25 @@ class Item(object):
         else:
             self.logical_types = logical_types
 
-        self.parent=parent
+        self.parent = parent
 
     def add_field(self, field):
         self.sub_fields.append(field)
 
     def add_description(self, description):
-        self.desc.append(description)
+        found = False
+        for d in self.desc:
+
+            # same plugin and version
+            if description['plugin'] == d['plugin']:
+                found = True
+            v1 = description['plugin'].split(' ')[-1]
+            v2 = d['plugin'].split(' ')[-1]
+
+            if not is_first_higher(v1, v2):  # if current SemVer is not higher we do not add it to the description
+                found = True
+        if not found:
+            self.desc.append(description)
 
 
 def recursion(item, parent, plugin_name, items):
