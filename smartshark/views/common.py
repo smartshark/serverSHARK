@@ -58,6 +58,24 @@ class Item(object):
     def add_field(self, field):
         self.sub_fields.append(field)
 
+    def get_max_description(self):
+        max_version = {}
+        for d in self.desc:
+            name, version = d['plugin'].split(' ')
+            desc = d['desc']
+
+            if name not in max_version.keys():
+                max_version[name] = {'desc': desc, 'plugin': d['plugin'], 'version': version}
+            else:
+                if is_first_higher(version, max_version[name]['version']):
+                    max_version[name]['version'] = version
+                    max_version[name]['desc'] = desc
+                    max_version[name]['plugin'] = d['plugin']
+        ret = []
+        for name, values in max_version.items():
+            ret.append({'desc': values['desc'], 'plugin': values['plugin']})
+        return ret
+
     def add_description(self, description):
         found = False
         for d in self.desc:
@@ -68,8 +86,8 @@ class Item(object):
             v1 = description['plugin'].split(' ')[-1]
             v2 = d['plugin'].split(' ')[-1]
 
-            if not is_first_higher(v1, v2):  # if current SemVer is not higher we do not add it to the description
-                found = True
+            if is_first_higher(v1, v2):  # if current SemVer is not higher we do not add it to the description
+                found = False
         if not found:
             self.desc.append(description)
 
@@ -135,7 +153,7 @@ def documentation(request):
             'parent': item_data.parent,
             'text': item_data.name,
             'data': {
-                'desc': item_data.desc,
+                'desc': item_data.get_max_description(),
                 'logical_types': item_data.logical_types,
                 'reference_to': item_data.reference_to
             }
