@@ -20,7 +20,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
 
         self.stdout.write('adding additional schema information for visualSHARK')
-        with open('./add_schema/visualSHARK.json', 'r') as f:
+        with open('./add_schemas/visualSHARK.json', 'r') as f:
             schema = json.loads(f.read())
             handler.add_schema(schema, 'visualSHARK')
         self.stdout.write('additional schema information written.')
