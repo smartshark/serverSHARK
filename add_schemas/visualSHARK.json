@@ -1,0 +1,93 @@
+{
+    "collections": [
+        {
+            "collection_name": "commit",
+            "desc": "Information about the different commits of a project are stored in this collection",
+            "fields": [
+                {
+                    "desc": "Manually validated issue IDs linked to this commit.",
+                    "field_name": "fixed_issue_ids",
+                    "type": "ArrayType",
+                    "logical_type": "RID",
+                    "sub_type": "ObjectIdType",
+                    "reference_to": "issue"
+                }
+            ]
+        },
+        {
+            "collection_name": "issue",
+            "desc": "This collection stores the original issues. Meaning, that this collection holds all information that was originally added to the first report of the issue",
+            "fields": [
+                {
+                    "desc": "Manual issue types for this issue, contains information about the issue_type and the author, the author is the key and the issue_type is the value",
+                    "field_name": "issue_type_manual",
+                    "type": "StructType",
+                    "logical_type": "Nested"
+                },
+                {
+                    "desc": "Manually validated issue type (Bug, Enhancement, etc.).",
+                    "field_name": "issue_type_verified",
+                    "type": "StringType",
+                    "logical_type": "Name"
+                }
+            ]
+        },
+        {
+            "collection_name": "hunk",
+            "desc": "This collection contains all hunks that were created during the changing of files in the repository. All hunks follow the unified diff format (see: https://www.gnu.org/software/diffutils/manual/html_node/Detailed-Unified.html#Detailed-Unified)",
+            "fields": [
+                {
+                    "desc": "Manual line labels for this hunk, contains information about the different labels of lines and the author, the author is the key and the value is a dict of different label types (bugfix, unrelated, refactoring, whitespace, test) and their belonging lines. Therefore, the key is the label type and the value is an array of line numbers",
+                    "field_name": "lines_manual",
+                    "type": "StructType",
+                    "logical_type": "Nested",
+                    "sub_type": "StructType"
+                },
+                {
+                    "desc": "Manually validated lines of type (bugfix, unrelated, refactoring, whitespace, test). Only contains lines where consensus of at least 3 researchers on the label was achieved.",
+                    "field_name": "lines_verified",
+                    "type": "StructType",
+                    "logical_type": "Nested",
+                    "sub_type": "StructType",
+                    "fields": [
+                      {
+                         "type": "ArrayType",
+                         "sub_type": "IntType",
+                         "field_name": "bugfix",
+                         "logical_type": "Nested",
+                         "desc": "A list of line numbers (starting at 0 with 0 beeing the first line in the referenced hunk.content)"
+                      },
+                      {
+                         "type": "ArrayType",
+                         "sub_type": "IntType",
+                         "field_name": "unrelated",
+                         "logical_type": "Nested",
+                         "desc": "A list of line numbers (starting at 0 with 0 beeing the first line in the referenced hunk.content)"
+                      },
+                      {
+                         "type": "ArrayType",
+                         "sub_type": "IntType",
+                         "field_name": "refactoring",
+                         "logical_type": "Nested",
+                         "desc": "A list of line numbers (starting at 0 with 0 beeing the first line in the referenced hunk.content)"
+                      },
+                      {
+                         "type": "ArrayType",
+                         "sub_type": "IntType",
+                         "field_name": "whitespace",
+                         "logical_type": "Nested",
+                         "desc": "A list of line numbers (starting at 0 with 0 beeing the first line in the referenced hunk.content)"
+                      },
+                      {
+                         "type": "ArrayType",
+                         "sub_type": "IntType",
+                         "field_name": "test",
+                         "logical_type": "Nested",
+                         "desc": "A list of line numbers (starting at 0 with 0 beeing the first line in the referenced hunk.content)"
+                      }
+                    ]
+                }
+            ]
+        }
+    ]
+}
