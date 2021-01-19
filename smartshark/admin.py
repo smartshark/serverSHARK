@@ -347,7 +347,7 @@ class PluginAdmin(admin.ModelAdmin):
 class ProjectAdmin(admin.ModelAdmin):
     fields = ('name', 'mongo_id')
     list_display = ('name', 'mongo_id', 'plugin_executions')
-    readonly_fields = ('mongo_id', )
+    # readonly_fields = ('mongo_id', )
     search_fields = ('name', 'mongo_id')
 
     actions = ['start_collection', 'show_executions', 'delete_data']
@@ -357,7 +357,7 @@ class ProjectAdmin(admin.ModelAdmin):
         Do not allow changing of account once created
         """
         if obj:
-            return self.readonly_fields + ('name', 'url')
+            return self.readonly_fields + ('url',)
         return self.readonly_fields
 
     def plugin_executions(self, obj):
