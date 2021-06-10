@@ -1,4 +1,4 @@
-django == 1.11.29
+django == 2.2.24
 django-suit == 0.2.28
 django-filter
 mysqlclient
