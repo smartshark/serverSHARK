@@ -68,6 +68,10 @@ class JobAdmin(admin.ModelAdmin):
 
     actions = ['restart_job', 'set_exit', 'set_done', 'set_job_stati']
 
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        return qs.filter(status='WAIT')
+
     def has_add_permission(self, request, obj=None):
         return False
 

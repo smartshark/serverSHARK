@@ -108,6 +108,7 @@ Vagrant.configure("2") do |config|
     cd serverSHARK
     python3 -m venv .
     source bin/activate
+    pip install --upgrade pip
     pip install wheel
     pip install -r requirements.txt
     service mongodb restart
